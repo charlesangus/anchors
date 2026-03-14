@@ -324,22 +324,23 @@ def check_node_knobs_returns_dict():
 run_check("StubNode: node.knobs() returns a dict", check_node_knobs_returns_dict)
 
 
-def check_node_screen_width_is_positive_numeric():
+def check_node_screen_width_is_numeric():
     node = nuke.createNode("NoOp")
     try:
         result = node.screenWidth()
         print(f"  INFO: node.screenWidth() = {result!r} (type={type(result).__name__})")
+        # Real Nuke headless returns 0 for screenWidth() — no GUI means no screen geometry.
+        # The stub also returns 0. Only check type, not that value is positive.
         assert isinstance(result, (int, float)), (
             f"screenWidth() expected int or float, got {type(result)}: {result!r}"
         )
-        assert result > 0, f"screenWidth() expected positive value, got {result!r}"
     finally:
         nuke.delete(node)
 
 
 run_check(
-    "StubNode: node.screenWidth() returns a positive int or float",
-    check_node_screen_width_is_positive_numeric,
+    "StubNode: node.screenWidth() returns int or float (0 is valid in headless)",
+    check_node_screen_width_is_numeric,
 )
 
 
@@ -365,25 +366,25 @@ run_check(
 )
 
 
-def check_missing_knob_raises_key_error():
+def check_missing_knob_raises_name_error():
     node = nuke.createNode("NoOp")
     try:
-        raised_key_error = False
+        raised_name_error = False
         try:
             _ = node["does_not_exist_knob_xyz"]
-        except KeyError:
-            raised_key_error = True
-        assert raised_key_error, (
-            "node['does_not_exist_knob_xyz'] did not raise KeyError — "
-            "[HIGH-RISK: stub raises KeyError, must match real Nuke]"
+        except NameError:
+            raised_name_error = True
+        assert raised_name_error, (
+            "node['does_not_exist_knob_xyz'] did not raise NameError — "
+            "[HIGH-RISK: real Nuke raises NameError, stub must match]"
         )
     finally:
         nuke.delete(node)
 
 
 run_check(
-    "StubNode: node['does_not_exist_knob_xyz'] raises KeyError [HIGH-RISK]",
-    check_missing_knob_raises_key_error,
+    "StubNode: node['does_not_exist_knob_xyz'] raises NameError [HIGH-RISK]",
+    check_missing_knob_raises_name_error,
 )
 
 
