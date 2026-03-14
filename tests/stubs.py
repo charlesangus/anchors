@@ -111,7 +111,7 @@ class StubNode:
 
     def __getitem__(self, knob_name):
         if knob_name not in self._knobs:
-            raise KeyError(knob_name)
+            raise NameError(f"knob {knob_name} does not exist")
         return self._knobs[knob_name]
 
     def __setitem__(self, knob_name, value):
