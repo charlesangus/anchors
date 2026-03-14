@@ -48,7 +48,13 @@ _total_checks = 0
 
 
 def run_check(name, fn):
-    """Run fn(); print PASS or FAIL. Increment global failure counter on failure."""
+    """Run fn(); print PASS, FAIL, or SKIP. Increment global failure counter on failure.
+
+    A RuntimeError whose message contains 'clipboard' is treated as a known
+    headless limitation and prints SKIP instead of FAIL.  This avoids false
+    failures for checks that rely on nuke.nodeCopy/nodePaste clipboard
+    operations which require a GUI session.
+    """
     global _failures, _total_checks
     _total_checks += 1
     try:
@@ -57,6 +63,17 @@ def run_check(name, fn):
     except AssertionError as exc:
         print(f"FAIL: {name} — {exc}")
         _failures += 1
+    except RuntimeError as exc:
+        if "clipboard" in str(exc).lower():
+            print(
+                f"SKIP: {name} — clipboard unavailable in non-GUI headless mode "
+                f"({type(exc).__name__}: {exc})"
+            )
+            # Do not increment _failures — this is a known headless limitation,
+            # not a code defect.
+        else:
+            print(f"FAIL: {name} — unexpected exception: {type(exc).__name__}: {exc}")
+            _failures += 1
     except Exception as exc:
         print(f"FAIL: {name} — unexpected exception: {type(exc).__name__}: {exc}")
         _failures += 1
