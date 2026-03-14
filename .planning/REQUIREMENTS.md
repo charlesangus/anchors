@@ -22,7 +22,7 @@
 ### Test Infrastructure
 
 - [x] **TEST-01**: `nuke -t` validation scripts written covering StubNode/StubKnob assumptions and cross-script paste behavior
-- [ ] **TEST-02**: Any stub/mock inconsistencies found by validation scripts corrected in `tests/`
+- [x] **TEST-02**: Any stub/mock inconsistencies found by validation scripts corrected in `tests/`
 - [x] **TEST-03**: `tests/conftest.py` created with shared stubs — fixes pytest flat-discovery Qt stub ordering conflicts (4–8 spurious errors)
 
 ## Future Requirements
@@ -57,7 +57,7 @@
 | CI-01 | Phase 11 | Complete |
 | CI-02 | Phase 11 | Complete |
 | TEST-01 | Phase 12 | Complete |
-| TEST-02 | Phase 12 | Pending |
+| TEST-02 | Phase 12 | Complete |
 
 **Coverage:**
 - v1.2 requirements: 8 total
