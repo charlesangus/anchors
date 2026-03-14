@@ -39,7 +39,7 @@ Full archive: `.planning/milestones/v1.1-ROADMAP.md`
 - [x] **Phase 9: Cross-Script Paste Bug Fixes** - Fix BUG-01 and BUG-02 in paste_hidden.py with regression tests (completed 2026-03-13)
 - [x] **Phase 10: Code Quality Sweep** - Dead code removal, unused import cleanup, complex conditional simplification (completed 2026-03-13)
 - [x] **Phase 11: CI/CD Pipeline** - Tag-triggered GitHub Actions workflow: offline tests, versioned ZIP, GitHub Release (completed 2026-03-14)
-- [ ] **Phase 12: Nuke -t Validation Scripts** - Manual developer validation confirming stub behavior matches real Nuke runtime
+- [x] **Phase 12: Nuke -t Validation Scripts** - Manual developer validation confirming stub behavior matches real Nuke runtime (completed 2026-03-14)
 
 ## Phase Details
 
@@ -132,4 +132,4 @@ Plans:
 | 9. Cross-Script Paste Bug Fixes | 2/2 | Complete   | 2026-03-13 | - |
 | 10. Code Quality Sweep | 3/3 | Complete    | 2026-03-13 | - |
 | 11. CI/CD Pipeline | 1/1 | Complete    | 2026-03-14 | - |
-| 12. Nuke -t Validation Scripts | 1/2 | In Progress|  | - |
+| 12. Nuke -t Validation Scripts | 2/2 | Complete   | 2026-03-14 | - |
