@@ -111,7 +111,11 @@ Plans:
   2. `validation/validate_cross_script_paste.py` exists and smoke-tests the BUG-01 and BUG-02 fixed paths under `nuke -t`
   3. Any stub or mock inconsistencies found by the scripts are corrected in `tests/` and `pytest tests/` remains green
   4. Validation scripts never import `menu.py` and never reach Qt dialog code paths in headless mode
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 12-01-PLAN.md — Create validation/validate_stub_alignment.py and validation/validate_cross_script_paste.py
+- [ ] 12-02-PLAN.md — Developer runs scripts under nuke -t; apply correction policy; verify pytest stays green
 
 ## Progress
 
