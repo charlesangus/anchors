@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Hardening
 status: completed
-last_updated: "2026-03-14T14:28:01.904Z"
+last_updated: "2026-03-14T17:33:09.859Z"
 last_activity: 2026-03-13 — Phase 8 Plan 01 executed (centralized stub infrastructure)
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 9
+  completed_plans: 8
 ---
 
 # Project State
@@ -46,6 +46,7 @@ v1.2 Progress: [#---------] 4% (1/1 plans complete in Phase 8)
 | Phase 10-code-quality-sweep P02 | 4 | 2 tasks | 3 files |
 | Phase 10-code-quality-sweep P03 | 2 | 2 tasks | 3 files |
 | Phase 11-ci-cd-pipeline P01 | 1 | 1 tasks | 1 files |
+| Phase 12-nuke-t-validation-scripts P01 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -77,6 +78,9 @@ All decisions logged in PROJECT.md Key Decisions table.
 - [Phase 10-code-quality-sweep]: FROZEN annotation pattern established: comment on line immediately above each serialized constant
 - [Phase 11-ci-cd-pipeline]: softprops/action-gh-release@v2 used for release publishing — generate_release_notes: true native support, cleaner YAML than gh CLI alternative
 - [Phase 11-ci-cd-pipeline]: Explicit 10-file cp manifest in ZIP step prevents stubs/__init__.py from entering release artifact; paste_hidden/ staging dir ensures correct ~/.nuke/paste_hidden/ install path
+- [Phase 12-nuke-t-validation-scripts]: nuke.toNode('preferences') HIGH-RISK check: stub returns None but real Nuke always has preferences node — FAIL means tests/stubs.py needs fixing
+- [Phase 12-nuke-t-validation-scripts]: tile_color value comparison uses int() coercion to tolerate real Nuke returning float for color knobs
+- [Phase 12-nuke-t-validation-scripts]: BUG-02 check seeds stem mismatch via nuke.root()['name'].setValue('destScript.nk'); no script-switching needed
 
 ### Pending Todos
 
@@ -90,7 +94,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-14T14:28:01.890Z
+Last session: 2026-03-14T17:33:09.856Z
 To resume: Phase 8 has 1 plan (08-01 complete). Phase 8 is complete. Run `/gsd:plan-phase 9` to continue.
 
 Phase 8 completed: centralized stub infrastructure in tests/stubs.py + conftest.py. Full suite passes: 130 tests, 0 errors.
