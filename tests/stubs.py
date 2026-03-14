@@ -133,7 +133,7 @@ def make_stub_nuke_module():
     stub.root = MagicMock(return_value=root_obj)
 
     stub.allNodes = MagicMock(return_value=[])
-    stub.toNode = MagicMock(return_value=None)
+    stub.toNode = MagicMock(side_effect=lambda name: MagicMock() if name == "preferences" else None)
     stub.createNode = MagicMock()
     stub.selectedNodes = MagicMock(return_value=[])
     stub.nodeCopy = MagicMock()
