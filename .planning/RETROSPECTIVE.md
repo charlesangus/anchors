@@ -92,6 +92,50 @@
 
 ---
 
+## Milestone: v1.2 — Hardening
+
+**Shipped:** 2026-03-15
+**Phases:** 5 | **Plans:** 9
+
+### What Was Built
+- Centralized test stub library (`tests/stubs.py` + `conftest.py` + idempotent `__init__.py`) — eliminated Qt ordering conflicts, 132 tests green under both pytest flat discovery and unittest discover
+- BUG-01 fix: removed ANCHOR_DEFAULT_COLOR overwrite after `setup_link_node()` in cross-script link paste — `setup_link_node()` already sets anchor's real color
+- BUG-02 fix: replaced anchor-to-link replacement block with `continue` — anchor pasted cross-script stays as anchor, no link substitution
+- Zero ruff violations (E, F, W, B, C90, I, SIM) across all 10 source files via `pyproject.toml`; FROZEN annotations on 8 serialized knob constants
+- GitHub Actions release workflow: tag-triggered pytest gate → explicit 10-file ZIP manifest → GitHub Release via softprops/action-gh-release@v2
+- `nuke -t` validation scripts: 25 stub alignment checks + 3 cross-script paste smoke tests; two divergences corrected (NameError, preferences MagicMock)
+
+### What Worked
+- **Fixing the test discovery ordering first (Phase 8)** paid immediate dividends — all subsequent phases had a reliable 130-test green baseline as a regression gate. The v1.0/v1.1 deferred fix was the right call to make first in v1.2.
+- **Explicit toNode side_effect lambda** (`lambda name: MagicMock() if name == 'preferences' else None`) was a clean pattern for discriminated stub returns — no conditional logic in production code, just stub precision.
+- **SKIP (not FAIL) for headless clipboard** in validation scripts was the correct design decision — documented why, and BUG-02 coverage is maintained by offline pytest independently.
+- **Audit-before-archive** (`/gsd:audit-milestone`) produced a well-structured audit report that made the completion steps straightforward — gaps were pre-categorized as tech_debt vs blocking.
+
+### What Was Inefficient
+- **Phase 9 plan checkbox state in ROADMAP.md** was already wrong at phase creation — checkboxes left as `[ ]` when plans were already complete. Same ROADMAP.md discipline issue from v1.0 and v1.1: three milestones in a row.
+- **Nyquist validation was drafted but not executed** for any of the 5 phases. VALIDATION.md files exist in draft state. Either run Nyquist or don't create the file — a draft VALIDATION.md creates false confidence that validation happened.
+- **Progress table rows 9–12** had malformed columns (Milestone column used for Plans Complete count). Minor formatting debt in ROADMAP.md that propagated to archive.
+
+### Patterns Established
+- **Centralized stub installation**: `conftest.py` (pytest session scope) + `__init__.py` (idempotent, unittest -t .) — never per-file. One canonical place to add stub methods.
+- **NameError (not KeyError) for missing knob access**: real Nuke raises `NameError('knob X does not exist')` — stubs must match exception type, not generic Python defaults.
+- **Validation script resilience pattern**: `try/except RuntimeError: SKIP` for clipboard/GUI-dependent operations in headless nuke -t; separate offline pytest covers behavior correctness.
+- **per-file-ignores in pyproject.toml for vendored code**: `tabtabtab.py` and `menu.py` (string-eval callbacks) need targeted suppression; never apply project-wide noqa to accommodate vendored/special-case files.
+- **FROZEN annotation above serialized constants**: `# FROZEN: value stored in .nk files — do not rename` — zero-cost guardrail against casual renaming.
+
+### Key Lessons
+1. **Fix deferred infrastructure debt at the start of the milestone**: Phase 8 (test centralization) was the correct first phase — it made every subsequent phase more reliable. Deferred infrastructure debt compounds.
+2. **Nyquist validation: run it or skip it** — don't create draft VALIDATION.md files. A draft signals "someone planned to validate" not "this was validated." Either execute Nyquist or leave the file absent.
+3. **ROADMAP.md progress table discipline**: the milestone/plans column confusion in rows 9–12 happened because the table was copied without updating column alignment. Template should enforce column order.
+4. **Explicit file manifests beat wildcards**: the CI ZIP step's 10-file `cp` manifest prevented test artifacts from entering the release. Wildcards are convenient but dangerous for release artifacts.
+
+### Cost Observations
+- Model: claude-sonnet-4-6 (100%)
+- Sessions: multiple (separated by phase)
+- Notable: Phase 12 (nuke -t validation) required a real Nuke 16.0v6 session — two divergences found and corrected. Plans requiring live runtime validation take longer but produce high-confidence stub alignment.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -100,6 +144,7 @@
 |-----------|--------|-------|------------|
 | v1.0 | 5 | 13 | Initial milestone — established TDD stub pattern, yolo mode, DOT_TYPE architecture |
 | v1.1 | 2 | 8 | Prefs system, UI dialogs, UAT-driven bug fix cycle; constructor injection prevents circular import |
+| v1.2 | 5 | 9 | Infrastructure hardening — test centralization, bug fixes with regression tests, CI/CD, stub alignment |
 
 ### Cumulative Quality
 
@@ -107,10 +152,12 @@
 |-----------|-------|--------------------|
 | v1.0 | 74+ | 0 (no new external deps) |
 | v1.1 | 100+ | 0 (no new external deps) |
+| v1.2 | 132 | 0 (ruff dev-only; no runtime deps) |
 
 ### Top Lessons (Verified Across Milestones)
 
 1. TDD offline stubs pay for themselves — caught architectural issues before Nuke sessions
-2. Test discovery ordering conflicts should be fixed structurally, not documented as known issues
-3. UAT-driven fix cycles with regression tests (v1.1 Phase 7-03) produce zero post-merge regressions
-4. REQUIREMENTS.md checkbox discipline: tick on UAT pass, not at archive time
+2. Fix deferred infrastructure debt at the start of the milestone — test stability unlocks all subsequent phases
+3. UAT-driven fix cycles with regression tests (v1.1 Phase 7-03, v1.2 Phase 9) produce zero post-merge regressions
+4. REQUIREMENTS.md checkbox discipline: tick on UAT pass, not at archive time (failed 3 milestones in a row — automate or ritualize)
+5. Explicit file manifests beat wildcards for release artifacts — prevents accidental inclusion of dev artifacts

@@ -1,5 +1,27 @@
 # Milestones
 
+## v1.2 Hardening (Shipped: 2026-03-15)
+
+**Phases completed:** 5 phases (Phases 8-12), 9 plans
+
+**Timeline:** 2026-03-12 → 2026-03-14 (3 days)
+**LOC:** ~3,089 Python (source)
+**Git range:** `feat(08-01)` → `feat(12-01)`
+
+**Key accomplishments:**
+- Centralized test stub library (`tests/stubs.py` + `conftest.py`) — eliminated Qt stub ordering conflicts; 132 tests green under flat discovery (TEST-03)
+- Fixed BUG-01 (cross-script NoOp link receives anchor's `tile_color`, not default purple) and BUG-02 (anchor stays anchor when pasted cross-script) with regression test coverage (BUG-01, BUG-02)
+- Zero ruff violations across all 10 source files; FROZEN annotations on all 8 serialized knob constants; C901 complexity deferred appropriately (QUAL-01)
+- Tag-triggered GitHub Actions CI/CD: `pytest` test gate → versioned ZIP artifact (explicit 10-file manifest) → GitHub Release via `softprops/action-gh-release@v2` (CI-01, CI-02)
+- `nuke -t` validation scripts probing stub alignment against real Nuke 16.0v6; two divergences corrected — `StubNode.__getitem__` raises `NameError` (not `KeyError`), `toNode('preferences')` returns `MagicMock` node (TEST-01, TEST-02)
+
+**Requirements:** 8/8 v1.2 requirements satisfied
+**Tech debt:** Live CI tag push pending; Nuke runtime menu callback smoke test pending; Nyquist validation draft
+
+**Archive:** `.planning/milestones/v1.2-ROADMAP.md`, `.planning/milestones/v1.2-REQUIREMENTS.md`
+
+---
+
 ## v1.1 Polish (Shipped: 2026-03-12)
 
 **Phases completed:** 2 phases, 8 plans (Phases 6-7)
