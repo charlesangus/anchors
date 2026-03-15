@@ -8,7 +8,7 @@
 ### Rename
 
 - [x] **REN-01**: Project renamed from `paste_hidden` to `anchors` across all source files, tests, CI, and config in one atomic commit
-- [ ] **REN-02**: GitHub repo renamed from `paste_hidden` to `anchors` via `gh`
+- [x] **REN-02**: GitHub repo renamed from `paste_hidden` to `anchors` via `gh`
 
 ### Anchor Naming
 
@@ -58,7 +58,7 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | REN-01 | Phase 13 | Complete |
-| REN-02 | Phase 13 | Pending |
+| REN-02 | Phase 13 | Complete |
 | BUG-03 | Phase 14 | Pending |
 | BUG-04 | Phase 14 | Pending |
 | NAME-01 | Phase 15 | Pending |

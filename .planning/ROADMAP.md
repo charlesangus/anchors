@@ -49,7 +49,7 @@ Full archive: `.planning/milestones/v1.2-ROADMAP.md`
 
 **Milestone Goal:** Rename the project to `anchors`, expose a public API for external templating systems, add configurable regex-based anchor naming with site-level config override, and fix anchor creation reliability bugs.
 
-- [ ] **Phase 13: Project Rename** - Rename all source, tests, CI, and GitHub repo from `paste_hidden` to `anchors`
+- [x] **Phase 13: Project Rename** - Rename all source, tests, CI, and GitHub repo from `paste_hidden` to `anchors` (completed 2026-03-15)
 - [ ] **Phase 14: Bug Fixes** - Fix anchor creation dialog name application and "a"-on-Dot anchor type
 - [ ] **Phase 15: Anchor Naming** - Configurable regex and template for default anchor name suggestions from file knob
 - [ ] **Phase 16: Site Config** - Site-level config via env var with per-field lock and user override in PrefsDialog
@@ -131,7 +131,7 @@ Plans:
 | 10. Code Quality Sweep | v1.2 | 3/3 | Complete | 2026-03-13 |
 | 11. CI/CD Pipeline | v1.2 | 1/1 | Complete | 2026-03-14 |
 | 12. Nuke -t Validation Scripts | v1.2 | 2/2 | Complete | 2026-03-14 |
-| 13. Project Rename | 1/2 | In Progress|  | - |
+| 13. Project Rename | 2/2 | Complete   | 2026-03-15 | - |
 | 14. Bug Fixes | v1.3 | 0/? | Not started | - |
 | 15. Anchor Naming | v1.3 | 0/? | Not started | - |
 | 16. Site Config | v1.3 | 0/? | Not started | - |
