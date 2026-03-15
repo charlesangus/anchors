@@ -1,5 +1,5 @@
-"""Replace default copy-cut-paste behaviour to re-connect hidden inputs
-and replace input-type nodes with hidden-inputted NoOp link nodes.
+"""Copy-cut-paste behaviour that re-connects hidden inputs and replaces
+input-type nodes with hidden-inputted NoOp link nodes.
 
 Configure which node classes trigger link replacement by editing LINK_SOURCE_CLASSES
 in constants.py.
@@ -29,7 +29,7 @@ from link import (
 )
 
 
-def copy_hidden(cut=False):  # noqa: C901 — complexity is inherent: 3 node-class paths × same/cross-script gate
+def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: 3 node-class paths × same/cross-script gate
     """Add a hidden knob storing the original name of the node/node's input. We
     can then, when pasting, replace the node or reconnect its inputs.
 
@@ -105,7 +105,7 @@ def copy_hidden(cut=False):  # noqa: C901 — complexity is inherent: 3 node-cla
     nuke.nodeCopy(nukescripts.cut_paste_file())
 
 
-def cut_hidden():
+def cut_anchors():
     """Cut selected nodes (i.e. copy then delete). Do not store the original
     name in KNOB_NAME. This will disable replacement on paste.
     """
@@ -116,7 +116,7 @@ def cut_hidden():
             nuke.delete(node)
         return
     selected_nodes = nuke.selectedNodes()
-    copy_hidden(cut=True)
+    copy_anchors(cut=True)
     for node in selected_nodes:
         nuke.delete(node)
 
@@ -137,7 +137,7 @@ def _extract_display_name_from_fqnn(stored_fqnn):
     return None
 
 
-def paste_hidden():  # noqa: C901 — complexity is inherent: anchor/link/dot paths × same/cross-script gate
+def paste_anchors():  # noqa: C901 — complexity is inherent: anchor/link/dot paths × same/cross-script gate
     if not prefs.plugin_enabled:
         return nuke.nodePaste(nukescripts.cut_paste_file())
     last_pasted_node = nuke.nodePaste(nukescripts.cut_paste_file())
@@ -235,20 +235,71 @@ def paste_hidden():  # noqa: C901 — complexity is inherent: anchor/link/dot pa
     return last_pasted_node
 
 
-def paste_multiple_hidden():
+def paste_multiple_anchors():
     selected_nodes = nuke.selectedNodes()
     new_selection = []
 
     for node in selected_nodes:
         nukescripts.clear_selection_recursive()
         node["selected"].setValue(True)
-        paste_hidden()
+        paste_anchors()
 
         new_selection.extend(nuke.selectedNodes())
 
     nukescripts.clear_selection_recursive()
     for node in new_selection:
         node["selected"].setValue(True)
+
+
+def migrate_script():
+    """Migrate all nodes in the current script from old paste_hidden knob names to anchors knob names.
+
+    Renames the following FROZEN knobs on every node that has them:
+      - 'paste_hidden_dot_anchor'  →  'anchors_dot_anchor'
+      - 'paste_hidden_dot_type'    →  'anchors_dot_type'
+
+    Removes the old knobs after copying their values to the new names.
+    Prints a summary of how many nodes were updated.
+
+    Usage (Python console):
+        import anchors
+        anchors.migrate_script()
+    """
+    from constants import DOT_ANCHOR_KNOB_NAME, DOT_TYPE_KNOB_NAME
+    OLD_DOT_ANCHOR = 'paste_hidden_dot_anchor'
+    OLD_DOT_TYPE = 'paste_hidden_dot_type'
+
+    nodes_updated = 0
+    knobs_renamed = 0
+
+    for node in nuke.allNodes(recurseGroups=True):
+        node_changed = False
+        knobs = node.knobs()
+
+        if OLD_DOT_ANCHOR in knobs and DOT_ANCHOR_KNOB_NAME not in knobs:
+            old_value = node[OLD_DOT_ANCHOR].getValue()
+            new_knob = nuke.String_Knob(DOT_ANCHOR_KNOB_NAME, '')
+            new_knob.setFlag(nuke.INVISIBLE)
+            node.addKnob(new_knob)
+            node[DOT_ANCHOR_KNOB_NAME].setValue(old_value)
+            node.removeKnob(node[OLD_DOT_ANCHOR])
+            knobs_renamed += 1
+            node_changed = True
+
+        if OLD_DOT_TYPE in knobs and DOT_TYPE_KNOB_NAME not in knobs:
+            old_value = node[OLD_DOT_TYPE].getValue()
+            new_knob = nuke.String_Knob(DOT_TYPE_KNOB_NAME, '')
+            new_knob.setFlag(nuke.INVISIBLE)
+            node.addKnob(new_knob)
+            node[DOT_TYPE_KNOB_NAME].setValue(old_value)
+            node.removeKnob(node[OLD_DOT_TYPE])
+            knobs_renamed += 1
+            node_changed = True
+
+        if node_changed:
+            nodes_updated += 1
+
+    print(f"anchors.migrate_script(): updated {nodes_updated} node(s), renamed {knobs_renamed} knob(s).")
 
 
 def copy_old():
