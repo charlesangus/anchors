@@ -55,8 +55,12 @@ Copy and paste must reconnect predictably — anchors provide stable, navigable 
 
 ### Active
 
-- [ ] Full browser-style forward/back navigation history stack (NAV-03)
-- [ ] Manual `tile_color` changes by user propagate to link nodes (COLOR-V2-01)
+- [ ] Project renamed from `paste_hidden` to `anchors` (REN-01, REN-02)
+- [ ] Configurable regex + template for default anchor name from file knob (NAME-01, NAME-02, NAME-03)
+- [ ] Site-level config via `ANCHORS_SITE_CONFIG` env var with per-field lock/override (SITE-01, SITE-02, SITE-03)
+- [ ] Anchor creation dialog name reliably applied to node (BUG-03)
+- [ ] "a" on Dot node creates NoOp anchor, not Dot anchor (BUG-04)
+- [ ] Public API for external modules to create/wire anchors (API-01, API-02, API-03)
 
 ### Future
 
@@ -116,5 +120,16 @@ TDD infrastructure: `tests/stubs.py` (StubNode/StubKnob/make_stub_nuke_module), 
 | FROZEN annotation pattern on serialized knob constants | Documents that renaming these would break existing artist .nk files; zero-cost guardrail | ✓ Good |
 | paste_hidden() / copy_hidden() C901 complexity deferred with noqa | Structural refactoring too risky immediately after BUG-01/BUG-02 fixes; accept technical debt | ⚠️ Revisit |
 
+## Current Milestone: v1.3 Foundations
+
+**Goal:** Rename the project to `anchors`, expose a public API for external templating systems, add configurable regex-based anchor naming with site-level config override, and fix anchor creation reliability bugs.
+
+**Target features:**
+- Project-wide rename `paste_hidden` → `anchors` (source, tests, CI, GitHub repo)
+- Configurable regex on file knob + template string for default anchor name suggestions
+- Site-level config (`ANCHORS_SITE_CONFIG`) that can lock user prefs with per-field override checkbox
+- Bug fixes: anchor creation dialog name applied reliably; "a" on Dot creates NoOp anchor
+- Public API module: create anchors, wire nodes to anchors, fully documented
+
 ---
-*Last updated: 2026-03-15 after v1.2 milestone*
+*Last updated: 2026-03-15 after v1.3 milestone start*
