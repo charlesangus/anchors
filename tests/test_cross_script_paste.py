@@ -2,8 +2,8 @@
 
 Covers:
 - _extract_display_name_from_fqnn() helper
-- paste_hidden() Path A/C cross-script name-based reconnect for NoOp anchors (XSCRIPT-01)
-- paste_hidden() Path B Dot cross-script disconnection (XSCRIPT-02 / PASTE-04)
+- paste_anchors() Path A/C cross-script name-based reconnect for NoOp anchors (XSCRIPT-01)
+- paste_anchors() Path B Dot cross-script disconnection (XSCRIPT-02 / PASTE-04)
 - LINK_SOURCE_CLASSES frozenset membership
 - ANCHOR_LINK_CLASS_KNOB_NAME removed from constants
 """
@@ -50,7 +50,7 @@ class TestExtractDisplayNameFromFqnn(unittest.TestCase):
 
     def setUp(self):
         # Import inside setUp to ensure stub is in place
-        from paste_hidden import _extract_display_name_from_fqnn
+        from anchors import _extract_display_name_from_fqnn
         self.extract = _extract_display_name_from_fqnn
 
     def test_simple_anchor_fqnn_returns_display_name(self):
@@ -82,7 +82,7 @@ class TestExtractDisplayNameFromFqnn(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 class TestCrossScriptReconnect(unittest.TestCase):
-    """Test paste_hidden() Path A/C cross-script reconnection via stubs."""
+    """Test paste_anchors() Path A/C cross-script reconnection via stubs."""
 
     def _make_noop_anchor_node(self, anchor_name, stored_fqnn, xpos=100, ypos=200):
         """Return a stub NoOp anchor node with KNOB_NAME set."""
@@ -114,7 +114,7 @@ class TestCrossScriptReconnect(unittest.TestCase):
 
     def test_cross_script_anchor_with_matching_anchor_stays_as_anchor_placeholder(self):
         """When a NoOp anchor is pasted cross-script and a matching anchor exists in the
-        destination script, paste_hidden() must leave the pasted anchor in place — it must
+        destination script, paste_anchors() must leave the pasted anchor in place — it must
         NOT be replaced by a link node (BUG-02 fix)."""
         import nuke as _nuke
         from constants import KNOB_NAME
@@ -131,18 +131,18 @@ class TestCrossScriptReconnect(unittest.TestCase):
             node_class='NoOp',
         )
 
-        with patch('paste_hidden.nuke') as mock_nuke, \
-             patch('paste_hidden.nukescripts') as mock_nukescripts, \
-             patch('paste_hidden.find_anchor_node', return_value=None), \
-             patch('paste_hidden.find_anchor_by_name', return_value=destination_anchor), \
-             patch('paste_hidden.setup_link_node') as mock_setup_link_node, \
-             patch('paste_hidden.is_anchor', return_value=True):
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts') as mock_nukescripts, \
+             patch('anchors.find_anchor_node', return_value=None), \
+             patch('anchors.find_anchor_by_name', return_value=destination_anchor), \
+             patch('anchors.setup_link_node') as mock_setup_link_node, \
+             patch('anchors.is_anchor', return_value=True):
 
             mock_nuke.nodePaste.return_value = None
             mock_nuke.selectedNodes.return_value = [pasted_anchor_node]
 
-            from paste_hidden import paste_hidden
-            paste_hidden()
+            from anchors import paste_anchors
+            paste_anchors()
 
             # Anchor placeholder must NOT be replaced — createNode and delete must not be called
             mock_nuke.createNode.assert_not_called()
@@ -150,7 +150,7 @@ class TestCrossScriptReconnect(unittest.TestCase):
 
     def test_cross_script_reconnect_with_no_matching_anchor_leaves_placeholder(self):
         """When a NoOp anchor is pasted cross-script but no matching anchor exists in
-        the destination, paste_hidden() should leave the placeholder node intact."""
+        the destination, paste_anchors() should leave the placeholder node intact."""
         import nuke as _nuke
 
         pasted_anchor_node = self._make_noop_anchor_node(
@@ -158,18 +158,18 @@ class TestCrossScriptReconnect(unittest.TestCase):
             stored_fqnn='sourceScript.Anchor_UnknownFootage',
         )
 
-        with patch('paste_hidden.nuke') as mock_nuke, \
-             patch('paste_hidden.nukescripts') as mock_nukescripts, \
-             patch('paste_hidden.find_anchor_node', return_value=None), \
-             patch('paste_hidden.find_anchor_by_name', return_value=None), \
-             patch('paste_hidden.setup_link_node') as mock_setup_link_node, \
-             patch('paste_hidden.is_anchor', return_value=True):
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts') as mock_nukescripts, \
+             patch('anchors.find_anchor_node', return_value=None), \
+             patch('anchors.find_anchor_by_name', return_value=None), \
+             patch('anchors.setup_link_node') as mock_setup_link_node, \
+             patch('anchors.is_anchor', return_value=True):
 
             mock_nuke.nodePaste.return_value = None
             mock_nuke.selectedNodes.return_value = [pasted_anchor_node]
 
-            from paste_hidden import paste_hidden
-            paste_hidden()
+            from anchors import paste_anchors
+            paste_anchors()
 
             # No new node should be created; placeholder stays
             mock_nuke.createNode.assert_not_called()
@@ -184,18 +184,18 @@ class TestCrossScriptReconnect(unittest.TestCase):
             stored_fqnn='sourceScript.Dot1',
         )
 
-        with patch('paste_hidden.nuke') as mock_nuke, \
-             patch('paste_hidden.nukescripts') as mock_nukescripts, \
-             patch('paste_hidden.find_anchor_node', return_value=None), \
-             patch('paste_hidden.find_anchor_by_name') as mock_find_by_name, \
-             patch('paste_hidden.setup_link_node') as mock_setup_link_node, \
-             patch('paste_hidden.is_anchor', return_value=True):
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts') as mock_nukescripts, \
+             patch('anchors.find_anchor_node', return_value=None), \
+             patch('anchors.find_anchor_by_name') as mock_find_by_name, \
+             patch('anchors.setup_link_node') as mock_setup_link_node, \
+             patch('anchors.is_anchor', return_value=True):
 
             mock_nuke.nodePaste.return_value = None
             mock_nuke.selectedNodes.return_value = [dot_anchor_node]
 
-            from paste_hidden import paste_hidden
-            paste_hidden()
+            from anchors import paste_anchors
+            paste_anchors()
 
             # find_anchor_by_name must NOT be called for Dot anchors
             mock_find_by_name.assert_not_called()
@@ -252,7 +252,7 @@ class TestBugRegressions(unittest.TestCase):
         """BUG-01 regression: a Link Dot pasted cross-script must display the
         anchor's tile_color, not ANCHOR_DEFAULT_COLOR (purple 0x6f3399ff).
 
-        This test FAILS before the fix because paste_hidden() line 212 calls
+        This test FAILS before the fix because paste_anchors() line 212 calls
         node['tile_color'].setValue(ANCHOR_DEFAULT_COLOR) after setup_link_node()
         has already set the correct anchor color.
         """
@@ -277,10 +277,10 @@ class TestBugRegressions(unittest.TestCase):
 
         stub_nuke_for_link = make_stub_nuke_module()
 
-        with patch('paste_hidden.nuke') as mock_paste_nuke, \
-             patch('paste_hidden.nukescripts') as mock_nukescripts, \
-             patch('paste_hidden.find_anchor_node', return_value=None), \
-             patch('paste_hidden.find_anchor_by_name', return_value=destination_anchor), \
+        with patch('anchors.nuke') as mock_paste_nuke, \
+             patch('anchors.nukescripts') as mock_nukescripts, \
+             patch('anchors.find_anchor_node', return_value=None), \
+             patch('anchors.find_anchor_by_name', return_value=destination_anchor), \
              patch('link.find_node_color', return_value=anchor_color), \
              patch('link.nuke', stub_nuke_for_link):
 
@@ -288,8 +288,8 @@ class TestBugRegressions(unittest.TestCase):
             mock_paste_nuke.nodePaste.return_value = None
             mock_paste_nuke.selectedNodes.return_value = [link_dot_node]
 
-            from paste_hidden import paste_hidden
-            paste_hidden()
+            from anchors import paste_anchors
+            paste_anchors()
 
         result_color = link_dot_node['tile_color'].getValue()
         self.assertEqual(
@@ -305,7 +305,7 @@ class TestBugRegressions(unittest.TestCase):
         anchor node — it must NOT be deleted and replaced by a link node, even
         when a same-named anchor exists in the destination script.
 
-        This test FAILS before the fix because paste_hidden() lines 162-171 call
+        This test FAILS before the fix because paste_anchors() lines 162-171 call
         nuke.createNode() and nuke.delete() to replace the anchor placeholder.
         """
         import nuke as _nuke
@@ -330,19 +330,19 @@ class TestBugRegressions(unittest.TestCase):
             """Return True only for the pasted anchor node, False for anything else."""
             return node is pasted_anchor_node
 
-        with patch('paste_hidden.nuke') as mock_nuke, \
-             patch('paste_hidden.nukescripts') as mock_nukescripts, \
-             patch('paste_hidden.find_anchor_node', return_value=None), \
-             patch('paste_hidden.find_anchor_by_name', return_value=destination_anchor), \
-             patch('paste_hidden.setup_link_node'), \
-             patch('paste_hidden.is_anchor', side_effect=is_anchor_side_effect):
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts') as mock_nukescripts, \
+             patch('anchors.find_anchor_node', return_value=None), \
+             patch('anchors.find_anchor_by_name', return_value=destination_anchor), \
+             patch('anchors.setup_link_node'), \
+             patch('anchors.is_anchor', side_effect=is_anchor_side_effect):
 
             mock_nuke.root.return_value.name.return_value = 'destScript.nk'
             mock_nuke.nodePaste.return_value = None
             mock_nuke.selectedNodes.return_value = [pasted_anchor_node]
 
-            from paste_hidden import paste_hidden
-            paste_hidden()
+            from anchors import paste_anchors
+            paste_anchors()
 
         mock_nuke.createNode.assert_not_called()
         mock_nuke.delete.assert_not_called()

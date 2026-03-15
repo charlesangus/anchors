@@ -1,4 +1,4 @@
-"""Tests for prefs.py — preferences singleton for paste_hidden.
+"""Tests for prefs.py — preferences singleton for the anchors plugin.
 
 Covers:
 - PREFS-01: _load() creates the prefs file on first run (file-absent branch calls save())
@@ -52,7 +52,7 @@ class TestPrefsFirstRunCreatesFile(unittest.TestCase):
     def test_file_created_on_first_run_no_old_palette(self):
         """When prefs file absent and no old palette, importing prefs creates the file."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            temp_prefs_path = os.path.join(temp_dir, 'paste_hidden_prefs.json')
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
             temp_palette_path = os.path.join(temp_dir, 'paste_hidden_user_palette.json')
             # Neither file exists
             self.assertFalse(os.path.exists(temp_prefs_path))
@@ -102,7 +102,7 @@ class TestPrefsFirstRunCreatesFile(unittest.TestCase):
     def test_file_created_on_first_run_with_old_palette(self):
         """When prefs file absent but old palette exists, file is created with migrated colors."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            temp_prefs_path = os.path.join(temp_dir, 'paste_hidden_prefs.json')
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
             temp_palette_path = os.path.join(temp_dir, 'paste_hidden_user_palette.json')
             # Write old palette file with some colors
             legacy_colors = [0x6f3399ff, 0xff0000ff]
@@ -137,7 +137,7 @@ class TestPrefsFirstRunCreatesFile(unittest.TestCase):
     def test_save_not_called_when_file_already_exists(self):
         """When prefs file already exists, _load() does NOT overwrite it."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            temp_prefs_path = os.path.join(temp_dir, 'paste_hidden_prefs.json')
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
             temp_palette_path = os.path.join(temp_dir, 'paste_hidden_user_palette.json')
             # Pre-create the prefs file with non-default values
             existing_data = {

@@ -29,16 +29,16 @@ jobs:
 
       - name: Build release ZIP
         run: |
-          mkdir paste_hidden
-          cp anchor.py colors.py constants.py labels.py link.py \
-             menu.py paste_hidden.py prefs.py tabtabtab.py util.py \
+          mkdir anchors
+          cp anchor.py anchors.py colors.py constants.py labels.py link.py \
+             menu.py prefs.py tabtabtab.py util.py \
              README.md LICENSE \
-             paste_hidden/
-          zip -r "paste_hidden-${GITHUB_REF_NAME}.zip" paste_hidden/
+             anchors/
+          zip -r "anchors-${GITHUB_REF_NAME}.zip" anchors/
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           name: ${{ github.ref_name }}
           generate_release_notes: true
-          files: paste_hidden-${{ github.ref_name }}.zip
+          files: anchors-${{ github.ref_name }}.zip

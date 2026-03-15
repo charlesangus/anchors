@@ -1,13 +1,13 @@
 """Tests for DOT_TYPE Link Dot vs Local Dot distinction.
 
 Covers:
-- copy_hidden() Path B: anchor-backed Dot → dot_type='link', ANCHOR_DEFAULT_COLOR, "Link: " label
-- copy_hidden() Path B: plain-node-backed Dot → dot_type='local', LOCAL_DOT_COLOR, "Local: " label
-- paste_hidden() Path B cross-script: Link Dot reconnects when matching anchor found
-- paste_hidden() Path B cross-script: Link Dot stays disconnected when no anchor found
-- paste_hidden() Path B cross-script: Local Dot never reconnects (including same-stem false positive)
-- paste_hidden() Path B same-script: Local Dot restores "Local: " label and LOCAL_DOT_COLOR after reconnect
-- paste_hidden() Path B same-script: Link Dot does NOT restore Local appearance
+- copy_anchors() Path B: anchor-backed Dot → dot_type='link', ANCHOR_DEFAULT_COLOR, "Link: " label
+- copy_anchors() Path B: plain-node-backed Dot → dot_type='local', LOCAL_DOT_COLOR, "Local: " label
+- paste_anchors() Path B cross-script: Link Dot reconnects when matching anchor found
+- paste_anchors() Path B cross-script: Link Dot stays disconnected when no anchor found
+- paste_anchors() Path B cross-script: Local Dot never reconnects (including same-stem false positive)
+- paste_anchors() Path B same-script: Local Dot restores "Local: " label and LOCAL_DOT_COLOR after reconnect
+- paste_anchors() Path B same-script: Link Dot does NOT restore Local appearance
 - add_input_knob() without dot_type: no DOT_TYPE_KNOB_NAME knob added
 - add_input_knob() with dot_type='link': DOT_TYPE_KNOB_NAME knob added with value 'link'
 - add_input_knob() with dot_type='local': DOT_TYPE_KNOB_NAME knob added with value 'local'
@@ -159,18 +159,18 @@ class TestAddInputKnobDotTypeExtension(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Tests for copy_hidden() Path B DOT_TYPE behavior
+# Tests for copy_anchors() Path B DOT_TYPE behavior
 # ---------------------------------------------------------------------------
 
 class TestCopyHiddenDotTypeBehavior(unittest.TestCase):
-    """Test copy_hidden() Path B sets DOT_TYPE, label, and color correctly."""
+    """Test copy_anchors() Path B sets DOT_TYPE, label, and color correctly."""
 
     def _make_dot_node_with_hide_input(self, name='Dot1', knobs_dict=None):
         """Return a Dot StubNode with hide_input=True and required knobs.
 
-        KNOB_NAME is included so that copy_hidden()'s final setText call succeeds.
-        The copy_hidden() tests must also patch 'paste_hidden.is_link' to return False
-        so copy_hidden() does not skip the node (is_link checks KNOB_NAME presence).
+        KNOB_NAME is included so that copy_anchors()'s final setText call succeeds.
+        The copy_anchors() tests must also patch 'anchors.is_link' to return False
+        so copy_anchors() does not skip the node (is_link checks KNOB_NAME presence).
         """
         import nuke as _nuke
         from constants import KNOB_NAME
@@ -187,49 +187,49 @@ class TestCopyHiddenDotTypeBehavior(unittest.TestCase):
         return _nuke.StubNode(name=name, node_class='Dot', knobs_dict=base_knobs)
 
     def test_copy_hidden_anchor_backed_dot_calls_add_input_knob_with_dot_type_link(self):
-        """copy_hidden() on anchor-backed Dot must call add_input_knob(node, dot_type='link')."""
+        """copy_anchors() on anchor-backed Dot must call add_input_knob(node, dot_type='link')."""
         dot_node = self._make_dot_node_with_hide_input()
         anchor_input_node = _make_stub_node(name='Anchor_MyFootage', node_class='NoOp')
 
         dot_node._input = anchor_input_node
 
-        with patch('paste_hidden.nuke') as mock_nuke, \
-             patch('paste_hidden.nukescripts') as mock_nukescripts, \
-             patch('paste_hidden.is_link', return_value=False), \
-             patch('paste_hidden.is_anchor', return_value=True) as mock_is_anchor, \
-             patch('paste_hidden.setup_link_node') as mock_setup_link_node, \
-             patch('paste_hidden.add_input_knob') as mock_add_input_knob, \
-             patch('paste_hidden.get_fully_qualified_node_name',
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts') as mock_nukescripts, \
+             patch('anchors.is_link', return_value=False), \
+             patch('anchors.is_anchor', return_value=True) as mock_is_anchor, \
+             patch('anchors.setup_link_node') as mock_setup_link_node, \
+             patch('anchors.add_input_knob') as mock_add_input_knob, \
+             patch('anchors.get_fully_qualified_node_name',
                    return_value='sourceScript.Anchor_MyFootage'):
 
             mock_nuke.selectedNodes.return_value = [dot_node]
 
-            from paste_hidden import copy_hidden
-            copy_hidden()
+            from anchors import copy_anchors
+            copy_anchors()
 
             mock_add_input_knob.assert_called_once_with(dot_node, dot_type='link')
 
     def test_copy_hidden_anchor_backed_dot_sets_tile_color_to_anchor_default_color(self):
-        """copy_hidden() on anchor-backed Dot must set tile_color to ANCHOR_DEFAULT_COLOR."""
+        """copy_anchors() on anchor-backed Dot must set tile_color to ANCHOR_DEFAULT_COLOR."""
         from constants import ANCHOR_DEFAULT_COLOR
 
         dot_node = self._make_dot_node_with_hide_input()
         anchor_input_node = _make_stub_node(name='Anchor_MyFootage', node_class='NoOp')
         dot_node._input = anchor_input_node
 
-        with patch('paste_hidden.nuke') as mock_nuke, \
-             patch('paste_hidden.nukescripts') as mock_nukescripts, \
-             patch('paste_hidden.is_link', return_value=False), \
-             patch('paste_hidden.is_anchor', return_value=True), \
-             patch('paste_hidden.setup_link_node'), \
-             patch('paste_hidden.add_input_knob'), \
-             patch('paste_hidden.get_fully_qualified_node_name',
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts') as mock_nukescripts, \
+             patch('anchors.is_link', return_value=False), \
+             patch('anchors.is_anchor', return_value=True), \
+             patch('anchors.setup_link_node'), \
+             patch('anchors.add_input_knob'), \
+             patch('anchors.get_fully_qualified_node_name',
                    return_value='sourceScript.Anchor_MyFootage'):
 
             mock_nuke.selectedNodes.return_value = [dot_node]
 
-            from paste_hidden import copy_hidden
-            copy_hidden()
+            from anchors import copy_anchors
+            copy_anchors()
 
             self.assertEqual(
                 dot_node['tile_color'].getValue(),
@@ -238,48 +238,48 @@ class TestCopyHiddenDotTypeBehavior(unittest.TestCase):
             )
 
     def test_copy_hidden_plain_node_backed_dot_calls_add_input_knob_with_dot_type_local(self):
-        """copy_hidden() on plain-node-backed Dot must call add_input_knob(node, dot_type='local')."""
+        """copy_anchors() on plain-node-backed Dot must call add_input_knob(node, dot_type='local')."""
         dot_node = self._make_dot_node_with_hide_input()
         plain_input_node = _make_stub_node(name='Blur1', node_class='Blur',
                                            knobs_dict={'label': _make_knob('')})
         dot_node._input = plain_input_node
 
-        with patch('paste_hidden.nuke') as mock_nuke, \
-             patch('paste_hidden.nukescripts') as mock_nukescripts, \
-             patch('paste_hidden.is_link', return_value=False), \
-             patch('paste_hidden.is_anchor', return_value=False), \
-             patch('paste_hidden.setup_link_node'), \
-             patch('paste_hidden.add_input_knob') as mock_add_input_knob, \
-             patch('paste_hidden.get_fully_qualified_node_name',
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts') as mock_nukescripts, \
+             patch('anchors.is_link', return_value=False), \
+             patch('anchors.is_anchor', return_value=False), \
+             patch('anchors.setup_link_node'), \
+             patch('anchors.add_input_knob') as mock_add_input_knob, \
+             patch('anchors.get_fully_qualified_node_name',
                    return_value='sourceScript.Blur1'):
 
             mock_nuke.selectedNodes.return_value = [dot_node]
 
-            from paste_hidden import copy_hidden
-            copy_hidden()
+            from anchors import copy_anchors
+            copy_anchors()
 
             mock_add_input_knob.assert_called_once_with(dot_node, dot_type='local')
 
     def test_copy_hidden_plain_node_backed_dot_sets_label_to_local_prefix(self):
-        """copy_hidden() on plain-node-backed Dot must set label to 'Local: {source name}'."""
+        """copy_anchors() on plain-node-backed Dot must set label to 'Local: {source name}'."""
         dot_node = self._make_dot_node_with_hide_input()
         plain_input_node = _make_stub_node(name='Blur1', node_class='Blur',
                                            knobs_dict={'label': _make_knob('')})
         dot_node._input = plain_input_node
 
-        with patch('paste_hidden.nuke') as mock_nuke, \
-             patch('paste_hidden.nukescripts') as mock_nukescripts, \
-             patch('paste_hidden.is_link', return_value=False), \
-             patch('paste_hidden.is_anchor', return_value=False), \
-             patch('paste_hidden.setup_link_node'), \
-             patch('paste_hidden.add_input_knob'), \
-             patch('paste_hidden.get_fully_qualified_node_name',
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts') as mock_nukescripts, \
+             patch('anchors.is_link', return_value=False), \
+             patch('anchors.is_anchor', return_value=False), \
+             patch('anchors.setup_link_node'), \
+             patch('anchors.add_input_knob'), \
+             patch('anchors.get_fully_qualified_node_name',
                    return_value='sourceScript.Blur1'):
 
             mock_nuke.selectedNodes.return_value = [dot_node]
 
-            from paste_hidden import copy_hidden
-            copy_hidden()
+            from anchors import copy_anchors
+            copy_anchors()
 
             self.assertEqual(
                 dot_node['label'].getValue(),
@@ -288,7 +288,7 @@ class TestCopyHiddenDotTypeBehavior(unittest.TestCase):
             )
 
     def test_copy_hidden_plain_node_backed_dot_sets_tile_color_to_local_dot_color(self):
-        """copy_hidden() on plain-node-backed Dot must set tile_color to LOCAL_DOT_COLOR."""
+        """copy_anchors() on plain-node-backed Dot must set tile_color to LOCAL_DOT_COLOR."""
         from constants import LOCAL_DOT_COLOR
 
         dot_node = self._make_dot_node_with_hide_input()
@@ -296,19 +296,19 @@ class TestCopyHiddenDotTypeBehavior(unittest.TestCase):
                                            knobs_dict={'label': _make_knob('')})
         dot_node._input = plain_input_node
 
-        with patch('paste_hidden.nuke') as mock_nuke, \
-             patch('paste_hidden.nukescripts') as mock_nukescripts, \
-             patch('paste_hidden.is_link', return_value=False), \
-             patch('paste_hidden.is_anchor', return_value=False), \
-             patch('paste_hidden.setup_link_node'), \
-             patch('paste_hidden.add_input_knob'), \
-             patch('paste_hidden.get_fully_qualified_node_name',
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts') as mock_nukescripts, \
+             patch('anchors.is_link', return_value=False), \
+             patch('anchors.is_anchor', return_value=False), \
+             patch('anchors.setup_link_node'), \
+             patch('anchors.add_input_knob'), \
+             patch('anchors.get_fully_qualified_node_name',
                    return_value='sourceScript.Blur1'):
 
             mock_nuke.selectedNodes.return_value = [dot_node]
 
-            from paste_hidden import copy_hidden
-            copy_hidden()
+            from anchors import copy_anchors
+            copy_anchors()
 
             self.assertEqual(
                 dot_node['tile_color'].getValue(),
@@ -318,11 +318,11 @@ class TestCopyHiddenDotTypeBehavior(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Tests for paste_hidden() Path B cross-script DOT_TYPE behavior
+# Tests for paste_anchors() Path B cross-script DOT_TYPE behavior
 # ---------------------------------------------------------------------------
 
 class TestPasteHiddenCrossScriptDotTypeBehavior(unittest.TestCase):
-    """Test paste_hidden() Path B cross-script gating by DOT_TYPE."""
+    """Test paste_anchors() Path B cross-script gating by DOT_TYPE."""
 
     def _make_hidden_dot_node(self, name='Dot1', stored_fqnn='', dot_type=None):
         """Return a Dot StubNode with KNOB_NAME and optional DOT_TYPE_KNOB_NAME set."""
@@ -352,13 +352,13 @@ class TestPasteHiddenCrossScriptDotTypeBehavior(unittest.TestCase):
 
         destination_anchor = _make_stub_node(name='Anchor_MyFootage', node_class='NoOp')
 
-        with patch('paste_hidden.nuke') as mock_nuke, \
-             patch('paste_hidden.nukescripts') as mock_nukescripts, \
-             patch('paste_hidden.find_anchor_node', return_value=None), \
-             patch('paste_hidden.find_anchor_by_name',
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts') as mock_nukescripts, \
+             patch('anchors.find_anchor_node', return_value=None), \
+             patch('anchors.find_anchor_by_name',
                    return_value=destination_anchor) as mock_find_by_name, \
-             patch('paste_hidden.setup_link_node') as mock_setup_link_node, \
-             patch('paste_hidden.is_anchor', return_value=False):
+             patch('anchors.setup_link_node') as mock_setup_link_node, \
+             patch('anchors.is_anchor', return_value=False):
 
             root_obj = MagicMock()
             root_obj.name.return_value = 'destScript.nk'
@@ -366,8 +366,8 @@ class TestPasteHiddenCrossScriptDotTypeBehavior(unittest.TestCase):
             mock_nuke.nodePaste.return_value = None
             mock_nuke.selectedNodes.return_value = [dot_node]
 
-            from paste_hidden import paste_hidden
-            paste_hidden()
+            from anchors import paste_anchors
+            paste_anchors()
 
             mock_find_by_name.assert_called_once_with('MyFootage')
             mock_setup_link_node.assert_called_once_with(destination_anchor, dot_node)
@@ -379,13 +379,13 @@ class TestPasteHiddenCrossScriptDotTypeBehavior(unittest.TestCase):
             dot_type='link'
         )
 
-        with patch('paste_hidden.nuke') as mock_nuke, \
-             patch('paste_hidden.nukescripts') as mock_nukescripts, \
-             patch('paste_hidden.find_anchor_node', return_value=None), \
-             patch('paste_hidden.find_anchor_by_name',
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts') as mock_nukescripts, \
+             patch('anchors.find_anchor_node', return_value=None), \
+             patch('anchors.find_anchor_by_name',
                    return_value=None) as mock_find_by_name, \
-             patch('paste_hidden.setup_link_node') as mock_setup_link_node, \
-             patch('paste_hidden.is_anchor', return_value=False):
+             patch('anchors.setup_link_node') as mock_setup_link_node, \
+             patch('anchors.is_anchor', return_value=False):
 
             root_obj = MagicMock()
             root_obj.name.return_value = 'destScript.nk'
@@ -393,8 +393,8 @@ class TestPasteHiddenCrossScriptDotTypeBehavior(unittest.TestCase):
             mock_nuke.nodePaste.return_value = None
             mock_nuke.selectedNodes.return_value = [dot_node]
 
-            from paste_hidden import paste_hidden
-            paste_hidden()
+            from anchors import paste_anchors
+            paste_anchors()
 
             mock_find_by_name.assert_called_once_with('MyFootage')
             mock_setup_link_node.assert_not_called()
@@ -407,12 +407,12 @@ class TestPasteHiddenCrossScriptDotTypeBehavior(unittest.TestCase):
             dot_type='local'
         )
 
-        with patch('paste_hidden.nuke') as mock_nuke, \
-             patch('paste_hidden.nukescripts') as mock_nukescripts, \
-             patch('paste_hidden.find_anchor_node', return_value=None), \
-             patch('paste_hidden.find_anchor_by_name') as mock_find_by_name, \
-             patch('paste_hidden.setup_link_node') as mock_setup_link_node, \
-             patch('paste_hidden.is_anchor', return_value=False):
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts') as mock_nukescripts, \
+             patch('anchors.find_anchor_node', return_value=None), \
+             patch('anchors.find_anchor_by_name') as mock_find_by_name, \
+             patch('anchors.setup_link_node') as mock_setup_link_node, \
+             patch('anchors.is_anchor', return_value=False):
 
             root_obj = MagicMock()
             root_obj.name.return_value = 'destScript.nk'
@@ -420,8 +420,8 @@ class TestPasteHiddenCrossScriptDotTypeBehavior(unittest.TestCase):
             mock_nuke.nodePaste.return_value = None
             mock_nuke.selectedNodes.return_value = [dot_node]
 
-            from paste_hidden import paste_hidden
-            paste_hidden()
+            from anchors import paste_anchors
+            paste_anchors()
 
             mock_find_by_name.assert_not_called()
             mock_setup_link_node.assert_not_called()
@@ -466,12 +466,12 @@ class TestPasteHiddenCrossScriptDotTypeBehavior(unittest.TestCase):
         # Simulate same-stem false positive: find_anchor_node returns a node (a Blur in dest)
         false_positive_node = _make_stub_node(name='Blur1', node_class='Blur')
 
-        with patch('paste_hidden.nuke') as mock_nuke, \
-             patch('paste_hidden.nukescripts') as mock_nukescripts, \
-             patch('paste_hidden.find_anchor_node', return_value=false_positive_node), \
-             patch('paste_hidden.find_anchor_by_name') as mock_find_by_name, \
-             patch('paste_hidden.setup_link_node') as mock_setup_link_node, \
-             patch('paste_hidden.is_anchor', return_value=False):
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts') as mock_nukescripts, \
+             patch('anchors.find_anchor_node', return_value=false_positive_node), \
+             patch('anchors.find_anchor_by_name') as mock_find_by_name, \
+             patch('anchors.setup_link_node') as mock_setup_link_node, \
+             patch('anchors.is_anchor', return_value=False):
 
             root_obj = MagicMock()
             # Different stem: 'otherScript' vs stored 'untitled'
@@ -480,8 +480,8 @@ class TestPasteHiddenCrossScriptDotTypeBehavior(unittest.TestCase):
             mock_nuke.nodePaste.return_value = None
             mock_nuke.selectedNodes.return_value = [dot_node]
 
-            from paste_hidden import paste_hidden
-            paste_hidden()
+            from anchors import paste_anchors
+            paste_anchors()
 
             # Local Dot with cross-script FQNN must not reconnect despite false positive
             mock_find_by_name.assert_not_called()
@@ -489,7 +489,7 @@ class TestPasteHiddenCrossScriptDotTypeBehavior(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Tests for paste_hidden() Path B backward compatibility (no DOT_TYPE knob)
+# Tests for paste_anchors() Path B backward compatibility (no DOT_TYPE knob)
 # ---------------------------------------------------------------------------
 
 class TestPasteHiddenBackwardCompatibility(unittest.TestCase):
@@ -518,13 +518,13 @@ class TestPasteHiddenBackwardCompatibility(unittest.TestCase):
 
         destination_anchor = _make_stub_node(name='Anchor_MyFootage', node_class='NoOp')
 
-        with patch('paste_hidden.nuke') as mock_nuke, \
-             patch('paste_hidden.nukescripts') as mock_nukescripts, \
-             patch('paste_hidden.find_anchor_node', return_value=None), \
-             patch('paste_hidden.find_anchor_by_name',
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts') as mock_nukescripts, \
+             patch('anchors.find_anchor_node', return_value=None), \
+             patch('anchors.find_anchor_by_name',
                    return_value=destination_anchor) as mock_find_by_name, \
-             patch('paste_hidden.setup_link_node') as mock_setup_link_node, \
-             patch('paste_hidden.is_anchor', return_value=False):
+             patch('anchors.setup_link_node') as mock_setup_link_node, \
+             patch('anchors.is_anchor', return_value=False):
 
             root_obj = MagicMock()
             root_obj.name.return_value = 'destScript.nk'
@@ -532,8 +532,8 @@ class TestPasteHiddenBackwardCompatibility(unittest.TestCase):
             mock_nuke.nodePaste.return_value = None
             mock_nuke.selectedNodes.return_value = [dot_node]
 
-            from paste_hidden import paste_hidden
-            paste_hidden()
+            from anchors import paste_anchors
+            paste_anchors()
 
             # Should have attempted reconnect because FQNN has anchor prefix
             mock_find_by_name.assert_called_once_with('MyFootage')
@@ -546,12 +546,12 @@ class TestPasteHiddenBackwardCompatibility(unittest.TestCase):
             stored_fqnn='sourceScript.Blur1'
         )
 
-        with patch('paste_hidden.nuke') as mock_nuke, \
-             patch('paste_hidden.nukescripts') as mock_nukescripts, \
-             patch('paste_hidden.find_anchor_node', return_value=None), \
-             patch('paste_hidden.find_anchor_by_name') as mock_find_by_name, \
-             patch('paste_hidden.setup_link_node') as mock_setup_link_node, \
-             patch('paste_hidden.is_anchor', return_value=False):
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts') as mock_nukescripts, \
+             patch('anchors.find_anchor_node', return_value=None), \
+             patch('anchors.find_anchor_by_name') as mock_find_by_name, \
+             patch('anchors.setup_link_node') as mock_setup_link_node, \
+             patch('anchors.is_anchor', return_value=False):
 
             root_obj = MagicMock()
             root_obj.name.return_value = 'destScript.nk'
@@ -559,19 +559,19 @@ class TestPasteHiddenBackwardCompatibility(unittest.TestCase):
             mock_nuke.nodePaste.return_value = None
             mock_nuke.selectedNodes.return_value = [dot_node]
 
-            from paste_hidden import paste_hidden
-            paste_hidden()
+            from anchors import paste_anchors
+            paste_anchors()
 
             mock_find_by_name.assert_not_called()
             mock_setup_link_node.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
-# Tests for paste_hidden() Path B same-script DOT_TYPE behavior
+# Tests for paste_anchors() Path B same-script DOT_TYPE behavior
 # ---------------------------------------------------------------------------
 
 class TestPasteHiddenSameScriptDotTypeBehavior(unittest.TestCase):
-    """Test paste_hidden() Path B same-script path restores Local Dot appearance."""
+    """Test paste_anchors() Path B same-script path restores Local Dot appearance."""
 
     def _make_hidden_dot_node(self, name='Dot1', stored_fqnn='', dot_type=None):
         """Return a Dot StubNode with KNOB_NAME and optional DOT_TYPE_KNOB_NAME."""
@@ -603,12 +603,12 @@ class TestPasteHiddenSameScriptDotTypeBehavior(unittest.TestCase):
         source_node = _make_stub_node(name='Blur1', node_class='Blur',
                                       knobs_dict={'label': _make_knob('My Blur')})
 
-        with patch('paste_hidden.nuke') as mock_nuke, \
-             patch('paste_hidden.nukescripts') as mock_nukescripts, \
-             patch('paste_hidden.find_anchor_node', return_value=source_node), \
-             patch('paste_hidden.find_anchor_by_name') as mock_find_by_name, \
-             patch('paste_hidden.setup_link_node') as mock_setup_link_node, \
-             patch('paste_hidden.is_anchor', return_value=False):
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts') as mock_nukescripts, \
+             patch('anchors.find_anchor_node', return_value=source_node), \
+             patch('anchors.find_anchor_by_name') as mock_find_by_name, \
+             patch('anchors.setup_link_node') as mock_setup_link_node, \
+             patch('anchors.is_anchor', return_value=False):
 
             root_obj = MagicMock()
             root_obj.name.return_value = 'shotA.nk'
@@ -616,8 +616,8 @@ class TestPasteHiddenSameScriptDotTypeBehavior(unittest.TestCase):
             mock_nuke.nodePaste.return_value = None
             mock_nuke.selectedNodes.return_value = [dot_node]
 
-            from paste_hidden import paste_hidden
-            paste_hidden()
+            from anchors import paste_anchors
+            paste_anchors()
 
             # setup_link_node must be called for same-script reconnect
             mock_setup_link_node.assert_called_once_with(source_node, dot_node)
@@ -648,12 +648,12 @@ class TestPasteHiddenSameScriptDotTypeBehavior(unittest.TestCase):
         anchor_node = _make_stub_node(name='Anchor_MyFootage', node_class='NoOp',
                                       knobs_dict={'label': _make_knob('MyFootage')})
 
-        with patch('paste_hidden.nuke') as mock_nuke, \
-             patch('paste_hidden.nukescripts') as mock_nukescripts, \
-             patch('paste_hidden.find_anchor_node', return_value=anchor_node), \
-             patch('paste_hidden.find_anchor_by_name') as mock_find_by_name, \
-             patch('paste_hidden.setup_link_node') as mock_setup_link_node, \
-             patch('paste_hidden.is_anchor', return_value=False):
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts') as mock_nukescripts, \
+             patch('anchors.find_anchor_node', return_value=anchor_node), \
+             patch('anchors.find_anchor_by_name') as mock_find_by_name, \
+             patch('anchors.setup_link_node') as mock_setup_link_node, \
+             patch('anchors.is_anchor', return_value=False):
 
             root_obj = MagicMock()
             root_obj.name.return_value = 'shotA.nk'
@@ -661,8 +661,8 @@ class TestPasteHiddenSameScriptDotTypeBehavior(unittest.TestCase):
             mock_nuke.nodePaste.return_value = None
             mock_nuke.selectedNodes.return_value = [dot_node]
 
-            from paste_hidden import paste_hidden
-            paste_hidden()
+            from anchors import paste_anchors
+            paste_anchors()
 
             # setup_link_node must be called for same-script reconnect
             mock_setup_link_node.assert_called_once_with(anchor_node, dot_node)
@@ -698,11 +698,11 @@ class TestLocalDotColorValue(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Tests for paste_hidden() Path B same-script DOT_TYPE knob preservation
+# Tests for paste_anchors() Path B same-script DOT_TYPE knob preservation
 # ---------------------------------------------------------------------------
 
 class TestPasteHiddenSameScriptDotTypeKnobPreservation(unittest.TestCase):
-    """Test that paste_hidden() Path B same-script re-stamps the DOT_TYPE knob
+    """Test that paste_anchors() Path B same-script re-stamps the DOT_TYPE knob
     after calling setup_link_node(), which strips it via add_input_knob()."""
 
     def _make_hidden_dot_node(self, name='Dot1', stored_fqnn='', dot_type=None):
@@ -722,12 +722,12 @@ class TestPasteHiddenSameScriptDotTypeKnobPreservation(unittest.TestCase):
         return _nuke.StubNode(name=name, node_class='Dot', knobs_dict=knobs_dict)
 
     def test_local_dot_same_script_dot_type_knob_has_value_local_after_paste(self):
-        """paste_hidden() Path B same-script Local Dot must re-stamp DOT_TYPE knob
+        """paste_anchors() Path B same-script Local Dot must re-stamp DOT_TYPE knob
         with 'local' after setup_link_node() strips it.
 
         This test verifies that the saved_dot_type/re-stamp pattern works: even if
         setup_link_node() strips the DOT_TYPE_KNOB_NAME knob via add_input_knob(),
-        paste_hidden() must call add_input_knob(node, dot_type='local') after the
+        paste_anchors() must call add_input_knob(node, dot_type='local') after the
         setup_link_node() call, so the knob is present with value 'local' afterward.
         """
         from constants import DOT_TYPE_KNOB_NAME
@@ -741,12 +741,12 @@ class TestPasteHiddenSameScriptDotTypeKnobPreservation(unittest.TestCase):
         source_node = _make_stub_node(name='Blur1', node_class='Blur',
                                       knobs_dict={'label': _make_knob('My Blur')})
 
-        with patch('paste_hidden.nuke') as mock_nuke, \
-             patch('paste_hidden.nukescripts') as mock_nukescripts, \
-             patch('paste_hidden.find_anchor_node', return_value=source_node), \
-             patch('paste_hidden.setup_link_node') as mock_setup_link_node, \
-             patch('paste_hidden.add_input_knob') as mock_add_input_knob, \
-             patch('paste_hidden.is_anchor', return_value=False):
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts') as mock_nukescripts, \
+             patch('anchors.find_anchor_node', return_value=source_node), \
+             patch('anchors.setup_link_node') as mock_setup_link_node, \
+             patch('anchors.add_input_knob') as mock_add_input_knob, \
+             patch('anchors.is_anchor', return_value=False):
 
             root_obj = MagicMock()
             root_obj.name.return_value = 'shotA.nk'
@@ -754,19 +754,19 @@ class TestPasteHiddenSameScriptDotTypeKnobPreservation(unittest.TestCase):
             mock_nuke.nodePaste.return_value = None
             mock_nuke.selectedNodes.return_value = [dot_node]
 
-            from paste_hidden import paste_hidden
-            paste_hidden()
+            from anchors import paste_anchors
+            paste_anchors()
 
             # add_input_knob must be called with dot_type='local' to re-stamp the knob
             mock_add_input_knob.assert_called_once_with(dot_node, dot_type='local')
 
 
 # ---------------------------------------------------------------------------
-# Tests for paste_hidden() Path A/C link class selection
+# Tests for paste_anchors() Path A/C link class selection
 # ---------------------------------------------------------------------------
 
 class TestPasteHiddenPathACLinkClass(unittest.TestCase):
-    """Test that paste_hidden() Path A/C creates Dot link nodes for Dot sources
+    """Test that paste_anchors() Path A/C creates Dot link nodes for Dot sources
     and NoOp link nodes for all other sources, via get_link_class_for_source()."""
 
     def _make_anchor_node(self, name='Anchor_Footage', node_class='NoOp', stored_fqnn=''):
@@ -783,7 +783,7 @@ class TestPasteHiddenPathACLinkClass(unittest.TestCase):
         return _nuke.StubNode(name=name, node_class=node_class, knobs_dict=knobs_dict)
 
     def test_path_ac_dot_anchor_source_creates_dot_link_node(self):
-        """paste_hidden() Path A/C: when the resolved source is a Dot node,
+        """paste_anchors() Path A/C: when the resolved source is a Dot node,
         nuke.createNode must be called with 'Dot' (not hardcoded 'NoOp')."""
         import nuke as _nuke
 
@@ -810,11 +810,11 @@ class TestPasteHiddenPathACLinkClass(unittest.TestCase):
                                                 'selected': _make_knob(False),
                                             })
 
-        with patch('paste_hidden.nuke') as mock_nuke, \
-             patch('paste_hidden.nukescripts') as mock_nukescripts, \
-             patch('paste_hidden.find_anchor_node', return_value=dot_source_node), \
-             patch('paste_hidden.is_anchor', return_value=True), \
-             patch('paste_hidden.setup_link_node') as mock_setup_link_node:
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts') as mock_nukescripts, \
+             patch('anchors.find_anchor_node', return_value=dot_source_node), \
+             patch('anchors.is_anchor', return_value=True), \
+             patch('anchors.setup_link_node') as mock_setup_link_node:
 
             root_obj = MagicMock()
             root_obj.name.return_value = 'shotA.nk'
@@ -823,14 +823,14 @@ class TestPasteHiddenPathACLinkClass(unittest.TestCase):
             mock_nuke.selectedNodes.return_value = [anchor_node]
             mock_nuke.createNode.return_value = created_link_node
 
-            from paste_hidden import paste_hidden
-            paste_hidden()
+            from anchors import paste_anchors
+            paste_anchors()
 
             # Must call createNode with 'Dot' since dot_source_node.Class() == 'Dot'
             mock_nuke.createNode.assert_called_once_with('Dot')
 
     def test_path_ac_noop_anchor_source_creates_noop_link_node(self):
-        """paste_hidden() Path A/C: when the resolved source is a NoOp anchor,
+        """paste_anchors() Path A/C: when the resolved source is a NoOp anchor,
         nuke.createNode must be called with 'NoOp'."""
         import nuke as _nuke
 
@@ -854,11 +854,11 @@ class TestPasteHiddenPathACLinkClass(unittest.TestCase):
                                                 'selected': _make_knob(False),
                                             })
 
-        with patch('paste_hidden.nuke') as mock_nuke, \
-             patch('paste_hidden.nukescripts') as mock_nukescripts, \
-             patch('paste_hidden.find_anchor_node', return_value=noop_source_node), \
-             patch('paste_hidden.is_anchor', return_value=True), \
-             patch('paste_hidden.setup_link_node') as mock_setup_link_node:
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts') as mock_nukescripts, \
+             patch('anchors.find_anchor_node', return_value=noop_source_node), \
+             patch('anchors.is_anchor', return_value=True), \
+             patch('anchors.setup_link_node') as mock_setup_link_node:
 
             root_obj = MagicMock()
             root_obj.name.return_value = 'shotA.nk'
@@ -867,8 +867,8 @@ class TestPasteHiddenPathACLinkClass(unittest.TestCase):
             mock_nuke.selectedNodes.return_value = [anchor_node]
             mock_nuke.createNode.return_value = created_link_node
 
-            from paste_hidden import paste_hidden
-            paste_hidden()
+            from anchors import paste_anchors
+            paste_anchors()
 
             # Must call createNode with 'NoOp' since noop_source_node.Class() == 'NoOp'
             mock_nuke.createNode.assert_called_once_with('NoOp')

@@ -997,10 +997,10 @@ class TestPersistCustomColorsFromDialog(unittest.TestCase):
 
 
 class TestPrefsDialogImportMenuModulePath(unittest.TestCase):
-    """BUG 1 regression: _on_accept must NOT use 'import paste_hidden.menu' or 'import menu'.
+    """BUG 1 regression: _on_accept must NOT use 'import anchors.menu' or 'import menu'.
 
     In Nuke's Python environment, 'import menu' resolves to the Nuke built-in
-    menu module, and 'import paste_hidden.menu' fails when the plugin directory
+    menu module, and 'import anchors.menu' fails when the plugin directory
     has no __init__.py (not a package).  The correct fix is to retrieve
     set_anchors_menu_enabled via getattr on the prefs module, where menu.py
     stores a reference at startup.
@@ -1037,10 +1037,10 @@ class TestPrefsDialogImportMenuModulePath(unittest.TestCase):
             "_on_accept must not contain a bare 'import menu' — "
             "use getattr(prefs_module, 'set_anchors_menu_enabled', None) instead",
         )
-        package_import_pattern = re.compile(r'import paste_hidden\.menu')
+        package_import_pattern = re.compile(r'import anchors\.menu')
         self.assertIsNone(
             package_import_pattern.search(on_accept_source),
-            "_on_accept must not use 'import paste_hidden.menu' — plugin dir has no __init__.py; "
+            "_on_accept must not use 'import anchors.menu' — plugin dir has no __init__.py; "
             "use getattr(prefs_module, 'set_anchors_menu_enabled', None) instead",
         )
 
@@ -1247,7 +1247,7 @@ class TestMenuCallbackStoredOnPrefsModule(unittest.TestCase):
 
     This allows PrefsDialog in colors.py to retrieve it via getattr without any
     import, avoiding conflicts with Nuke's built-in 'menu' module and the missing
-    __init__.py that makes 'import paste_hidden.menu' fail.
+    __init__.py that makes 'import anchors.menu' fail.
     """
 
     def test_menu_py_source_stores_function_on_prefs_module(self):
@@ -1280,8 +1280,8 @@ class TestMenuCallbackStoredOnPrefsModule(unittest.TestCase):
         self.assertIsNotNone(on_accept_source, "PrefsDialog._on_accept not found in colors.py")
         self.assertIn("getattr(prefs_module, 'set_anchors_menu_enabled'", on_accept_source,
                       "_on_accept must use getattr pattern to retrieve set_anchors_menu_enabled")
-        self.assertNotIn('import paste_hidden.menu', on_accept_source,
-                         "_on_accept must not import paste_hidden.menu (plugin has no __init__.py)")
+        self.assertNotIn('import anchors.menu', on_accept_source,
+                         "_on_accept must not import anchors.menu (plugin has no __init__.py)")
 
     def test_on_accept_calls_set_menu_enabled_when_attribute_present(self):
         """_on_accept calls the stored menu callback when it is found on prefs_module."""

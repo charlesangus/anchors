@@ -365,7 +365,7 @@ class TestAnchorDisplayNameDotPath(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Regression: re-labelling a Dot anchor that has KNOB_NAME (from copy_hidden)
+# Regression: re-labelling a Dot anchor that has KNOB_NAME (from copy_anchors)
 # must not cause _update_dot_link_labels to overwrite the anchor's own label
 # ---------------------------------------------------------------------------
 
@@ -373,11 +373,11 @@ class TestApplyLabelDoesNotTreatAnchorAsLink(unittest.TestCase):
     """_update_dot_link_labels must skip anchor nodes even when they have KNOB_NAME."""
 
     def test_relabelling_dot_anchor_with_knob_name_does_not_set_link_label_on_anchor(self):
-        """After copy_hidden adds KNOB_NAME to a Dot anchor, re-labelling it must not
+        """After copy_anchors adds KNOB_NAME to a Dot anchor, re-labelling it must not
         cause _update_dot_link_labels to match the anchor as a link node and overwrite
         its label with 'Link: bla bla'.
 
-        Regression for: copy dot → paste → re-label original → original gets 'Link: ' prefix.
+        Regression for: copy_anchors dot → paste → re-label original → original gets 'Link: ' prefix.
         """
         import nuke as _nuke
         from constants import KNOB_NAME, DOT_ANCHOR_KNOB_NAME
@@ -385,7 +385,7 @@ class TestApplyLabelDoesNotTreatAnchorAsLink(unittest.TestCase):
         anchor_fqnn = 'myScript.Anchor_bla_bla'
 
         # Original Dot anchor: has DOT_ANCHOR_KNOB_NAME (anchor) AND KNOB_NAME (added
-        # by copy_hidden Path C), with KNOB_NAME pointing to its own FQNN.
+        # by copy_anchors Path C), with KNOB_NAME pointing to its own FQNN.
         original_anchor = _nuke.StubNode(
             name='Anchor_bla_bla',
             node_class='Dot',
