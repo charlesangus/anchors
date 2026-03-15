@@ -78,7 +78,7 @@ class TestExtractDisplayNameFromFqnn(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Integration tests for paste_hidden() cross-script reconnect behavior
+# Integration tests for paste_anchors() cross-script reconnect behavior
 # ---------------------------------------------------------------------------
 
 class TestCrossScriptReconnect(unittest.TestCase):
