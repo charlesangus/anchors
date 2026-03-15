@@ -1,12 +1,12 @@
-# Paste Hidden
+# Anchors
 
 Replacement and improvement for the Copy/Cut/Paste functions in Foundry's Nuke, with a full anchor-and-link system for reusable named inputs.
 
 # Installation
 
-Copy the `paste_hidden` folder into your `~/.nuke` folder and add this line to your top-level `init.py`:
+Copy the `anchors` folder into your `~/.nuke` folder and add this line to your top-level `init.py`:
 
-`nuke.pluginAddPath('paste_hidden')`
+`nuke.pluginAddPath('anchors')`
 
 The included `menu.py` will handle replacing the built-in copy/paste functions.
 
@@ -121,7 +121,7 @@ Edit `constants.py` to change the default behaviour:
 
 # Python API
 
-The following functions are stable entry points for tools and scripts that want to integrate with paste_hidden programmatically.
+The following functions are stable entry points for tools and scripts that want to integrate with anchors programmatically.
 
 ## Anchors (`import anchor`)
 
@@ -265,15 +265,30 @@ Prompts for a suffix and appends it to the selected node's existing label. For D
 
 ---
 
-## Copy / Paste (`import paste_hidden`)
+## Copy / Paste (`import anchors`)
 
 These are drop-in replacements for Nuke's built-in copy/cut/paste. They are wired to `Ctrl+C/X/V` by `menu.py` automatically on installation. You only need to call them directly if you are building your own menu or keybind setup.
 
 ```python
-paste_hidden.copy_hidden()
-paste_hidden.cut_hidden()
-paste_hidden.paste_hidden() -> nuke.Node   # returns last pasted node, same as nuke.nodePaste()
-paste_hidden.paste_multiple_hidden()
+anchors.copy_anchors()
+anchors.cut_anchors()
+anchors.paste_anchors() -> nuke.Node   # returns last pasted node, same as nuke.nodePaste()
+anchors.paste_multiple_anchors()
 ```
 
-The "old-style" equivalents (no anchor/link magic) are also available as `copy_old()`, `cut_old()`, and `paste_old()`.
+The "old-style" equivalents (no anchor/link magic) are also available as `anchors.copy_old()`, `anchors.cut_old()`, and `anchors.paste_old()`.
+
+### Migration from paste_hidden
+
+If you have existing Nuke scripts (.nk files) created with the old `paste_hidden` plugin,
+run the following once per script to migrate the hidden knob names to the new `anchors` format:
+
+```python
+import anchors
+anchors.migrate_script()
+```
+
+This renames the `paste_hidden_dot_anchor` and `paste_hidden_dot_type` knobs on all nodes in
+the current script to `anchors_dot_anchor` and `anchors_dot_type`. It prints a summary of
+nodes and knobs updated so you can verify the migration. The old knobs are removed after
+migration. This operation is not undoable — save a backup of your script first.
