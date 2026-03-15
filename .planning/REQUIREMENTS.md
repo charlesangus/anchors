@@ -57,25 +57,25 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REN-01 | — | Pending |
-| REN-02 | — | Pending |
-| NAME-01 | — | Pending |
-| NAME-02 | — | Pending |
-| NAME-03 | — | Pending |
-| SITE-01 | — | Pending |
-| SITE-02 | — | Pending |
-| SITE-03 | — | Pending |
-| BUG-03 | — | Pending |
-| BUG-04 | — | Pending |
-| API-01 | — | Pending |
-| API-02 | — | Pending |
-| API-03 | — | Pending |
+| REN-01 | Phase 13 | Pending |
+| REN-02 | Phase 13 | Pending |
+| BUG-03 | Phase 14 | Pending |
+| BUG-04 | Phase 14 | Pending |
+| NAME-01 | Phase 15 | Pending |
+| NAME-02 | Phase 15 | Pending |
+| NAME-03 | Phase 15 | Pending |
+| SITE-01 | Phase 16 | Pending |
+| SITE-02 | Phase 16 | Pending |
+| SITE-03 | Phase 16 | Pending |
+| API-01 | Phase 17 | Pending |
+| API-02 | Phase 17 | Pending |
+| API-03 | Phase 17 | Pending |
 
 **Coverage:**
 - v1.3 requirements: 13 total
-- Mapped to phases: 0 (roadmap pending)
-- Unmapped: 13 ⚠️
+- Mapped to phases: 13 (100%)
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-15*
-*Last updated: 2026-03-15 after initial definition*
+*Last updated: 2026-03-15 — traceability mapped after v1.3 roadmap creation*
