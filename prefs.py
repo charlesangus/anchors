@@ -1,6 +1,6 @@
-"""Plugin-wide preferences singleton for paste_hidden.
+"""Plugin-wide preferences singleton for the anchors plugin.
 
-Loads from ~/.nuke/paste_hidden_prefs.json at import time (once per Nuke session).
+Loads from ~/.nuke/anchors_prefs.json at import time (once per Nuke session).
 Writes via explicit save() call only — called by Phase 7 PrefsDialog on accept.
 
 Module-level variables (read these directly after import):
@@ -25,7 +25,7 @@ custom_colors = []
 def _migrate_from_old_palette():
     """One-way migration: read custom colors from old palette file into custom_colors.
 
-    Called only when paste_hidden_prefs.json does not exist.
+    Called only when anchors_prefs.json does not exist.
     Never writes to the old palette file. Silent no-op if old file is absent or corrupt.
     """
     global custom_colors
@@ -38,6 +38,25 @@ def _migrate_from_old_palette():
         custom_colors = []
 
 
+OLD_PREFS_PATH = os.path.expanduser('~/.nuke/paste_hidden_prefs.json')
+
+
+def _migrate_from_old_prefs_file():
+    """One-way migration: copy paste_hidden_prefs.json to anchors_prefs.json.
+
+    Called only when anchors_prefs.json does not exist but paste_hidden_prefs.json does.
+    Never modifies the old file. Silent no-op if old file is absent or corrupt.
+    """
+    global plugin_enabled, link_classes_paste_mode, custom_colors
+    if not os.path.exists(OLD_PREFS_PATH):
+        return
+    try:
+        import shutil
+        shutil.copy2(OLD_PREFS_PATH, PREFS_PATH)
+    except OSError:
+        pass
+
+
 def _load():
     """Load preferences from disk. Called once at module import time.
 
@@ -48,9 +67,13 @@ def _load():
     """
     global plugin_enabled, link_classes_paste_mode, custom_colors
     if not os.path.exists(PREFS_PATH):
-        _migrate_from_old_palette()
-        save()
-        return
+        _migrate_from_old_prefs_file()
+        if not os.path.exists(PREFS_PATH):
+            # No old prefs either — try old palette migration
+            _migrate_from_old_palette()
+            save()
+            return
+        # Old prefs was successfully copied; now fall through to load it
     try:
         with open(PREFS_PATH) as file_handle:
             data = json.load(file_handle)

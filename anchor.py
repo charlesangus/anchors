@@ -460,7 +460,7 @@ class AnchorPlugin(_tabtabtab.TabTabTabPlugin):
         ]
 
     def get_weights_file(self):
-        return os.path.expanduser('~/.nuke/paste_hidden_anchor_weights.json')
+        return os.path.expanduser('~/.nuke/anchors_anchor_weights.json')
 
     def invoke(self, thing):
         anchor = thing['menuobj']
@@ -615,7 +615,7 @@ class AnchorNavigatePlugin(_tabtabtab.TabTabTabPlugin):
         return items
 
     def get_weights_file(self):
-        return os.path.expanduser('~/.nuke/paste_hidden_anchor_navigate_weights.json')
+        return os.path.expanduser('~/.nuke/anchors_anchor_navigate_weights.json')
 
     def invoke(self, thing):
         node = thing['menuobj']

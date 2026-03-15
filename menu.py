@@ -2,15 +2,15 @@ import nuke
 
 import anchor
 import labels
-import paste_hidden
+import anchors
 import prefs
 
 menu = nuke.menu("Nuke")
 edit_menu = menu.findItem("Edit")
 
-menu.addCommand("Edit/Copy",  "paste_hidden.copy_hidden()",  "^C")
-menu.addCommand("Edit/Cut",   "paste_hidden.cut_hidden()",   "^X")
-menu.addCommand("Edit/Paste", "paste_hidden.paste_hidden()", "^V")
+menu.addCommand("Edit/Copy",  "anchors.copy_anchors()",  "^C")
+menu.addCommand("Edit/Cut",   "anchors.cut_anchors()",   "^X")
+menu.addCommand("Edit/Paste", "anchors.paste_anchors()", "^V")
 
 def _find_item_index(parent_menu, item_name):
     for position, menu_item in enumerate(parent_menu.items()):
@@ -21,7 +21,7 @@ def _find_item_index(parent_menu, item_name):
 paste_index = _find_item_index(edit_menu, "Paste")
 edit_menu.addCommand(
     "Paste Multiple",
-    "paste_hidden.paste_multiple_hidden()",
+    "anchors.paste_multiple_anchors()",
     index=paste_index + 1,
 )
 
@@ -65,9 +65,9 @@ anchors_menu.addSeparator()
 # Copy (old) / Cut (old) / Paste (old) are explicit fallback commands.
 # Preferences entry is added by Phase 7 and must also remain always active.
 # ---------------------------------------------------------------------------
-anchors_menu.addCommand("Copy (old)",  "paste_hidden.copy_old()")
-anchors_menu.addCommand("Cut (old)",   "paste_hidden.cut_old()")
-anchors_menu.addCommand("Paste (old)", "paste_hidden.paste_old()", "+^D")
+anchors_menu.addCommand("Copy (old)",  "anchors.copy_old()")
+anchors_menu.addCommand("Cut (old)",   "anchors.cut_old()")
+anchors_menu.addCommand("Paste (old)", "anchors.paste_old()", "+^D")
 
 anchors_menu.addSeparator()
 anchors_menu.addCommand(
