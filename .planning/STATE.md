@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Foundations
-status: executing
-stopped_at: Phase 13 complete — ready for Phase 14
-last_updated: "2026-03-15T20:35:00Z"
-last_activity: 2026-03-15 — Phase 13 Plan 01 complete; paste_hidden.py renamed to anchors.py, all callers updated
+status: completed
+stopped_at: Completed 13-03-PLAN.md — Phase 13 gap closure done
+last_updated: "2026-03-16T06:13:44.435Z"
+last_activity: 2026-03-15 — Phase 13 Plan 02 complete; tests, CI, README updated; GitHub repo renamed to charlesangus/anchors
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 3
+  completed_plans: 3
   percent: 5
 ---
 
@@ -47,6 +47,7 @@ Progress: [█░░░░░░░░░] 5%
 
 *Updated after each plan completion*
 | Phase 13-project-rename P02 | 15 | 2 tasks | 7 files |
+| Phase 13-project-rename P03 | 12 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -62,6 +63,7 @@ Recent decisions relevant to v1.3:
 - 13-01: migrate_script() hardcodes old knob name strings as literals so it works before and after constants.py rename
 - 13-01: DOT_ANCHOR_KNOB_NAME and DOT_TYPE_KNOB_NAME values changed to anchors_* — existing .nk files require migrate_script()
 - [Phase 13-project-rename]: 13-02: test patches updated to anchors.* module paths; paste_hidden_user_palette.json kept in tests (legacy palette source)
+- [Phase 13-project-rename]: 13-03: OLD_PREFS_PATH moved to constants.py — plan's patch-after-import approach cannot work because _load() runs at import time; all patchable file paths now live in constants.py
 
 ### Pending Todos
 
@@ -73,6 +75,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-15T20:35:00Z
-Stopped at: Phase 13 complete — GitHub repo renamed to charlesangus/anchors; ready for Phase 14
+Last session: 2026-03-16T06:13:44.432Z
+Stopped at: Completed 13-03-PLAN.md — Phase 13 gap closure done
 Resume file: None
