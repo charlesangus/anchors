@@ -1,6 +1,6 @@
 """Shared predicates and link-node utilities.
 
-Neither anchor.py nor paste_hidden.py need to import from each other;
+Neither anchor.py nor anchors.py need to import from each other;
 both pull what they need from here and from constants.py.
 """
 

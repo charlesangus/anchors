@@ -36,7 +36,7 @@ if nuke.NUKE_VERSION_MAJOR < 14:
 
 # Production module imports (no menu, colors, or anchor at module level).
 from link import setup_link_node, add_input_knob
-from paste_hidden import paste_hidden
+from anchors import paste_anchors
 from constants import ANCHOR_DEFAULT_COLOR, ANCHOR_PREFIX, KNOB_NAME
 
 # ---------------------------------------------------------------------------
@@ -108,7 +108,7 @@ print("\n--- BUG-01: link receives anchor tile_color via setup_link_node() ---")
 def check_bug01_link_receives_anchor_color():
     """After setup_link_node(), link tile_color must equal the anchor's real color.
 
-    BUG-01 was: paste_hidden.copy_hidden() called setup_link_node() then overwrote
+    BUG-01 was: anchors.copy_anchors() called setup_link_node() then overwrote
     link tile_color with ANCHOR_DEFAULT_COLOR (purple). Fixed by removing the overwrite.
     This check exercises the fixed setup_link_node() path directly.
     """
@@ -149,7 +149,7 @@ print("\n--- BUG-02: anchor pasted cross-script stays an anchor ---")
 def check_bug02_anchor_stays_anchor_cross_script():
     """Anchor pasted cross-script must not be replaced by a link node.
 
-    BUG-02 was: paste_hidden() would replace a pasted anchor with a link node
+    BUG-02 was: paste_anchors() would replace a pasted anchor with a link node
     when find_anchor_node() returned an anchor in the destination with the same name.
     Fixed by: unconditional `continue` for cross-script anchor case — anchor stays.
 
@@ -157,7 +157,7 @@ def check_bug02_anchor_stays_anchor_cross_script():
     - Create an anchor NoOp (name = ANCHOR_PREFIX + 'TestAnchor')
     - Stamp it with a cross-script FQNN (sourceScript.Anchor_TestAnchor) via KNOB_NAME
     - Set root name to 'destScript.nk' so stem is 'destScript' — mismatch triggers cross-script
-    - Copy the anchor to the clipboard, then call paste_hidden()
+    - Copy the anchor to the clipboard, then call paste_anchors()
     - Assert the anchor is not deleted and not replaced by a link node
     """
     anchor_name = ANCHOR_PREFIX + "TestAnchor"
@@ -180,13 +180,13 @@ def check_bug02_anchor_stays_anchor_cross_script():
 
     pasted_node = None
     try:
-        # paste_hidden() calls nuke.nodePaste() internally then processes selected nodes.
+        # paste_anchors() calls nuke.nodePaste() internally then processes selected nodes.
         # After the call, the anchor must still exist and must not have been replaced.
-        paste_hidden()
+        paste_anchors()
 
         found_original = nuke.toNode(anchor_name)
         print(
-            f"  INFO: after paste_hidden(), nuke.toNode('{anchor_name}') = {found_original!r}"
+            f"  INFO: after paste_anchors(), nuke.toNode('{anchor_name}') = {found_original!r}"
         )
 
         # The anchor must still be present — BUG-02 would have deleted it
@@ -223,7 +223,7 @@ def check_bug02_anchor_stays_anchor_cross_script():
 
 
 run_check(
-    "BUG-02: anchor stays as anchor (not replaced by link) after cross-script paste_hidden()",
+    "BUG-02: anchor stays as anchor (not replaced by link) after cross-script paste_anchors()",
     check_bug02_anchor_stays_anchor_cross_script,
 )
 

@@ -565,7 +565,7 @@ else:
             self.setLayout(outer_layout)
 
             # Checkbox: plugin enabled
-            self._plugin_checkbox = QtWidgets.QCheckBox("Enable paste_hidden plugin")
+            self._plugin_checkbox = QtWidgets.QCheckBox("Enable anchors plugin")
             self._plugin_checkbox.setChecked(self._local_plugin_enabled)
             outer_layout.addWidget(self._plugin_checkbox)
 
