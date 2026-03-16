@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Foundations
-status: completed
+status: executing
 stopped_at: Completed 14-02-PLAN.md
-last_updated: "2026-03-16T11:15:30Z"
-last_activity: 2026-03-15 — Phase 13 Plan 02 complete; tests, CI, README updated; GitHub repo renamed to charlesangus/anchors
+last_updated: "2026-03-16T10:40:44.600Z"
+last_activity: 2026-03-16 — Phase 14 Plan 02 complete; BUG-04 fixed, Dot elif removed from anchor_shortcut()
 progress:
   total_phases: 5
   completed_phases: 2
