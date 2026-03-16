@@ -552,6 +552,8 @@ else:
             self._original_custom_colors = list(prefs_module.custom_colors)
             self._selected_swatch_index = None  # index into _local_custom_colors
             self._swatch_buttons = []  # parallel list of QPushButton refs
+            self._local_naming_regex = prefs_module.naming_regex
+            self._local_naming_template = prefs_module.naming_template
             self._build_ui()
 
         def _build_ui(self):
@@ -568,6 +570,56 @@ else:
             self._link_mode_checkbox = QtWidgets.QCheckBox("Input nodes paste as links")
             self._link_mode_checkbox.setChecked(self._local_link_mode == "create_link")
             outer_layout.addWidget(self._link_mode_checkbox)
+
+            # ---- Anchor Naming section ----
+            naming_section_label = QtWidgets.QLabel("Anchor Naming")
+            naming_section_label.setFocusPolicy(Qt.NoFocus)
+            outer_layout.addWidget(naming_section_label)
+
+            # Regex field row
+            naming_regex_row_layout = QtWidgets.QHBoxLayout()
+            naming_regex_label = QtWidgets.QLabel("Regex:")
+            naming_regex_label.setFocusPolicy(Qt.NoFocus)
+            self._naming_regex_edit = QtWidgets.QLineEdit()
+            self._naming_regex_edit.setText(self._local_naming_regex)
+            self._naming_regex_edit.setPlaceholderText("e.g. (?P<shot>.+)_v\\d+")
+            naming_regex_row_layout.addWidget(naming_regex_label)
+            naming_regex_row_layout.addWidget(self._naming_regex_edit)
+            outer_layout.addLayout(naming_regex_row_layout)
+
+            # Template field row
+            naming_template_row_layout = QtWidgets.QHBoxLayout()
+            naming_template_label = QtWidgets.QLabel("Template:")
+            naming_template_label.setFocusPolicy(Qt.NoFocus)
+            self._naming_template_edit = QtWidgets.QLineEdit()
+            self._naming_template_edit.setText(self._local_naming_template)
+            self._naming_template_edit.setPlaceholderText("e.g. {shot}_anchor  (blank = use full match)")
+            naming_template_row_layout.addWidget(naming_template_label)
+            naming_template_row_layout.addWidget(self._naming_template_edit)
+            outer_layout.addLayout(naming_template_row_layout)
+
+            # Test filename row + validity indicator + Reset button
+            naming_test_row_layout = QtWidgets.QHBoxLayout()
+            naming_test_label = QtWidgets.QLabel("Test filename:")
+            naming_test_label.setFocusPolicy(Qt.NoFocus)
+            self._naming_test_filename_edit = QtWidgets.QLineEdit()
+            self._naming_test_filename_edit.setText("plate_v003.exr")
+            self._naming_validity_label = QtWidgets.QLabel("")
+            self._naming_validity_label.setFocusPolicy(Qt.NoFocus)
+            naming_reset_button = QtWidgets.QPushButton("Reset")
+            naming_reset_button.setAutoDefault(False)
+            naming_reset_button.clicked.connect(self._on_reset_naming)
+            naming_test_row_layout.addWidget(naming_test_label)
+            naming_test_row_layout.addWidget(self._naming_test_filename_edit)
+            naming_test_row_layout.addWidget(self._naming_validity_label)
+            naming_test_row_layout.addWidget(naming_reset_button)
+            outer_layout.addLayout(naming_test_row_layout)
+
+            # Wire live validity indicator to both text fields
+            self._naming_regex_edit.textChanged.connect(self._update_naming_validity_indicator)
+            self._naming_test_filename_edit.textChanged.connect(self._update_naming_validity_indicator)
+            # Initial indicator state
+            self._update_naming_validity_indicator()
 
             # Horizontal separator
             separator_top = QtWidgets.QFrame()
@@ -636,6 +688,40 @@ else:
             ok_cancel_row_layout.addWidget(self._cancel_button)  # Cancel on left
             ok_cancel_row_layout.addWidget(self._ok_button)      # OK on right
             outer_layout.addLayout(ok_cancel_row_layout)
+
+        def _on_reset_naming(self):
+            """Clear the regex and template fields, restoring hardcoded fallback behavior."""
+            self._naming_regex_edit.setText("")
+            self._naming_template_edit.setText("")
+            # Test filename field is intentionally not cleared
+
+        def _update_naming_validity_indicator(self):
+            """Update the validity label based on current regex text and test filename.
+
+            Green 'Match' — regex compiles and matches the test filename.
+            Red 'No match' — regex compiles but does not match.
+            Red 'Invalid regex' — regex does not compile.
+            Blank — regex field is empty.
+            """
+            import re as re_module
+            regex_text = self._naming_regex_edit.text()
+            test_filename = self._naming_test_filename_edit.text()
+            if not regex_text:
+                self._naming_validity_label.setText("")
+                self._naming_validity_label.setStyleSheet("")
+                return
+            try:
+                compiled_pattern = re_module.compile(regex_text)
+            except re_module.error:
+                self._naming_validity_label.setText("Invalid regex")
+                self._naming_validity_label.setStyleSheet("color: red;")
+                return
+            if compiled_pattern.match(test_filename):
+                self._naming_validity_label.setText("Match")
+                self._naming_validity_label.setStyleSheet("color: green;")
+            else:
+                self._naming_validity_label.setText("No match")
+                self._naming_validity_label.setStyleSheet("color: red;")
 
         def _populate_swatch_grid(self):
             """Fill the swatch grid from self._local_custom_colors."""
@@ -809,10 +895,14 @@ else:
             self._local_link_mode = (
                 "create_link" if self._link_mode_checkbox.isChecked() else "passthrough"
             )
+            self._local_naming_regex = self._naming_regex_edit.text()
+            self._local_naming_template = self._naming_template_edit.text()
             # Flush local working copies to prefs module-level variables
             prefs_module.plugin_enabled = self._local_plugin_enabled
             prefs_module.link_classes_paste_mode = self._local_link_mode
             prefs_module.custom_colors = list(self._local_custom_colors)
+            prefs_module.naming_regex = self._local_naming_regex
+            prefs_module.naming_template = self._local_naming_template
             # Persist to disk
             prefs_module.save()
             # Apply plugin_enabled live (menu enable/disable without restart).
