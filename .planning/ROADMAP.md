@@ -51,7 +51,7 @@ Full archive: `.planning/milestones/v1.2-ROADMAP.md`
 
 - [x] **Phase 13: Project Rename** - Rename all source, tests, CI, and GitHub repo from `paste_hidden` to `anchors` (completed 2026-03-15)
 - [x] **Phase 14: Bug Fixes** - Fix anchor creation dialog name application and "a"-on-Dot anchor type (completed 2026-03-16)
-- [ ] **Phase 15: Anchor Naming** - Configurable regex and template for default anchor name suggestions from file knob
+- [x] **Phase 15: Anchor Naming** - Configurable regex and template for default anchor name suggestions from file knob (completed 2026-03-16)
 - [ ] **Phase 16: Site Config** - Site-level config via env var with per-field lock and user override in PrefsDialog
 - [ ] **Phase 17: Public API** - Public `anchors` API module for external modules to create and wire anchors
 
@@ -142,6 +142,6 @@ Plans:
 | 12. Nuke -t Validation Scripts | v1.2 | 2/2 | Complete | 2026-03-14 |
 | 13. Project Rename | 3/3 | Complete    | 2026-03-16 | - |
 | 14. Bug Fixes | 2/2 | Complete    | 2026-03-16 | - |
-| 15. Anchor Naming | 2/3 | In Progress|  | - |
+| 15. Anchor Naming | 3/3 | Complete   | 2026-03-16 | - |
 | 16. Site Config | v1.3 | 0/? | Not started | - |
 | 17. Public API | v1.3 | 0/? | Not started | - |
