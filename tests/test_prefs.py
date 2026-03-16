@@ -174,5 +174,124 @@ class TestPrefsFirstRunCreatesFile(unittest.TestCase):
                     del sys.modules['prefs']
 
 
+class TestNamingPrefsRoundTrip(unittest.TestCase):
+    """Round-trip tests for naming_regex and naming_template persistence.
+
+    These tests are Wave 0 (TDD RED): they will fail with AttributeError until
+    Plan 02 adds naming_regex and naming_template to prefs.py.
+
+    Pattern mirrors TestPrefsFirstRunCreatesFile: patch constants.PREFS_PATH
+    to a temp file, delete and re-import the prefs module, then assert values.
+    """
+
+    def setUp(self):
+        if 'prefs' in sys.modules:
+            del sys.modules['prefs']
+
+    def tearDown(self):
+        if 'prefs' in sys.modules:
+            del sys.modules['prefs']
+
+    def _reload_prefs_with_temp_path(self, temp_prefs_path):
+        """Helper: reload prefs with PREFS_PATH pointing at temp_prefs_path."""
+        import constants
+        original_prefs_path = constants.PREFS_PATH
+        original_palette_path = constants.USER_PALETTE_PATH
+        original_old_prefs_path = constants.OLD_PREFS_PATH
+        try:
+            constants.PREFS_PATH = temp_prefs_path
+            constants.USER_PALETTE_PATH = temp_prefs_path + '.palette_unused'
+            constants.OLD_PREFS_PATH = temp_prefs_path + '.old_unused'
+            if 'prefs' in sys.modules:
+                del sys.modules['prefs']
+            import prefs as reloaded_prefs
+            reloaded_prefs.PREFS_PATH = temp_prefs_path
+            return reloaded_prefs
+        finally:
+            constants.PREFS_PATH = original_prefs_path
+            constants.USER_PALETTE_PATH = original_palette_path
+            constants.OLD_PREFS_PATH = original_old_prefs_path
+
+    def test_naming_fields_written_to_prefs_file(self):
+        """save() writes naming_regex and naming_template keys to the JSON file."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+            prefs_module = self._reload_prefs_with_temp_path(temp_prefs_path)
+
+            prefs_module.naming_regex = r'(?P<shot>.+)_v\d+'
+            prefs_module.naming_template = '{shot}'
+            prefs_module.save()
+
+            with open(temp_prefs_path) as file_handle:
+                data = json.load(file_handle)
+
+            self.assertIn('naming_regex', data,
+                          "save() must write naming_regex key to JSON")
+            self.assertIn('naming_template', data,
+                          "save() must write naming_template key to JSON")
+            self.assertEqual(data['naming_regex'], r'(?P<shot>.+)_v\d+')
+            self.assertEqual(data['naming_template'], '{shot}')
+
+    def test_naming_fields_loaded_from_prefs_file(self):
+        """_load() reads naming_regex and naming_template from JSON into module vars."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+
+            # Write a prefs file with naming fields pre-populated
+            prefs_data = {
+                'plugin_enabled': True,
+                'link_classes_paste_mode': 'create_link',
+                'custom_colors': [],
+                'naming_regex': r'(?P<name>\w+)',
+                'naming_template': '{name}_anchor',
+            }
+            with open(temp_prefs_path, 'w') as file_handle:
+                json.dump(prefs_data, file_handle)
+
+            prefs_module = self._reload_prefs_with_temp_path(temp_prefs_path)
+
+            self.assertEqual(prefs_module.naming_regex, r'(?P<name>\w+)',
+                             "_load() must read naming_regex from JSON")
+            self.assertEqual(prefs_module.naming_template, '{name}_anchor',
+                             "_load() must read naming_template from JSON")
+
+    def test_naming_fields_default_to_empty_string(self):
+        """On fresh import with no prefs file, naming_regex and naming_template default to ''."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+            # Do NOT create the prefs file — simulate fresh install
+            self.assertFalse(os.path.exists(temp_prefs_path))
+
+            prefs_module = self._reload_prefs_with_temp_path(temp_prefs_path)
+
+            self.assertEqual(prefs_module.naming_regex, '',
+                             "naming_regex must default to '' when no prefs file exists")
+            self.assertEqual(prefs_module.naming_template, '',
+                             "naming_template must default to '' when no prefs file exists")
+
+    def test_naming_fields_type_validation(self):
+        """Non-string values for naming_regex or naming_template in JSON are ignored (stay '')."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+
+            # Write a prefs file with invalid types for naming fields
+            prefs_data = {
+                'plugin_enabled': True,
+                'link_classes_paste_mode': 'create_link',
+                'custom_colors': [],
+                'naming_regex': 42,          # int — not a string
+                'naming_template': ['list'], # list — not a string
+            }
+            with open(temp_prefs_path, 'w') as file_handle:
+                json.dump(prefs_data, file_handle)
+
+            prefs_module = self._reload_prefs_with_temp_path(temp_prefs_path)
+
+            self.assertEqual(prefs_module.naming_regex, '',
+                             "non-string naming_regex must be ignored; module var stays ''")
+            self.assertEqual(prefs_module.naming_template, '',
+                             "non-string naming_template must be ignored; module var stays ''")
+
+
 if __name__ == '__main__':
     unittest.main()
