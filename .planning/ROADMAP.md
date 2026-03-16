@@ -80,7 +80,11 @@ Plans:
   1. Name typed in the anchor creation dialog is the name of the created anchor node every time, with no silent fallback to a generated name
   2. Pressing "a" on a selected Dot node creates a NoOp-based anchor node, not a Dot anchor
   3. Regression tests cover both behaviors and pass
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 14-01-PLAN.md — Fix BUG-03: ColorPaletteDialog.accept() override + remove scattered chosen_name assignments + regression tests
+- [ ] 14-02-PLAN.md — Fix BUG-04: remove Dot elif branch from anchor_shortcut(), deprecate _offer_make_dot_anchor() + regression tests
 
 ### Phase 15: Anchor Naming
 **Goal**: Users can configure a regex and template so that the anchor creation dialog pre-fills a suggested name derived from the upstream node's file knob
@@ -132,7 +136,7 @@ Plans:
 | 11. CI/CD Pipeline | v1.2 | 1/1 | Complete | 2026-03-14 |
 | 12. Nuke -t Validation Scripts | v1.2 | 2/2 | Complete | 2026-03-14 |
 | 13. Project Rename | 3/3 | Complete    | 2026-03-16 | - |
-| 14. Bug Fixes | v1.3 | 0/? | Not started | - |
+| 14. Bug Fixes | v1.3 | 0/2 | Not started | - |
 | 15. Anchor Naming | v1.3 | 0/? | Not started | - |
 | 16. Site Config | v1.3 | 0/? | Not started | - |
 | 17. Public API | v1.3 | 0/? | Not started | - |
