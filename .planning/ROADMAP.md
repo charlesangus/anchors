@@ -95,7 +95,12 @@ Plans:
   2. User can set a template string that substitutes regex capture groups into a pre-filled name in the anchor creation dialog
   3. When the source node has no file knob, or the regex does not match, the anchor creation dialog falls back to the existing naming behavior with no error
   4. Naming config (regex and template) persists across Nuke sessions via the prefs file
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 15-01-PLAN.md — Wave 0 test scaffold: test_anchor_naming.py (new) + extend test_prefs.py with naming round-trip tests
+- [ ] 15-02-PLAN.md — Backend: extend prefs.py with naming_regex/naming_template + rewrite suggest_anchor_name() with user-regex branch
+- [ ] 15-03-PLAN.md — UI: PrefsDialog Anchor Naming section with live validity indicator + human checkpoint
 
 ### Phase 16: Site Config
 **Goal**: A site administrator can provide a config file that sets and locks user-configurable prefs fields, while users can selectively override locked fields from within PrefsDialog
@@ -137,6 +142,6 @@ Plans:
 | 12. Nuke -t Validation Scripts | v1.2 | 2/2 | Complete | 2026-03-14 |
 | 13. Project Rename | 3/3 | Complete    | 2026-03-16 | - |
 | 14. Bug Fixes | 2/2 | Complete    | 2026-03-16 | - |
-| 15. Anchor Naming | v1.3 | 0/? | Not started | - |
+| 15. Anchor Naming | v1.3 | 0/3 | Not started | - |
 | 16. Site Config | v1.3 | 0/? | Not started | - |
 | 17. Public API | v1.3 | 0/? | Not started | - |
