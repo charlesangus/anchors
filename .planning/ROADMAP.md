@@ -142,6 +142,6 @@ Plans:
 | 12. Nuke -t Validation Scripts | v1.2 | 2/2 | Complete | 2026-03-14 |
 | 13. Project Rename | 3/3 | Complete    | 2026-03-16 | - |
 | 14. Bug Fixes | 2/2 | Complete    | 2026-03-16 | - |
-| 15. Anchor Naming | 1/3 | In Progress|  | - |
+| 15. Anchor Naming | 2/3 | In Progress|  | - |
 | 16. Site Config | v1.3 | 0/? | Not started | - |
 | 17. Public API | v1.3 | 0/? | Not started | - |
