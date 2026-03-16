@@ -115,11 +115,11 @@ class TestFrameTokenStripping(unittest.TestCase):
     def test_strips_percent04d(self):
         """%04d frame token is removed before regex sees the filename."""
         node = _make_read_node('plate_v003.%04d.exr')
-        # After stripping: 'plate_v003.exr'; regex matches 'plate_v003'; template gives 'plate_v003'
+        # After stripping: 'plate_v003.exr'; regex matches with name='plate'; template gives 'plate'
         prefs_module.naming_regex = r'(?P<name>.+)_v\d+'
         prefs_module.naming_template = '{name}'
         result = anchor.suggest_anchor_name(node)
-        self.assertEqual(result, 'plate_v003')
+        self.assertEqual(result, 'plate')
 
     def test_strips_hashes(self):
         """Hash frame token (####) is removed before regex sees the filename."""
@@ -144,10 +144,11 @@ class TestFrameTokenStripping(unittest.TestCase):
     def test_no_token_unchanged(self):
         """Files with no frame token are passed through unchanged."""
         node = _make_read_node('plate_v003.exr')
+        # No frame token to strip; regex matches with name='plate'; template gives 'plate'
         prefs_module.naming_regex = r'(?P<name>.+)_v\d+'
         prefs_module.naming_template = '{name}'
         result = anchor.suggest_anchor_name(node)
-        self.assertEqual(result, 'plate_v003')
+        self.assertEqual(result, 'plate')
 
 
 class TestTemplateSubstitution(unittest.TestCase):

@@ -185,16 +185,41 @@ def get_links_for_anchor(anchor_node):
     return [node for node in nuke.allNodes() if is_link(node) and node[KNOB_NAME].getText() == fqnn]
 
 
+# Compiled once at module level — covers %d, %04d, ####, %V, %v frame token styles
+_FRAME_TOKEN_PATTERN = re.compile(r'[._]?(?:%0?\d*d|#{1,}|%[Vv])')
+
+
 def suggest_anchor_name(input_node):
     """Return a suggested anchor name based on the input node's file knob and backdrop context."""
+    import prefs
     suggestion = ""
 
     if 'file' in input_node.knobs():
         filepath = input_node['file'].getValue()
         if filepath:
             filename = os.path.basename(filepath)
-            m = re.match(r'^(.+)_v\d+(?:\.[^.]+)?\.[^.]+$', filename)
-            suggestion = m.group(1) if m else os.path.splitext(filename)[0]
+            stripped_filename = _FRAME_TOKEN_PATTERN.sub('', filename)
+            user_regex = prefs.naming_regex
+            if user_regex:
+                try:
+                    compiled_pattern = re.compile(user_regex)
+                    regex_match = compiled_pattern.match(stripped_filename)
+                    if regex_match:
+                        naming_template = prefs.naming_template
+                        if naming_template:
+                            try:
+                                suggestion = naming_template.format_map(regex_match.groupdict())
+                            except (KeyError, ValueError):
+                                suggestion = regex_match.group(0)
+                        else:
+                            suggestion = regex_match.group(0)
+                    # No match — fall through to hardcoded path below
+                except re.error:
+                    pass  # Invalid regex — fall through to hardcoded path below
+            # Hardcoded fallback: runs when user_regex is blank, regex has no match, or re.error
+            if not suggestion:
+                hardcoded_match = re.match(r'^(.+)_v\d+(?:\.[^.]+)?\.[^.]+$', stripped_filename)
+                suggestion = hardcoded_match.group(1) if hardcoded_match else os.path.splitext(stripped_filename)[0]
 
     smallest = find_smallest_containing_backdrop(input_node)
     if smallest is not None:
