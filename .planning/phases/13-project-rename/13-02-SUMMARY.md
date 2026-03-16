@@ -59,7 +59,7 @@ completed: 2026-03-15
 - **Duration:** ~15 min
 - **Started:** 2026-03-15T20:10:00Z
 - **Completed:** 2026-03-15T20:25:00Z
-- **Tasks:** 2 of 4 automated (Tasks 3 and 4 are checkpoints)
+- **Tasks:** 4 of 4 complete (Tasks 1-2 automated, Task 3 auto-approved checkpoint, Task 4 human action completed)
 - **Files modified:** 7
 
 ## Accomplishments
@@ -75,7 +75,7 @@ Each task was committed atomically:
    - fix(missed comment) - `93b48d7` (fix)
 2. **Task 2: Update README.md** - `b4f0b92` (feat)
 3. **Task 3: checkpoint:human-verify** - auto-approved (auto_advance=true)
-4. **Task 4: Rename GitHub repo** - CHECKPOINT — awaiting human action
+4. **Task 4: Rename GitHub repo** - completed by user — repo accessible at `charlesangus/anchors`; local remote URL already updated to `https://github.com/charlesangus/anchors.git`
 
 **Plan metadata:** (docs commit, below)
 
@@ -111,21 +111,9 @@ Each task was committed atomically:
 
 - pytest not available on this system (no pip/apt access). Tests verified using `python3 -m unittest` with manual stub injection via `import tests`. All test files pass (47 pass, 1 pre-existing failure in test_prefs.py unrelated to our changes — `test_file_created_on_first_run_with_old_palette` was failing before this plan).
 
-## User Setup Required
-
-Task 4 (REN-02) requires manual action:
-
-```
-gh repo rename anchors
-# Then optionally update your local remote URL:
-git remote set-url origin https://github.com/YOUR_USERNAME/anchors.git
-```
-
-Verify with: `gh repo view` should show repo name as `anchors`.
-
 ## Next Phase Readiness
-- Phase 13 (Project Rename) complete in the local repo
-- GitHub repository rename (REN-02) requires human action via `gh repo rename anchors`
+- Phase 13 (Project Rename) fully complete — local source, tests, CI, README, and GitHub repository all use `anchors`
+- Remote origin updated to `https://github.com/charlesangus/anchors.git`
 - All subsequent phases can use `anchors` module names throughout
 
 ---

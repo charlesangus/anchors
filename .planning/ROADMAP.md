@@ -69,8 +69,8 @@ Full archive: `.planning/milestones/v1.2-ROADMAP.md`
 **Plans**: 2 plans
 
 Plans:
-- [ ] 13-01-PLAN.md — Core source rename: paste_hidden.py → anchors.py, constants, prefs, menu, anchor.py, migrate_script()
-- [ ] 13-02-PLAN.md — Tests, CI, README update + GitHub repo rename
+- [x] 13-01-PLAN.md — Core source rename: paste_hidden.py → anchors.py, constants, prefs, menu, anchor.py, migrate_script()
+- [x] 13-02-PLAN.md — Tests, CI, README update + GitHub repo rename
 
 ### Phase 14: Bug Fixes
 **Goal**: Two anchor creation bugs are eliminated — the creation dialog name reliably lands on the node, and pressing "a" on a Dot produces a NoOp anchor
