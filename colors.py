@@ -255,6 +255,11 @@ else:
             # swatch cells are populated and the widget has a palette context.
             self._refresh_swatch_borders()
 
+        def accept(self):
+            if self._name_edit is not None:
+                self.chosen_name = self._name_edit.text()
+            super().accept()
+
         def _on_swatch_clicked(self, color_int):
             self._selected_color = color_int
             self._refresh_swatch_borders()
@@ -303,8 +308,6 @@ else:
             self._selected_color = result
             self._append_swatch_to_custom_group(result)
             self._refresh_swatch_borders()
-            if self._name_edit is not None:
-                self.chosen_name = self._name_edit.text()
             self.accept()
 
         def selected_color_int(self):
@@ -351,8 +354,6 @@ else:
             # Enter/Return confirms the current selection.
             if key in (Qt.Key_Return, Qt.Key_Enter):
                 if self._selected_color is not None:
-                    if self._name_edit is not None:
-                        self.chosen_name = self._name_edit.text()
                     self.accept()
                 return True
 
@@ -369,8 +370,6 @@ else:
                     if target_cell is not None:
                         color_int, button = target_cell
                         self._selected_color = color_int
-                        if self._name_edit is not None:
-                            self.chosen_name = self._name_edit.text()
                         self.accept()
                     self._hint_row = None
                     return True
@@ -397,8 +396,6 @@ else:
             # Must be checked BEFORE the hint-mode block so it works in both modes.
             if event.key() in (Qt.Key_Return, Qt.Key_Enter):
                 if self._selected_color is not None:
-                    if self._name_edit is not None:
-                        self.chosen_name = self._name_edit.text()
                     self.accept()
                 event.accept()
                 return
@@ -418,8 +415,6 @@ else:
                     if target_cell is not None:
                         color_int, button = target_cell
                         self._selected_color = color_int
-                        if self._name_edit is not None:
-                            self.chosen_name = self._name_edit.text()
                         self.accept()
                     self._hint_row = None
                     event.accept()

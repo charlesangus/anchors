@@ -1946,6 +1946,38 @@ class TestColorPaletteDialogButtonLayout(unittest.TestCase):
 # BUG-03 regression: ColorPaletteDialog.accept() must capture chosen_name
 # ---------------------------------------------------------------------------
 
+def _extract_accept_method_from_source():
+    """Extract ColorPaletteDialog.accept() from colors.py source, providing a
+    super() stub so the extracted function runs outside a class body without
+    raising 'super(): __class__ cell not found'.
+
+    The super() stub returns a MagicMock so that super().accept() is a no-op.
+    This lets us assert on chosen_name without needing a real QDialog hierarchy.
+    """
+    with open(_REPO_ROOT / 'colors.py', 'r') as source_file:
+        source_text = source_file.read()
+    tree = ast.parse(source_text)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == 'ColorPaletteDialog':
+            for item in node.body:
+                if isinstance(item, ast.FunctionDef) and item.name == 'accept':
+                    method_lines = source_text.splitlines()
+                    start_line = item.lineno - 1
+                    end_line = item.end_lineno
+                    method_source = '\n'.join(method_lines[start_line:end_line])
+                    method_source = textwrap.dedent(method_source)
+                    import nuke as _nuke_stub
+                    namespace = {}
+                    namespace['_color_int_to_rgb'] = _real_colors_module._color_int_to_rgb
+                    namespace['nuke'] = _nuke_stub
+                    # Provide a super() stub that returns a MagicMock so that
+                    # super().accept() inside the extracted method is a no-op.
+                    namespace['super'] = MagicMock(return_value=MagicMock())
+                    exec(compile(method_source, '<colors_method>', 'exec'), namespace)
+                    return namespace['accept']
+    return None
+
+
 class TestColorPaletteDialogChosenNameCapturedOnAccept(unittest.TestCase):
     """BUG-03: chosen_name must be read from _name_edit inside accept() so that
     swatch-click and OK-button paths both produce the correct anchor name.
@@ -1956,7 +1988,7 @@ class TestColorPaletteDialogChosenNameCapturedOnAccept(unittest.TestCase):
         import importlib
         import colors as colors_module
         importlib.reload(colors_module)
-        self._accept_method = _extract_method_from_source('accept')
+        self._accept_method = _extract_accept_method_from_source()
 
     def test_chosen_name_captured_from_name_edit_on_accept(self):
         """When show_name_field=True and _name_edit holds 'typed_name', accept() must
@@ -1972,9 +2004,7 @@ class TestColorPaletteDialogChosenNameCapturedOnAccept(unittest.TestCase):
         name_edit_mock.text.return_value = "typed_name"
         dialog._name_edit = name_edit_mock
 
-        # Call the real accept() with super().accept() patched to a no-op
-        with patch('colors.QtWidgets.QDialog.accept'):
-            accept_method(dialog)
+        accept_method(dialog)
 
         self.assertEqual(
             dialog.chosen_name,
@@ -1994,9 +2024,7 @@ class TestColorPaletteDialogChosenNameCapturedOnAccept(unittest.TestCase):
         dialog._name_edit = None
         original_chosen_name = dialog.chosen_name
 
-        # Call the real accept() with super().accept() patched to a no-op
-        with patch('colors.QtWidgets.QDialog.accept'):
-            accept_method(dialog)
+        accept_method(dialog)
 
         self.assertEqual(
             dialog.chosen_name,
