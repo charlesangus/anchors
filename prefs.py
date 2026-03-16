@@ -12,7 +12,7 @@ Module-level variables (read these directly after import):
 import json
 import os
 
-from constants import PREFS_PATH, USER_PALETTE_PATH
+from constants import OLD_PREFS_PATH, PREFS_PATH, USER_PALETTE_PATH
 
 # ---------------------------------------------------------------------------
 # Defaults — overwritten by _load() at module import time
@@ -36,9 +36,6 @@ def _migrate_from_old_palette():
                          if isinstance(color_value, (int, float))]
     except (OSError, ValueError, json.JSONDecodeError):
         custom_colors = []
-
-
-OLD_PREFS_PATH = os.path.expanduser('~/.nuke/paste_hidden_prefs.json')
 
 
 def _migrate_from_old_prefs_file():

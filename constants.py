@@ -38,4 +38,5 @@ LOCAL_DOT_COLOR = 0x7A3A00FF
 # FROZEN: value stored in .nk files — do not rename
 ANCHOR_SET_COLOR_KNOB_NAME = "set_anchor_color"
 USER_PALETTE_PATH = os.path.expanduser('~/.nuke/paste_hidden_user_palette.json')
+OLD_PREFS_PATH = os.path.expanduser('~/.nuke/paste_hidden_prefs.json')
 PREFS_PATH = os.path.expanduser('~/.nuke/anchors_prefs.json')
