@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Foundations
 status: executing
-stopped_at: Phase 15 context gathered
-last_updated: "2026-03-16T12:32:09.570Z"
+stopped_at: Completed 15-anchor-naming/15-01-PLAN.md
+last_updated: "2026-03-16T12:56:21.843Z"
 last_activity: 2026-03-16 — Phase 14 Plan 02 complete; BUG-04 fixed, Dot elif removed from anchor_shortcut()
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
+  total_plans: 8
+  completed_plans: 6
   percent: 5
 ---
 
@@ -50,6 +50,7 @@ Progress: [█░░░░░░░░░] 5%
 | Phase 13-project-rename P03 | 12 | 2 tasks | 6 files |
 | Phase 14-bug-fixes P01 | 4 | 2 tasks | 2 files |
 | Phase 14-bug-fixes P02 | 3 | 2 tasks | 2 files |
+| Phase 15-anchor-naming P01 | 3 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,7 @@ Recent decisions relevant to v1.3:
 - [Phase 13-project-rename]: 13-03: OLD_PREFS_PATH moved to constants.py — plan's patch-after-import approach cannot work because _load() runs at import time; all patchable file paths now live in constants.py
 - [Phase 14-bug-fixes]: accept() override is single chokepoint for chosen_name capture in ColorPaletteDialog
 - [Phase 14-bug-fixes]: BUG-04: removed Dot elif branch from anchor_shortcut() — _offer_make_dot_anchor() deprecated, Dot nodes now use create_anchor() via NoOp path
+- [Phase 15-anchor-naming]: 15-01: Wave 0 TDD scaffold — frame-token stripping tests verify end-to-end suggest_anchor_name() behavior; prefs round-trip tests use temp-path reload pattern
 
 ### Pending Todos
 
@@ -79,6 +81,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-16T12:32:09.567Z
-Stopped at: Phase 15 context gathered
-Resume file: .planning/phases/15-anchor-naming/15-CONTEXT.md
+Last session: 2026-03-16T12:56:21.839Z
+Stopped at: Completed 15-anchor-naming/15-01-PLAN.md
+Resume file: None

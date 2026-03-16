@@ -12,9 +12,9 @@
 
 ### Anchor Naming
 
-- [ ] **NAME-01**: User can configure a regex (applied to node's file knob, if present) with named capture groups to derive a default anchor name suggestion
-- [ ] **NAME-02**: User can configure a template string (e.g. `Anchor_{anchorname}`) that substitutes named capture groups from the regex into the suggested name pre-filled in the anchor creation dialog
-- [ ] **NAME-03**: When no file knob is present or regex doesn't match, anchor naming falls back to existing behavior
+- [x] **NAME-01**: User can configure a regex (applied to node's file knob, if present) with named capture groups to derive a default anchor name suggestion
+- [x] **NAME-02**: User can configure a template string (e.g. `Anchor_{anchorname}`) that substitutes named capture groups from the regex into the suggested name pre-filled in the anchor creation dialog
+- [x] **NAME-03**: When no file knob is present or regex doesn't match, anchor naming falls back to existing behavior
 
 ### Site Config
 
@@ -61,9 +61,9 @@
 | REN-02 | Phase 13 | Complete |
 | BUG-03 | Phase 14 | Complete |
 | BUG-04 | Phase 14 | Complete |
-| NAME-01 | Phase 15 | Pending |
-| NAME-02 | Phase 15 | Pending |
-| NAME-03 | Phase 15 | Pending |
+| NAME-01 | Phase 15 | Complete |
+| NAME-02 | Phase 15 | Complete |
+| NAME-03 | Phase 15 | Complete |
 | SITE-01 | Phase 16 | Pending |
 | SITE-02 | Phase 16 | Pending |
 | SITE-03 | Phase 16 | Pending |
