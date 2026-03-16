@@ -479,6 +479,8 @@ class AnchorPlugin(_tabtabtab.TabTabTabPlugin):
         return (color, color)
 
 
+# Deprecated: superseded by create_anchor() for Dot nodes (BUG-04, Phase 14).
+# Retained for reference only — do not call.
 def _offer_make_dot_anchor(dot_node):
     """Prompt the user to label an un-anchored Dot and mark it as an anchor."""
     panel = nuke.Panel("Make Dot Anchor")
@@ -506,8 +508,6 @@ def anchor_shortcut():
     selected = nuke.selectedNodes()
     if len(selected) == 1 and is_anchor(selected[0]):
         rename_anchor(selected[0])
-    elif len(selected) == 1 and selected[0].Class() == 'Dot' and not is_link(selected[0]):
-        _offer_make_dot_anchor(selected[0])
     elif selected:
         create_anchor()
     else:
