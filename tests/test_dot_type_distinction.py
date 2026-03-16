@@ -15,11 +15,44 @@ Covers:
 - Backward compat: node without DOT_TYPE_KNOB_NAME, plain FQNN → treated as Local Dot
 """
 
+import importlib
 import sys
 import types
 import unittest
 from unittest.mock import MagicMock, patch, call
 
+
+
+# ---------------------------------------------------------------------------
+# Qt stub helper (needed by TestAnchorShortcutDotRouting which reloads anchor)
+# ---------------------------------------------------------------------------
+
+def _ensure_qt_stubs_support_mock_attributes():
+    """Ensure Qt stub modules support auto-attribute access for the anchor tests.
+
+    When the full test suite is discovered, test_cross_script_paste.py installs
+    Qt sub-module stubs as plain types.ModuleType objects.  These do NOT create
+    attributes on access (unlike MagicMock), so calls like QtGui.QColor(...) raise
+    AttributeError.  This helper patches the current stubs to be MagicMock-based
+    if they are plain ModuleType instances.
+
+    Also ensures the nuke stub has NUKE_VERSION_MAJOR = 16 so anchor.py takes
+    the PySide6 import path on reload (not PySide2 → ImportError → QtGui = None).
+    """
+    import nuke as current_nuke
+    if not hasattr(current_nuke, 'NUKE_VERSION_MAJOR'):
+        current_nuke.NUKE_VERSION_MAJOR = 16
+
+    for module_key in ('PySide6.QtGui', 'PySide6.QtWidgets', 'PySide6.QtCore'):
+        existing = sys.modules.get(module_key)
+        if existing is not None and not isinstance(existing, MagicMock):
+            mock_replacement = MagicMock()
+            sys.modules[module_key] = mock_replacement
+            parent_key = 'PySide6'
+            attr_name = module_key.split('.')[-1]
+            parent_stub = sys.modules.get(parent_key)
+            if parent_stub is not None:
+                setattr(parent_stub, attr_name, mock_replacement)
 
 
 # ---------------------------------------------------------------------------
@@ -872,6 +905,100 @@ class TestPasteHiddenPathACLinkClass(unittest.TestCase):
 
             # Must call createNode with 'NoOp' since noop_source_node.Class() == 'NoOp'
             mock_nuke.createNode.assert_called_once_with('NoOp')
+
+
+# ---------------------------------------------------------------------------
+# Tests for anchor_shortcut() dispatch routing (BUG-04)
+# ---------------------------------------------------------------------------
+
+class TestAnchorShortcutDotRouting(unittest.TestCase):
+    """Regression tests for BUG-04: anchor_shortcut() dispatch paths.
+
+    Covers:
+    - Dot node selected → create_anchor() called, _offer_make_dot_anchor() NOT called
+    - Non-Dot node selected → create_anchor() called (unchanged)
+    - Anchor node selected → rename_anchor() called (unchanged)
+    - No selection → select_anchor_and_create() called (unchanged)
+    - Multiple non-anchor nodes selected → create_anchor() called (unchanged)
+    """
+
+    def setUp(self):
+        import importlib
+        _ensure_qt_stubs_support_mock_attributes()
+        import anchor as anchor_mod
+        importlib.reload(anchor_mod)
+        self.anchor_mod = anchor_mod
+        import nuke as nuke_stub
+        nuke_stub.selectedNodes.reset_mock()
+        self.nuke_stub = nuke_stub
+
+    def test_dot_selected_calls_create_anchor_not_offer_make_dot_anchor(self):
+        """Dot node selected → create_anchor() called once; _offer_make_dot_anchor() NOT called."""
+        import nuke as _nuke
+        dot_node = _nuke.StubNode(name='Dot1', node_class='Dot')
+        self.nuke_stub.selectedNodes = MagicMock(return_value=[dot_node])
+
+        with patch.object(self.anchor_mod.prefs, 'plugin_enabled', True), \
+             patch.object(self.anchor_mod, 'is_anchor', return_value=False), \
+             patch.object(self.anchor_mod, 'is_link', return_value=False), \
+             patch.object(self.anchor_mod, 'create_anchor') as mock_create_anchor, \
+             patch.object(self.anchor_mod, '_offer_make_dot_anchor') as mock_offer:
+            self.anchor_mod.anchor_shortcut()
+
+        mock_create_anchor.assert_called_once()
+        mock_offer.assert_not_called()
+
+    def test_non_dot_selected_calls_create_anchor(self):
+        """Non-Dot node selected → create_anchor() called once."""
+        import nuke as _nuke
+        read_node = _nuke.StubNode(name='Read1', node_class='Read')
+        self.nuke_stub.selectedNodes = MagicMock(return_value=[read_node])
+
+        with patch.object(self.anchor_mod.prefs, 'plugin_enabled', True), \
+             patch.object(self.anchor_mod, 'is_anchor', return_value=False), \
+             patch.object(self.anchor_mod, 'create_anchor') as mock_create_anchor:
+            self.anchor_mod.anchor_shortcut()
+
+        mock_create_anchor.assert_called_once()
+
+    def test_anchor_selected_calls_rename_anchor(self):
+        """Anchor node selected → rename_anchor() called once; create_anchor() NOT called."""
+        import nuke as _nuke
+        anchor_node = _nuke.StubNode(name='Anchor_Footage', node_class='NoOp')
+        self.nuke_stub.selectedNodes = MagicMock(return_value=[anchor_node])
+
+        with patch.object(self.anchor_mod.prefs, 'plugin_enabled', True), \
+             patch.object(self.anchor_mod, 'is_anchor', return_value=True), \
+             patch.object(self.anchor_mod, 'rename_anchor') as mock_rename_anchor, \
+             patch.object(self.anchor_mod, 'create_anchor') as mock_create_anchor:
+            self.anchor_mod.anchor_shortcut()
+
+        mock_rename_anchor.assert_called_once_with(anchor_node)
+        mock_create_anchor.assert_not_called()
+
+    def test_no_selection_calls_select_anchor_and_create(self):
+        """No nodes selected → select_anchor_and_create() called once."""
+        self.nuke_stub.selectedNodes = MagicMock(return_value=[])
+
+        with patch.object(self.anchor_mod.prefs, 'plugin_enabled', True), \
+             patch.object(self.anchor_mod, 'select_anchor_and_create') as mock_select_and_create:
+            self.anchor_mod.anchor_shortcut()
+
+        mock_select_and_create.assert_called_once()
+
+    def test_multiple_nodes_selected_calls_create_anchor(self):
+        """Multiple non-anchor nodes selected → create_anchor() called once."""
+        import nuke as _nuke
+        node1 = _nuke.StubNode(name='Read1', node_class='Read')
+        node2 = _nuke.StubNode(name='Read2', node_class='Read')
+        self.nuke_stub.selectedNodes = MagicMock(return_value=[node1, node2])
+
+        with patch.object(self.anchor_mod.prefs, 'plugin_enabled', True), \
+             patch.object(self.anchor_mod, 'is_anchor', return_value=False), \
+             patch.object(self.anchor_mod, 'create_anchor') as mock_create_anchor:
+            self.anchor_mod.anchor_shortcut()
+
+        mock_create_anchor.assert_called_once()
 
 
 if __name__ == '__main__':
