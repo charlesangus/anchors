@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Foundations
 status: completed
-stopped_at: Phase 14 context gathered
-last_updated: "2026-03-16T10:16:33.292Z"
+stopped_at: Completed 14-01-PLAN.md
+last_updated: "2026-03-16T10:36:43.084Z"
 last_activity: 2026-03-15 — Phase 13 Plan 02 complete; tests, CI, README updated; GitHub repo renamed to charlesangus/anchors
 progress:
   total_phases: 5
-  completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  completed_phases: 2
+  total_plans: 5
+  completed_plans: 5
   percent: 5
 ---
 
@@ -48,6 +48,7 @@ Progress: [█░░░░░░░░░] 5%
 *Updated after each plan completion*
 | Phase 13-project-rename P02 | 15 | 2 tasks | 7 files |
 | Phase 13-project-rename P03 | 12 | 2 tasks | 6 files |
+| Phase 14-bug-fixes P01 | 4 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -64,6 +65,7 @@ Recent decisions relevant to v1.3:
 - 13-01: DOT_ANCHOR_KNOB_NAME and DOT_TYPE_KNOB_NAME values changed to anchors_* — existing .nk files require migrate_script()
 - [Phase 13-project-rename]: 13-02: test patches updated to anchors.* module paths; paste_hidden_user_palette.json kept in tests (legacy palette source)
 - [Phase 13-project-rename]: 13-03: OLD_PREFS_PATH moved to constants.py — plan's patch-after-import approach cannot work because _load() runs at import time; all patchable file paths now live in constants.py
+- [Phase 14-bug-fixes]: accept() override is single chokepoint for chosen_name capture in ColorPaletteDialog
 
 ### Pending Todos
 
@@ -75,6 +77,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-16T10:16:33.289Z
-Stopped at: Phase 14 context gathered
-Resume file: .planning/phases/14-bug-fixes/14-CONTEXT.md
+Last session: 2026-03-16T10:36:43.081Z
+Stopped at: Completed 14-01-PLAN.md
+Resume file: None

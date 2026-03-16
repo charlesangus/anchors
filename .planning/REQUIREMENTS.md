@@ -24,7 +24,7 @@
 
 ### Bug Fixes
 
-- [ ] **BUG-03**: Name typed in anchor creation dialog is reliably applied as the anchor node's name
+- [x] **BUG-03**: Name typed in anchor creation dialog is reliably applied as the anchor node's name
 - [ ] **BUG-04**: Pressing "a" on a Dot node creates a regular NoOp-based anchor instead of a Dot anchor
 
 ### Public API
@@ -59,7 +59,7 @@
 |-------------|-------|--------|
 | REN-01 | Phase 13 | Complete |
 | REN-02 | Phase 13 | Complete |
-| BUG-03 | Phase 14 | Pending |
+| BUG-03 | Phase 14 | Complete |
 | BUG-04 | Phase 14 | Pending |
 | NAME-01 | Phase 15 | Pending |
 | NAME-02 | Phase 15 | Pending |
