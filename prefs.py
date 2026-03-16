@@ -20,6 +20,8 @@ from constants import OLD_PREFS_PATH, PREFS_PATH, USER_PALETTE_PATH
 plugin_enabled = True
 link_classes_paste_mode = "create_link"
 custom_colors = []
+naming_regex = ""
+naming_template = ""
 
 
 def _migrate_from_old_palette():
@@ -62,7 +64,7 @@ def _load():
     back to defaults. Per-key type validation ensures corrupt individual values
     do not poison valid ones.
     """
-    global plugin_enabled, link_classes_paste_mode, custom_colors
+    global plugin_enabled, link_classes_paste_mode, custom_colors, naming_regex, naming_template
     if not os.path.exists(PREFS_PATH):
         _migrate_from_old_prefs_file()
         if not os.path.exists(PREFS_PATH):
@@ -81,6 +83,10 @@ def _load():
         if isinstance(data.get('custom_colors'), list):
             custom_colors = [int(color_value) for color_value in data['custom_colors']
                              if isinstance(color_value, (int, float))]
+        if isinstance(data.get('naming_regex'), str):
+            naming_regex = data['naming_regex']
+        if isinstance(data.get('naming_template'), str):
+            naming_template = data['naming_template']
     except (OSError, ValueError, json.JSONDecodeError):
         pass  # silent fallback — module-level defaults remain
 
@@ -98,6 +104,8 @@ def save():
                 'plugin_enabled': plugin_enabled,
                 'link_classes_paste_mode': link_classes_paste_mode,
                 'custom_colors': custom_colors,
+                'naming_regex': naming_regex,
+                'naming_template': naming_template,
             },
             file_handle,
         )
