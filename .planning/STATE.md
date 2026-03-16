@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Foundations
 status: completed
-stopped_at: Completed 14-01-PLAN.md
-last_updated: "2026-03-16T10:36:43.084Z"
+stopped_at: Completed 14-02-PLAN.md
+last_updated: "2026-03-16T11:15:30Z"
 last_activity: 2026-03-15 — Phase 13 Plan 02 complete; tests, CI, README updated; GitHub repo renamed to charlesangus/anchors
 progress:
   total_phases: 5
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-15)
 
 ## Current Position
 
-Phase: 13 of 17 (Project Rename)
-Plan: 02 complete — Phase 13 fully done
-Status: Phase complete, ready for Phase 14
-Last activity: 2026-03-15 — Phase 13 Plan 02 complete; tests, CI, README updated; GitHub repo renamed to charlesangus/anchors
+Phase: 14 of 17 (Bug Fixes)
+Plan: 02 complete — Phase 14 Plan 02 done
+Status: In progress, Plan 02 complete
+Last activity: 2026-03-16 — Phase 14 Plan 02 complete; BUG-04 fixed, Dot elif removed from anchor_shortcut()
 
 Progress: [█░░░░░░░░░] 5%
 
@@ -49,6 +49,7 @@ Progress: [█░░░░░░░░░] 5%
 | Phase 13-project-rename P02 | 15 | 2 tasks | 7 files |
 | Phase 13-project-rename P03 | 12 | 2 tasks | 6 files |
 | Phase 14-bug-fixes P01 | 4 | 2 tasks | 2 files |
+| Phase 14-bug-fixes P02 | 3 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -66,6 +67,7 @@ Recent decisions relevant to v1.3:
 - [Phase 13-project-rename]: 13-02: test patches updated to anchors.* module paths; paste_hidden_user_palette.json kept in tests (legacy palette source)
 - [Phase 13-project-rename]: 13-03: OLD_PREFS_PATH moved to constants.py — plan's patch-after-import approach cannot work because _load() runs at import time; all patchable file paths now live in constants.py
 - [Phase 14-bug-fixes]: accept() override is single chokepoint for chosen_name capture in ColorPaletteDialog
+- [Phase 14-bug-fixes]: BUG-04: removed Dot elif branch from anchor_shortcut() — _offer_make_dot_anchor() deprecated, Dot nodes now use create_anchor() via NoOp path
 
 ### Pending Todos
 
@@ -77,6 +79,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-16T10:36:43.081Z
-Stopped at: Completed 14-01-PLAN.md
+Last session: 2026-03-16T11:15:30Z
+Stopped at: Completed 14-02-PLAN.md
 Resume file: None
