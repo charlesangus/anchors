@@ -1942,5 +1942,68 @@ class TestColorPaletteDialogButtonLayout(unittest.TestCase):
         )
 
 
+# ---------------------------------------------------------------------------
+# BUG-03 regression: ColorPaletteDialog.accept() must capture chosen_name
+# ---------------------------------------------------------------------------
+
+class TestColorPaletteDialogChosenNameCapturedOnAccept(unittest.TestCase):
+    """BUG-03: chosen_name must be read from _name_edit inside accept() so that
+    swatch-click and OK-button paths both produce the correct anchor name.
+    """
+
+    def setUp(self):
+        _ensure_qt_stubs_support_mock_attributes()
+        import importlib
+        import colors as colors_module
+        importlib.reload(colors_module)
+        self._accept_method = _extract_method_from_source('accept')
+
+    def test_chosen_name_captured_from_name_edit_on_accept(self):
+        """When show_name_field=True and _name_edit holds 'typed_name', accept() must
+        write that value into chosen_name before closing.
+        """
+        accept_method = self._accept_method
+        if accept_method is None:
+            self.fail("accept() method not found in ColorPaletteDialog in colors.py")
+
+        dialog = _PickerTestHarness()
+        dialog.chosen_name = "old"
+        name_edit_mock = MagicMock()
+        name_edit_mock.text.return_value = "typed_name"
+        dialog._name_edit = name_edit_mock
+
+        # Call the real accept() with super().accept() patched to a no-op
+        with patch('colors.QtWidgets.QDialog.accept'):
+            accept_method(dialog)
+
+        self.assertEqual(
+            dialog.chosen_name,
+            "typed_name",
+            "chosen_name must equal _name_edit.text() after accept() is called"
+        )
+
+    def test_no_crash_when_name_edit_is_none(self):
+        """When show_name_field=False (_name_edit is None), accept() must not raise
+        and must leave chosen_name unchanged.
+        """
+        accept_method = self._accept_method
+        if accept_method is None:
+            self.fail("accept() method not found in ColorPaletteDialog in colors.py")
+
+        dialog = _PickerTestHarness()
+        dialog._name_edit = None
+        original_chosen_name = dialog.chosen_name
+
+        # Call the real accept() with super().accept() patched to a no-op
+        with patch('colors.QtWidgets.QDialog.accept'):
+            accept_method(dialog)
+
+        self.assertEqual(
+            dialog.chosen_name,
+            original_chosen_name,
+            "chosen_name must not change when _name_edit is None"
+        )
+
+
 if __name__ == '__main__':
     unittest.main()
