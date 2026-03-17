@@ -124,7 +124,12 @@ Plans:
   2. Fields locked by site config appear disabled in PrefsDialog and cannot be changed without using the override checkbox
   3. Checking "Override Site Config" in PrefsDialog re-enables locked fields so the user can change them for their session
   4. When `ANCHORS_SITE_CONFIG` is unset or the path is invalid, the plugin loads normally with no error
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 16-01-PLAN.md — TDD scaffold: TestSiteConfigLoading tests + update TestPublish to assert naming-only output
+- [ ] 16-02-PLAN.md — Backend: _site_config dict, _user_naming_* shadow vars, _load_site_config(), _apply_effective_naming_values(), save()/publish() updates
+- [ ] 16-03-PLAN.md — UI: PrefsDialog override checkbox, _update_naming_fields_lock_state(), _on_accept() shadow var flush + human verification checkpoint
 
 ### Phase 17: Public API
 **Goal**: External Nuke modules can programmatically create anchors and wire nodes to them via a stable, documented public API
