@@ -24,6 +24,7 @@ naming_regex = ""
 naming_template = ""
 naming_demo_filename = "plate_v003.exr"
 site_config_override = False    # persisted to anchors_prefs.json
+last_publish_path = ""          # most recently chosen publish destination; persisted to anchors_prefs.json
 
 # Private — populated by _load_site_config(), never written to user prefs file directly
 _site_config = {}               # keys: field names locked by site config; values: admin values
@@ -76,7 +77,8 @@ def _load():
     """
     global plugin_enabled, link_classes_paste_mode, custom_colors, \
            naming_regex, naming_template, naming_demo_filename, \
-           site_config_override, _user_naming_regex, _user_naming_template, \
+           site_config_override, last_publish_path, \
+           _user_naming_regex, _user_naming_template, \
            _user_naming_demo_filename
     if not os.path.exists(PREFS_PATH):
         _migrate_from_old_prefs_file()
@@ -105,6 +107,8 @@ def _load():
             naming_demo_filename = data['naming_demo_filename']
         if isinstance(data.get('site_config_override'), bool):
             site_config_override = data['site_config_override']
+        if isinstance(data.get('last_publish_path'), str):
+            last_publish_path = data['last_publish_path']
     except (OSError, ValueError, json.JSONDecodeError):
         pass  # silent fallback — module-level defaults remain
     # Copy user values into shadow vars before site config is applied
@@ -171,6 +175,7 @@ def save():
                 'naming_template': _user_naming_template,
                 'naming_demo_filename': _user_naming_demo_filename,
                 'site_config_override': site_config_override,
+                'last_publish_path': last_publish_path,
             },
             file_handle,
         )
