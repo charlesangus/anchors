@@ -838,7 +838,15 @@ else:
             if not chosen_path:
                 return  # user cancelled — do nothing
 
-            prefs_module.publish(chosen_path)
+            try:
+                prefs_module.publish(chosen_path)
+            except Exception as publish_error:
+                QtWidgets.QMessageBox.warning(
+                    self,
+                    "Publish Failed",
+                    "Could not write to {}:\n{}".format(chosen_path, publish_error),
+                )
+                return
             self._publish_path = chosen_path          # update instance var for same-session reuse
             prefs_module.last_publish_path = chosen_path
             prefs_module.save()
