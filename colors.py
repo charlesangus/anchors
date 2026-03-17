@@ -655,7 +655,7 @@ else:
             self._update_naming_validity_indicator()
 
             # Ctrl+Z undoes the most recent Reset action (not per-keystroke undo — QLineEdit handles that)
-            undo_reset_shortcut = QtWidgets.QShortcut(
+            undo_reset_shortcut = QtGui.QShortcut(
                 QtGui.QKeySequence("Ctrl+Z"), self
             )
             undo_reset_shortcut.activated.connect(self._on_undo_reset_naming)
