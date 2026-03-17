@@ -558,7 +558,11 @@ else:
             self._local_site_config_override = prefs_module.site_config_override
             self._pre_reset_naming_snapshot = None  # (regex_text, template_text) tuple or None
             import os as os_module
-            self._publish_path = os_module.environ.get("ANCHORS_SITE_CONFIG", "")
+            self._publish_path = (
+                os_module.environ.get("ANCHORS_SITE_CONFIG", "")
+                or prefs_module.last_publish_path
+                or "/"
+            )
             self._build_ui()
 
         def _build_ui(self):
@@ -655,9 +659,8 @@ else:
 
             # Publish button — inside the collapsible section
             naming_publish_row_layout = QtWidgets.QHBoxLayout()
-            self._publish_button = QtWidgets.QPushButton("Publish")
+            self._publish_button = QtWidgets.QPushButton("Publish...")
             self._publish_button.setAutoDefault(False)
-            self._publish_button.setEnabled(bool(self._publish_path))
             self._publish_button.clicked.connect(self._on_publish_naming)
             naming_publish_row_layout.addWidget(self._publish_button)
             naming_publish_row_layout.addStretch()
@@ -814,19 +817,31 @@ else:
             self._pre_reset_naming_snapshot = None
 
         def _on_publish_naming(self):
-            """Write current prefs to the site config path from ANCHORS_SITE_CONFIG.
+            """Open a file save dialog and publish naming config to the chosen path.
 
-            Flushes the current field values into the user shadow vars, then
-            re-applies effective naming values before publishing, so that the
-            published file reflects what the user currently sees.
-            Does not call save() — publish() writes to a separate path.
+            Flushes current field values into shadow vars and re-applies effective
+            values before publishing, so the published file reflects the live UI state.
+            Persists the chosen path to prefs for future dialog pre-fill.
             """
             import prefs as prefs_module
             prefs_module._user_naming_regex = self._naming_regex_edit.text()
             prefs_module._user_naming_template = self._naming_template_edit.text()
             prefs_module._user_naming_demo_filename = self._naming_test_filename_edit.text()
             prefs_module._apply_effective_naming_values()
-            prefs_module.publish(self._publish_path)
+
+            chosen_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+                self,
+                "Publish Site Config",
+                self._publish_path,
+                "JSON files (*.json)",
+            )
+            if not chosen_path:
+                return  # user cancelled — do nothing
+
+            prefs_module.publish(chosen_path)
+            self._publish_path = chosen_path          # update instance var for same-session reuse
+            prefs_module.last_publish_path = chosen_path
+            prefs_module.save()
 
         def _update_naming_validity_indicator(self):
             """Update the validity label and rendered preview based on current field values.
