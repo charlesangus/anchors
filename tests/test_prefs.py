@@ -213,13 +213,18 @@ class TestNamingPrefsRoundTrip(unittest.TestCase):
             constants.OLD_PREFS_PATH = original_old_prefs_path
 
     def test_naming_fields_written_to_prefs_file(self):
-        """save() writes naming_regex and naming_template keys to the JSON file."""
+        """save() writes naming_regex and naming_template keys to the JSON file.
+
+        Phase 16: save() reads from _user_naming_* shadow vars (not effective naming_* vars)
+        so user values are preserved even when site config overrides the effective values.
+        """
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
             prefs_module = self._reload_prefs_with_temp_path(temp_prefs_path)
 
-            prefs_module.naming_regex = r'(?P<shot>.+)_v\d+'
-            prefs_module.naming_template = '{shot}'
+            # Set shadow vars (user's own values) — save() reads these
+            prefs_module._user_naming_regex = r'(?P<shot>.+)_v\d+'
+            prefs_module._user_naming_template = '{shot}'
             prefs_module.save()
 
             with open(temp_prefs_path) as file_handle:
@@ -344,12 +349,17 @@ class TestNamingDemoFilenameRoundTrip(unittest.TestCase):
             )
 
     def test_naming_demo_filename_round_trip(self):
-        """save() writes 'naming_demo_filename' key; _load() reads it back into module var."""
+        """save() writes 'naming_demo_filename' key; _load() reads it back into module var.
+
+        Phase 16: save() reads from _user_naming_demo_filename shadow var (not effective
+        naming_demo_filename var) to preserve user values under site config.
+        """
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
             prefs_module = self._reload_prefs_with_temp_path(temp_prefs_path)
 
-            prefs_module.naming_demo_filename = 'shot_v007.dpx'
+            # Set shadow var — save() reads _user_naming_demo_filename
+            prefs_module._user_naming_demo_filename = 'shot_v007.dpx'
             prefs_module.save()
 
             # Verify the JSON file contains the key
@@ -517,7 +527,8 @@ class TestPublish(unittest.TestCase):
             )
             with open(nested_publish_path) as file_handle:
                 data = json.load(file_handle)
-            self.assertIn('plugin_enabled', data)
+            # Phase 16: publish() writes only naming fields (sparse site config format)
+            self.assertIn('naming_regex', data)
 
 
 class TestSiteConfigLoading(unittest.TestCase):

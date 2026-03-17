@@ -23,6 +23,15 @@ custom_colors = []
 naming_regex = ""
 naming_template = ""
 naming_demo_filename = "plate_v003.exr"
+site_config_override = False    # persisted to anchors_prefs.json
+
+# Private — populated by _load_site_config(), never written to user prefs file directly
+_site_config = {}               # keys: field names locked by site config; values: admin values
+_user_naming_regex = ""         # shadow: user's own saved value for naming_regex
+_user_naming_template = ""      # shadow: user's own saved value for naming_template
+_user_naming_demo_filename = "plate_v003.exr"  # shadow: user's own saved value for naming_demo_filename
+
+_LOCKABLE_NAMING_FIELDS = ('naming_regex', 'naming_template', 'naming_demo_filename')
 
 
 def _migrate_from_old_palette():
@@ -65,13 +74,17 @@ def _load():
     back to defaults. Per-key type validation ensures corrupt individual values
     do not poison valid ones.
     """
-    global plugin_enabled, link_classes_paste_mode, custom_colors, naming_regex, naming_template, naming_demo_filename
+    global plugin_enabled, link_classes_paste_mode, custom_colors, \
+           naming_regex, naming_template, naming_demo_filename, \
+           site_config_override, _user_naming_regex, _user_naming_template, \
+           _user_naming_demo_filename
     if not os.path.exists(PREFS_PATH):
         _migrate_from_old_prefs_file()
         if not os.path.exists(PREFS_PATH):
             # No old prefs either — try old palette migration
             _migrate_from_old_palette()
             save()
+            _load_site_config()
             return
         # Old prefs was successfully copied; now fall through to load it
     try:
@@ -90,8 +103,55 @@ def _load():
             naming_template = data['naming_template']
         if isinstance(data.get('naming_demo_filename'), str):
             naming_demo_filename = data['naming_demo_filename']
+        if isinstance(data.get('site_config_override'), bool):
+            site_config_override = data['site_config_override']
     except (OSError, ValueError, json.JSONDecodeError):
         pass  # silent fallback — module-level defaults remain
+    # Copy user values into shadow vars before site config is applied
+    _user_naming_regex = naming_regex
+    _user_naming_template = naming_template
+    _user_naming_demo_filename = naming_demo_filename
+    _load_site_config()
+
+
+def _load_site_config():
+    """Read ANCHORS_SITE_CONFIG env var and load the site config file.
+
+    Populates _site_config with field names present in the JSON file.
+    Sets effective module-level naming vars based on site config + override state.
+    Silent no-op when env var unset, file missing, or file corrupt.
+    """
+    global _site_config, naming_regex, naming_template, naming_demo_filename
+    _site_config = {}
+    site_config_path = os.environ.get("ANCHORS_SITE_CONFIG", "")
+    if not site_config_path:
+        return
+    try:
+        with open(site_config_path) as file_handle:
+            data = json.load(file_handle)
+        for field_name in _LOCKABLE_NAMING_FIELDS:
+            if isinstance(data.get(field_name), str):
+                _site_config[field_name] = data[field_name]
+    except (OSError, ValueError, json.JSONDecodeError):
+        return  # silent fallback — _site_config stays empty
+    _apply_effective_naming_values()
+
+
+def _apply_effective_naming_values():
+    """Set module-level naming vars to effective values.
+
+    When a field is locked by site config AND override is off: use site config value.
+    Otherwise: use user's own saved value.
+    """
+    global naming_regex, naming_template, naming_demo_filename
+    if not site_config_override:
+        naming_regex = _site_config.get('naming_regex', _user_naming_regex)
+        naming_template = _site_config.get('naming_template', _user_naming_template)
+        naming_demo_filename = _site_config.get('naming_demo_filename', _user_naming_demo_filename)
+    else:
+        naming_regex = _user_naming_regex
+        naming_template = _user_naming_template
+        naming_demo_filename = _user_naming_demo_filename
 
 
 def save():
@@ -107,19 +167,21 @@ def save():
                 'plugin_enabled': plugin_enabled,
                 'link_classes_paste_mode': link_classes_paste_mode,
                 'custom_colors': custom_colors,
-                'naming_regex': naming_regex,
-                'naming_template': naming_template,
-                'naming_demo_filename': naming_demo_filename,
+                'naming_regex': _user_naming_regex,
+                'naming_template': _user_naming_template,
+                'naming_demo_filename': _user_naming_demo_filename,
+                'site_config_override': site_config_override,
             },
             file_handle,
         )
 
 
 def publish(destination_path):
-    """Write current preference values to destination_path without altering the default prefs file.
+    """Write only naming fields to destination_path in sparse site config format.
 
-    For site administrators who want to push their current naming config
-    to the shared site config file specified by ANCHORS_SITE_CONFIG.
+    Writes the currently effective naming values (naming_regex, naming_template,
+    naming_demo_filename module vars). Called by PrefsDialog._on_publish_naming()
+    which flushes field values before calling this.
     Creates parent directories if they do not exist.
     Does not change any module-level variables or call save().
     """
@@ -129,9 +191,6 @@ def publish(destination_path):
     with open(destination_path, 'w') as file_handle:
         json.dump(
             {
-                'plugin_enabled': plugin_enabled,
-                'link_classes_paste_mode': link_classes_paste_mode,
-                'custom_colors': custom_colors,
                 'naming_regex': naming_regex,
                 'naming_template': naming_template,
                 'naming_demo_filename': naming_demo_filename,
