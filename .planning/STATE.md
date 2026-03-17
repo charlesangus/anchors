@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Foundations
 status: executing
-stopped_at: Completed 15-anchor-naming/15-03-PLAN.md
-last_updated: "2026-03-17T03:18:42.347Z"
+stopped_at: Completed 15.1-additional-preferences-requirements/15.1-01-PLAN.md
+last_updated: "2026-03-17T04:26:48.694Z"
 last_activity: 2026-03-16 — Phase 14 Plan 02 complete; BUG-04 fixed, Dot elif removed from anchor_shortcut()
 progress:
-  total_phases: 5
+  total_phases: 6
   completed_phases: 3
-  total_plans: 8
-  completed_plans: 8
+  total_plans: 11
+  completed_plans: 9
   percent: 5
 ---
 
@@ -53,6 +53,7 @@ Progress: [█░░░░░░░░░] 5%
 | Phase 15-anchor-naming P01 | 3 | 2 tasks | 2 files |
 | Phase 15-anchor-naming P02 | 4 | 2 tasks | 3 files |
 | Phase 15-anchor-naming P03 | 4 | 2 tasks | 1 files |
+| Phase 15.1-additional-preferences-requirements P01 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,12 @@ Recent decisions relevant to v1.3:
 - [Phase 15-anchor-naming]: 15-02: _FRAME_TOKEN_PATTERN \b word boundary removed — # is non-word char so \b after #{1,} never fires; natural token delimiters suffice
 - [Phase 15-anchor-naming]: 15-02: test_strips_percent04d and test_no_token_unchanged expected values corrected from plate_v003 to plate — {name} group from (?P<name>.+)_v\d+ yields 'plate'; Wave 0 scaffold had incorrect assertions
 - [Phase 15-anchor-naming]: 15-03: auto_advance=true — Task 2 human-verify checkpoint auto-approved; no UI runtime available in this environment
+- [Phase 15.1-additional-preferences-requirements]: publish() guards os.path.dirname result before os.makedirs — bare filenames return '' which would fail
+- [Phase 15.1-additional-preferences-requirements]: naming_demo_filename defaults to 'plate_v003.exr' — concrete example that exercises frame-token stripping in suggest_anchor_name()
+
+### Roadmap Evolution
+
+- Phase 15.1 inserted after Phase 15: additional preferences requirements (URGENT)
 
 ### Pending Todos
 
@@ -86,6 +93,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-16T13:06:50.485Z
-Stopped at: Completed 15-anchor-naming/15-03-PLAN.md
+Last session: 2026-03-17T04:26:48.692Z
+Stopped at: Completed 15.1-additional-preferences-requirements/15.1-01-PLAN.md
 Resume file: None
