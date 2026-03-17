@@ -593,6 +593,9 @@ else:
             self._advanced_container_widget.setLayout(advanced_container_layout)
             self._advanced_container_widget.setVisible(False)  # collapsed by default
 
+            # Section label inside the collapsible container
+            advanced_container_layout.addWidget(naming_section_label)
+
             # Regex field row
             naming_regex_row_layout = QtWidgets.QHBoxLayout()
             naming_regex_label = QtWidgets.QLabel("Regex:")
@@ -709,7 +712,6 @@ else:
             outer_layout.addWidget(separator_above_naming)
 
             # ---- Anchor Naming section (below Custom Colors) ----
-            outer_layout.addWidget(naming_section_label)
             outer_layout.addWidget(self._advanced_toggle_button)
             outer_layout.addWidget(self._advanced_container_widget)
 
@@ -735,8 +737,8 @@ else:
             self._ok_button = QtWidgets.QPushButton("OK")
             self._ok_button.setAutoDefault(False)
             self._ok_button.clicked.connect(self._on_accept)
-            ok_cancel_row_layout.addWidget(self._cancel_button)  # Cancel on left
-            ok_cancel_row_layout.addWidget(self._ok_button)      # OK on right
+            ok_cancel_row_layout.addWidget(self._ok_button)      # OK on left
+            ok_cancel_row_layout.addWidget(self._cancel_button)  # Cancel on right
             outer_layout.addLayout(ok_cancel_row_layout)
 
         def _on_toggle_advanced_naming(self):
