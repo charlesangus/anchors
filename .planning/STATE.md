@@ -4,7 +4,7 @@ milestone: v1.3
 milestone_name: Foundations
 status: executing
 stopped_at: Completed 16.1-publish-always-available-with-file-save-dialog 16.1-01-PLAN.md
-last_updated: "2026-03-17T11:41:12.554Z"
+last_updated: "2026-03-17T11:55:38.462Z"
 last_activity: 2026-03-16 — Phase 14 Plan 02 complete; BUG-04 fixed, Dot elif removed from anchor_shortcut()
 progress:
   total_phases: 7
