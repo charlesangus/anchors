@@ -554,6 +554,7 @@ else:
             self._swatch_buttons = []  # parallel list of QPushButton refs
             self._local_naming_regex = prefs_module.naming_regex
             self._local_naming_template = prefs_module.naming_template
+            self._local_naming_demo_filename = prefs_module.naming_demo_filename
             self._build_ui()
 
         def _build_ui(self):
@@ -603,7 +604,7 @@ else:
             naming_test_label = QtWidgets.QLabel("Test filename:")
             naming_test_label.setFocusPolicy(Qt.NoFocus)
             self._naming_test_filename_edit = QtWidgets.QLineEdit()
-            self._naming_test_filename_edit.setText("plate_v003.exr")
+            self._naming_test_filename_edit.setText(self._local_naming_demo_filename)
             self._naming_validity_label = QtWidgets.QLabel("")
             self._naming_validity_label.setFocusPolicy(Qt.NoFocus)
             naming_reset_button = QtWidgets.QPushButton("Reset")
@@ -615,8 +616,20 @@ else:
             naming_test_row_layout.addWidget(naming_reset_button)
             outer_layout.addLayout(naming_test_row_layout)
 
-            # Wire live validity indicator to both text fields
+            # Preview row — shows the rendered anchor name from regex+template applied to test filename
+            naming_preview_row_layout = QtWidgets.QHBoxLayout()
+            naming_preview_description_label = QtWidgets.QLabel("Preview:")
+            naming_preview_description_label.setFocusPolicy(Qt.NoFocus)
+            self._naming_preview_label = QtWidgets.QLabel("")
+            self._naming_preview_label.setFocusPolicy(Qt.NoFocus)
+            naming_preview_row_layout.addWidget(naming_preview_description_label)
+            naming_preview_row_layout.addWidget(self._naming_preview_label)
+            naming_preview_row_layout.addStretch()
+            outer_layout.addLayout(naming_preview_row_layout)
+
+            # Wire live validity indicator to all three text fields (template changes affect preview)
             self._naming_regex_edit.textChanged.connect(self._update_naming_validity_indicator)
+            self._naming_template_edit.textChanged.connect(self._update_naming_validity_indicator)
             self._naming_test_filename_edit.textChanged.connect(self._update_naming_validity_indicator)
             # Initial indicator state
             self._update_naming_validity_indicator()
@@ -696,32 +709,54 @@ else:
             # Test filename field is intentionally not cleared
 
         def _update_naming_validity_indicator(self):
-            """Update the validity label based on current regex text and test filename.
+            """Update the validity label and rendered preview based on current field values.
 
-            Green 'Match' — regex compiles and matches the test filename.
-            Red 'No match' — regex compiles but does not match.
-            Red 'Invalid regex' — regex does not compile.
-            Blank — regex field is empty.
+            Validity label:
+              Green 'Match' — regex compiles and matches the test filename.
+              Red 'No match' — regex compiles but does not match.
+              Red 'Invalid regex' — regex does not compile.
+              Blank — regex field is empty.
+
+            Preview label:
+              Shows the anchor name that would be generated (template substituted).
+              Blank when regex is empty, invalid, or does not match.
             """
             import re as re_module
+            _FRAME_TOKEN_PATTERN = re_module.compile(r'[._]?(?:%0?\d*d|#{1,}|%[Vv])')
             regex_text = self._naming_regex_edit.text()
+            template_text = self._naming_template_edit.text()
             test_filename = self._naming_test_filename_edit.text()
+            stripped_filename = _FRAME_TOKEN_PATTERN.sub('', test_filename)
+
             if not regex_text:
                 self._naming_validity_label.setText("")
                 self._naming_validity_label.setStyleSheet("")
+                self._naming_preview_label.setText("")
                 return
             try:
                 compiled_pattern = re_module.compile(regex_text)
             except re_module.error:
                 self._naming_validity_label.setText("Invalid regex")
                 self._naming_validity_label.setStyleSheet("color: red;")
+                self._naming_preview_label.setText("")
                 return
-            if compiled_pattern.match(test_filename):
+            regex_match = compiled_pattern.match(stripped_filename)
+            if regex_match:
                 self._naming_validity_label.setText("Match")
                 self._naming_validity_label.setStyleSheet("color: green;")
+                # Compute preview: template substitution or full match (group 0)
+                if template_text:
+                    try:
+                        preview_text = template_text.format_map(regex_match.groupdict())
+                    except (KeyError, ValueError):
+                        preview_text = regex_match.group(0)
+                else:
+                    preview_text = regex_match.group(0)
+                self._naming_preview_label.setText(preview_text)
             else:
                 self._naming_validity_label.setText("No match")
                 self._naming_validity_label.setStyleSheet("color: red;")
+                self._naming_preview_label.setText("")
 
         def _populate_swatch_grid(self):
             """Fill the swatch grid from self._local_custom_colors."""
@@ -897,12 +932,14 @@ else:
             )
             self._local_naming_regex = self._naming_regex_edit.text()
             self._local_naming_template = self._naming_template_edit.text()
+            self._local_naming_demo_filename = self._naming_test_filename_edit.text()
             # Flush local working copies to prefs module-level variables
             prefs_module.plugin_enabled = self._local_plugin_enabled
             prefs_module.link_classes_paste_mode = self._local_link_mode
             prefs_module.custom_colors = list(self._local_custom_colors)
             prefs_module.naming_regex = self._local_naming_regex
             prefs_module.naming_template = self._local_naming_template
+            prefs_module.naming_demo_filename = self._local_naming_demo_filename
             # Persist to disk
             prefs_module.save()
             # Apply plugin_enabled live (menu enable/disable without restart).
