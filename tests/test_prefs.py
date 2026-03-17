@@ -773,5 +773,99 @@ class TestSiteConfigLoading(unittest.TestCase):
             )
 
 
+class TestLastPublishPath(unittest.TestCase):
+    """Round-trip tests for the last_publish_path preference field.
+
+    last_publish_path records the most recently chosen publish destination so
+    that the next publish dialog can pre-fill the same path.
+    """
+
+    def setUp(self):
+        if 'prefs' in sys.modules:
+            del sys.modules['prefs']
+
+    def tearDown(self):
+        if 'prefs' in sys.modules:
+            del sys.modules['prefs']
+
+    def _reload_prefs_with_temp_path(self, temp_prefs_path):
+        """Helper: reload prefs with PREFS_PATH pointing at temp_prefs_path."""
+        import constants
+        original_prefs_path = constants.PREFS_PATH
+        original_palette_path = constants.USER_PALETTE_PATH
+        original_old_prefs_path = constants.OLD_PREFS_PATH
+        try:
+            constants.PREFS_PATH = temp_prefs_path
+            constants.USER_PALETTE_PATH = temp_prefs_path + '.palette_unused'
+            constants.OLD_PREFS_PATH = temp_prefs_path + '.old_unused'
+            if 'prefs' in sys.modules:
+                del sys.modules['prefs']
+            import prefs as reloaded_prefs
+            reloaded_prefs.PREFS_PATH = temp_prefs_path
+            return reloaded_prefs
+        finally:
+            constants.PREFS_PATH = original_prefs_path
+            constants.USER_PALETTE_PATH = original_palette_path
+            constants.OLD_PREFS_PATH = original_old_prefs_path
+
+    def test_last_publish_path_round_trips(self):
+        """last_publish_path persists through save() and is restored on reload."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+            prefs_module = self._reload_prefs_with_temp_path(temp_prefs_path)
+
+            prefs_module.last_publish_path = '/tmp/myconfig.json'
+            prefs_module.save()
+
+            prefs_module2 = self._reload_prefs_with_temp_path(temp_prefs_path)
+
+            self.assertEqual(
+                prefs_module2.last_publish_path,
+                '/tmp/myconfig.json',
+                "last_publish_path must survive a save/load round-trip",
+            )
+
+    def test_last_publish_path_defaults_to_empty_string(self):
+        """On fresh import with no prefs file, last_publish_path defaults to ''."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+            # Do NOT create the prefs file — simulate fresh install
+            self.assertFalse(os.path.exists(temp_prefs_path))
+
+            prefs_module = self._reload_prefs_with_temp_path(temp_prefs_path)
+
+            self.assertEqual(
+                prefs_module.last_publish_path,
+                '',
+                "last_publish_path must default to '' when no prefs file exists",
+            )
+
+    def test_last_publish_path_non_string_in_json_is_ignored(self):
+        """Non-string value for last_publish_path in JSON is ignored; module var stays ''."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+
+            prefs_data = {
+                'plugin_enabled': True,
+                'link_classes_paste_mode': 'create_link',
+                'custom_colors': [],
+                'naming_regex': '',
+                'naming_template': '',
+                'naming_demo_filename': 'plate_v003.exr',
+                'site_config_override': False,
+                'last_publish_path': 42,  # int — not a string, must be ignored
+            }
+            with open(temp_prefs_path, 'w') as file_handle:
+                json.dump(prefs_data, file_handle)
+
+            prefs_module = self._reload_prefs_with_temp_path(temp_prefs_path)
+
+            self.assertEqual(
+                prefs_module.last_publish_path,
+                '',
+                "non-string last_publish_path must be ignored; module var stays ''",
+            )
+
+
 if __name__ == '__main__':
     unittest.main()
