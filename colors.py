@@ -580,6 +580,21 @@ else:
             naming_section_label.setFocusPolicy(Qt.NoFocus)
             outer_layout.addWidget(naming_section_label)
 
+            # Advanced toggle button — collapsed by default
+            self._advanced_toggle_button = QtWidgets.QPushButton("\u25b6 Advanced")
+            self._advanced_toggle_button.setFlat(True)
+            self._advanced_toggle_button.setFocusPolicy(Qt.NoFocus)
+            self._advanced_toggle_button.setAutoDefault(False)
+            self._advanced_toggle_button.clicked.connect(self._on_toggle_advanced_naming)
+            outer_layout.addWidget(self._advanced_toggle_button)
+
+            # Collapsible container for the technical naming fields
+            self._advanced_container_widget = QtWidgets.QWidget()
+            advanced_container_layout = QtWidgets.QVBoxLayout()
+            advanced_container_layout.setContentsMargins(0, 0, 0, 0)
+            self._advanced_container_widget.setLayout(advanced_container_layout)
+            self._advanced_container_widget.setVisible(False)  # collapsed by default
+
             # Regex field row
             naming_regex_row_layout = QtWidgets.QHBoxLayout()
             naming_regex_label = QtWidgets.QLabel("Regex:")
@@ -589,7 +604,7 @@ else:
             self._naming_regex_edit.setPlaceholderText("e.g. (?P<shot>.+)_v\\d+")
             naming_regex_row_layout.addWidget(naming_regex_label)
             naming_regex_row_layout.addWidget(self._naming_regex_edit)
-            outer_layout.addLayout(naming_regex_row_layout)
+            advanced_container_layout.addLayout(naming_regex_row_layout)
 
             # Template field row
             naming_template_row_layout = QtWidgets.QHBoxLayout()
@@ -600,7 +615,7 @@ else:
             self._naming_template_edit.setPlaceholderText("e.g. {shot}_anchor  (blank = use full match)")
             naming_template_row_layout.addWidget(naming_template_label)
             naming_template_row_layout.addWidget(self._naming_template_edit)
-            outer_layout.addLayout(naming_template_row_layout)
+            advanced_container_layout.addLayout(naming_template_row_layout)
 
             # Test filename row + validity indicator + Reset button
             naming_test_row_layout = QtWidgets.QHBoxLayout()
@@ -617,7 +632,7 @@ else:
             naming_test_row_layout.addWidget(self._naming_test_filename_edit)
             naming_test_row_layout.addWidget(self._naming_validity_label)
             naming_test_row_layout.addWidget(naming_reset_button)
-            outer_layout.addLayout(naming_test_row_layout)
+            advanced_container_layout.addLayout(naming_test_row_layout)
 
             # Preview row — shows the rendered anchor name from regex+template applied to test filename
             naming_preview_row_layout = QtWidgets.QHBoxLayout()
@@ -628,13 +643,15 @@ else:
             naming_preview_row_layout.addWidget(naming_preview_description_label)
             naming_preview_row_layout.addWidget(self._naming_preview_label)
             naming_preview_row_layout.addStretch()
-            outer_layout.addLayout(naming_preview_row_layout)
+            advanced_container_layout.addLayout(naming_preview_row_layout)
 
-            # Wire live validity indicator to all three text fields (template changes affect preview)
+            outer_layout.addWidget(self._advanced_container_widget)
+
+            # Wire live validity indicator to all three text fields (wired after widgets are created)
             self._naming_regex_edit.textChanged.connect(self._update_naming_validity_indicator)
             self._naming_template_edit.textChanged.connect(self._update_naming_validity_indicator)
             self._naming_test_filename_edit.textChanged.connect(self._update_naming_validity_indicator)
-            # Initial indicator state
+            # Initial indicator state (runs even when collapsed — updates labels for when user expands)
             self._update_naming_validity_indicator()
 
             # Ctrl+Z undoes the most recent Reset action (not per-keystroke undo — QLineEdit handles that)
@@ -643,7 +660,7 @@ else:
             )
             undo_reset_shortcut.activated.connect(self._on_undo_reset_naming)
 
-            # Publish button — writes current settings to the site config path
+            # Publish button — always visible (outside the collapsible section)
             naming_publish_row_layout = QtWidgets.QHBoxLayout()
             self._publish_button = QtWidgets.QPushButton("Publish")
             self._publish_button.setAutoDefault(False)
@@ -720,6 +737,15 @@ else:
             ok_cancel_row_layout.addWidget(self._cancel_button)  # Cancel on left
             ok_cancel_row_layout.addWidget(self._ok_button)      # OK on right
             outer_layout.addLayout(ok_cancel_row_layout)
+
+        def _on_toggle_advanced_naming(self):
+            """Toggle the visibility of the Advanced naming fields container."""
+            currently_visible = self._advanced_container_widget.isVisible()
+            self._advanced_container_widget.setVisible(not currently_visible)
+            if currently_visible:
+                self._advanced_toggle_button.setText("\u25b6 Advanced")
+            else:
+                self._advanced_toggle_button.setText("\u25bc Advanced")
 
         def _on_reset_naming(self):
             """Clear the regex and template fields, saving a snapshot for undo.
