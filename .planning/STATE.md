@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Foundations
 status: executing
-stopped_at: Completed 16-site-config-03-PLAN.md
-last_updated: "2026-03-17T10:59:48.683Z"
+stopped_at: Phase 16.1 context gathered
+last_updated: "2026-03-17T11:29:55.982Z"
 last_activity: 2026-03-16 — Phase 14 Plan 02 complete; BUG-04 fixed, Dot elif removed from anchor_shortcut()
 progress:
-  total_phases: 6
+  total_phases: 7
   completed_phases: 5
   total_plans: 14
   completed_plans: 14
@@ -98,6 +98,7 @@ Recent decisions relevant to v1.3:
 ### Roadmap Evolution
 
 - Phase 15.1 inserted after Phase 15: additional preferences requirements (URGENT)
+- Phase 16.1 inserted after Phase 16: Publish always available with file save dialog (URGENT)
 
 ### Pending Todos
 
@@ -109,6 +110,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-17T07:06:12.242Z
-Stopped at: Completed 16-site-config-03-PLAN.md
-Resume file: None
+Last session: 2026-03-17T11:29:55.979Z
+Stopped at: Phase 16.1 context gathered
+Resume file: .planning/phases/16.1-publish-always-available-with-file-save-dialog/16.1-CONTEXT.md
