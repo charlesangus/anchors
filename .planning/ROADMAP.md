@@ -53,7 +53,7 @@ Full archive: `.planning/milestones/v1.2-ROADMAP.md`
 - [x] **Phase 14: Bug Fixes** - Fix anchor creation dialog name application and "a"-on-Dot anchor type (completed 2026-03-16)
 - [x] **Phase 15: Anchor Naming** - Configurable regex and template for default anchor name suggestions from file knob (completed 2026-03-16)
 - [x] **Phase 15.1: Additional Preferences Requirements** - Live preview, collapsible Advanced section, demo filename persistence, undoable Reset, and Publish button for site admins (completed 2026-03-17)
-- [ ] **Phase 16: Site Config** - Site-level config via env var with per-field lock and user override in PrefsDialog
+- [x] **Phase 16: Site Config** - Site-level config via env var with per-field lock and user override in PrefsDialog (completed 2026-03-17)
 - [ ] **Phase 17: Public API** - Public `anchors` API module for external modules to create and wire anchors
 
 ## Phase Details
@@ -162,5 +162,5 @@ Plans:
 | 14. Bug Fixes | 2/2 | Complete    | 2026-03-16 | - |
 | 15. Anchor Naming | 3/3 | Complete    | 2026-03-17 | - |
 | 15.1. Additional Preferences Requirements | 3/3 | Complete    | 2026-03-17 | - |
-| 16. Site Config | 2/3 | In Progress|  | - |
+| 16. Site Config | 3/3 | Complete   | 2026-03-17 | - |
 | 17. Public API | v1.3 | 0/? | Not started | - |

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Foundations
 status: executing
-stopped_at: Completed 16-site-config-02-PLAN.md
-last_updated: "2026-03-17T06:58:03.706Z"
+stopped_at: Completed 16-site-config-03-PLAN.md
+last_updated: "2026-03-17T07:06:12.245Z"
 last_activity: 2026-03-16 — Phase 14 Plan 02 complete; BUG-04 fixed, Dot elif removed from anchor_shortcut()
 progress:
   total_phases: 6
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 14
-  completed_plans: 13
+  completed_plans: 14
   percent: 5
 ---
 
@@ -58,6 +58,7 @@ Progress: [█░░░░░░░░░] 5%
 | Phase 15.1-additional-preferences-requirements P03 | 3 | 2 tasks | 1 files |
 | Phase 16-site-config P01 | 3 | 2 tasks | 1 files |
 | Phase 16-site-config P02 | 3 | 2 tasks | 2 files |
+| Phase 16-site-config P03 | 6 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -91,6 +92,8 @@ Recent decisions relevant to v1.3:
 - [Phase 16-site-config]: 16-01: test_publish_writes_to_given_path updated to remove non-naming field setup and add assertNotIn for plugin_enabled/link_classes_paste_mode/custom_colors — defines publish() naming-only restriction target for Plan 02
 - [Phase 16-site-config]: 16-02: save() uses _user_naming_* shadow vars — effective naming_* vars are never written to anchors_prefs.json when site config is active
 - [Phase 16-site-config]: 16-02: _load_site_config() called before early return in _load() to ensure site config applies even on first run (no prefs file)
+- [Phase 16-site-config]: 16-03: auto_advance=true — Task 2 human-verify checkpoint auto-approved; no UI runtime available in this environment
+- [Phase 16-site-config]: 16-03: _update_naming_fields_lock_state() called at end of _build_ui() after all widgets created — ensures initial lock state set correctly on dialog open
 
 ### Roadmap Evolution
 
@@ -106,6 +109,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-17T06:57:57.956Z
-Stopped at: Completed 16-site-config-02-PLAN.md
+Last session: 2026-03-17T07:06:12.242Z
+Stopped at: Completed 16-site-config-03-PLAN.md
 Resume file: None
