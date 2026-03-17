@@ -131,6 +131,16 @@ Plans:
 - [ ] 16-02-PLAN.md — Backend: _site_config dict, _user_naming_* shadow vars, _load_site_config(), _apply_effective_naming_values(), save()/publish() updates
 - [ ] 16-03-PLAN.md — UI: PrefsDialog override checkbox, _update_naming_fields_lock_state(), _on_accept() shadow var flush + human verification checkpoint
 
+### Phase 16.1: Publish always available with file save dialog (INSERTED)
+
+**Goal:** Publish button is always enabled and always opens a file save dialog; last-used path persists to prefs so site admins can create the site config file even before ANCHORS_SITE_CONFIG is set
+**Requirements**: none (inserted phase)
+**Depends on:** Phase 16
+**Plans:** 1 plan
+
+Plans:
+- [ ] 16.1-01-PLAN.md — Add last_publish_path to prefs.py; always-enable Publish button; open QFileDialog on click; persist chosen path
+
 ### Phase 17: Public API
 **Goal**: External Nuke modules can programmatically create anchors and wire nodes to them via a stable, documented public API
 **Depends on**: Phase 13
