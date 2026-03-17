@@ -156,6 +156,6 @@ Plans:
 | 13. Project Rename | 3/3 | Complete    | 2026-03-16 | - |
 | 14. Bug Fixes | 2/2 | Complete    | 2026-03-16 | - |
 | 15. Anchor Naming | 3/3 | Complete    | 2026-03-17 | - |
-| 15.1. Additional Preferences Requirements | 1/3 | In Progress|  | - |
+| 15.1. Additional Preferences Requirements | 2/3 | In Progress|  | - |
 | 16. Site Config | v1.3 | 0/? | Not started | - |
 | 17. Public API | v1.3 | 0/? | Not started | - |

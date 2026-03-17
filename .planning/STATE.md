@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Foundations
 status: executing
-stopped_at: Completed 15.1-additional-preferences-requirements/15.1-01-PLAN.md
-last_updated: "2026-03-17T04:26:48.694Z"
+stopped_at: Completed 15.1-additional-preferences-requirements/15.1-02-PLAN.md
+last_updated: "2026-03-17T04:30:30.588Z"
 last_activity: 2026-03-16 — Phase 14 Plan 02 complete; BUG-04 fixed, Dot elif removed from anchor_shortcut()
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 11
-  completed_plans: 9
+  completed_plans: 10
   percent: 5
 ---
 
@@ -54,6 +54,7 @@ Progress: [█░░░░░░░░░] 5%
 | Phase 15-anchor-naming P02 | 4 | 2 tasks | 3 files |
 | Phase 15-anchor-naming P03 | 4 | 2 tasks | 1 files |
 | Phase 15.1-additional-preferences-requirements P01 | 2 | 2 tasks | 2 files |
+| Phase 15.1-additional-preferences-requirements P02 | 2 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,9 @@ Recent decisions relevant to v1.3:
 - [Phase 15-anchor-naming]: 15-03: auto_advance=true — Task 2 human-verify checkpoint auto-approved; no UI runtime available in this environment
 - [Phase 15.1-additional-preferences-requirements]: publish() guards os.path.dirname result before os.makedirs — bare filenames return '' which would fail
 - [Phase 15.1-additional-preferences-requirements]: naming_demo_filename defaults to 'plate_v003.exr' — concrete example that exercises frame-token stripping in suggest_anchor_name()
+- [Phase 15.1-additional-preferences-requirements]: QShortcut Ctrl+Z scoped to dialog for Reset undo — QLineEdit handles per-keystroke undo natively
+- [Phase 15.1-additional-preferences-requirements]: _publish_path read from ANCHORS_SITE_CONFIG at __init__ time, not re-checked dynamically
+- [Phase 15.1-additional-preferences-requirements]: _on_publish_naming flushes current field values before calling publish() so published file reflects live UI state
 
 ### Roadmap Evolution
 
@@ -93,6 +97,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-17T04:26:48.692Z
-Stopped at: Completed 15.1-additional-preferences-requirements/15.1-01-PLAN.md
+Last session: 2026-03-17T04:30:30.584Z
+Stopped at: Completed 15.1-additional-preferences-requirements/15.1-02-PLAN.md
 Resume file: None
