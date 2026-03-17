@@ -22,6 +22,7 @@ link_classes_paste_mode = "create_link"
 custom_colors = []
 naming_regex = ""
 naming_template = ""
+naming_demo_filename = "plate_v003.exr"
 
 
 def _migrate_from_old_palette():
@@ -64,7 +65,7 @@ def _load():
     back to defaults. Per-key type validation ensures corrupt individual values
     do not poison valid ones.
     """
-    global plugin_enabled, link_classes_paste_mode, custom_colors, naming_regex, naming_template
+    global plugin_enabled, link_classes_paste_mode, custom_colors, naming_regex, naming_template, naming_demo_filename
     if not os.path.exists(PREFS_PATH):
         _migrate_from_old_prefs_file()
         if not os.path.exists(PREFS_PATH):
@@ -87,6 +88,8 @@ def _load():
             naming_regex = data['naming_regex']
         if isinstance(data.get('naming_template'), str):
             naming_template = data['naming_template']
+        if isinstance(data.get('naming_demo_filename'), str):
+            naming_demo_filename = data['naming_demo_filename']
     except (OSError, ValueError, json.JSONDecodeError):
         pass  # silent fallback — module-level defaults remain
 
@@ -106,6 +109,7 @@ def save():
                 'custom_colors': custom_colors,
                 'naming_regex': naming_regex,
                 'naming_template': naming_template,
+                'naming_demo_filename': naming_demo_filename,
             },
             file_handle,
         )

@@ -293,5 +293,104 @@ class TestNamingPrefsRoundTrip(unittest.TestCase):
                              "non-string naming_template must be ignored; module var stays ''")
 
 
+class TestNamingDemoFilenameRoundTrip(unittest.TestCase):
+    """Round-trip tests for naming_demo_filename preference field (PREF-03).
+
+    Verifies that naming_demo_filename defaults to 'plate_v003.exr', survives
+    a save/load cycle, and rejects non-string values from JSON.
+    """
+
+    def setUp(self):
+        if 'prefs' in sys.modules:
+            del sys.modules['prefs']
+
+    def tearDown(self):
+        if 'prefs' in sys.modules:
+            del sys.modules['prefs']
+
+    def _reload_prefs_with_temp_path(self, temp_prefs_path):
+        """Helper: reload prefs with PREFS_PATH pointing at temp_prefs_path."""
+        import constants
+        original_prefs_path = constants.PREFS_PATH
+        original_palette_path = constants.USER_PALETTE_PATH
+        original_old_prefs_path = constants.OLD_PREFS_PATH
+        try:
+            constants.PREFS_PATH = temp_prefs_path
+            constants.USER_PALETTE_PATH = temp_prefs_path + '.palette_unused'
+            constants.OLD_PREFS_PATH = temp_prefs_path + '.old_unused'
+            if 'prefs' in sys.modules:
+                del sys.modules['prefs']
+            import prefs as reloaded_prefs
+            reloaded_prefs.PREFS_PATH = temp_prefs_path
+            return reloaded_prefs
+        finally:
+            constants.PREFS_PATH = original_prefs_path
+            constants.USER_PALETTE_PATH = original_palette_path
+            constants.OLD_PREFS_PATH = original_old_prefs_path
+
+    def test_naming_demo_filename_default(self):
+        """On fresh import with no prefs file, naming_demo_filename == 'plate_v003.exr'."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+            # Do NOT create the prefs file — simulate fresh install
+            self.assertFalse(os.path.exists(temp_prefs_path))
+
+            prefs_module = self._reload_prefs_with_temp_path(temp_prefs_path)
+
+            self.assertEqual(
+                prefs_module.naming_demo_filename,
+                'plate_v003.exr',
+                "naming_demo_filename must default to 'plate_v003.exr' when no prefs file exists",
+            )
+
+    def test_naming_demo_filename_round_trip(self):
+        """save() writes 'naming_demo_filename' key; _load() reads it back into module var."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+            prefs_module = self._reload_prefs_with_temp_path(temp_prefs_path)
+
+            prefs_module.naming_demo_filename = 'shot_v007.dpx'
+            prefs_module.save()
+
+            # Verify the JSON file contains the key
+            with open(temp_prefs_path) as file_handle:
+                data = json.load(file_handle)
+            self.assertIn('naming_demo_filename', data,
+                          "save() must write naming_demo_filename key to JSON")
+            self.assertEqual(data['naming_demo_filename'], 'shot_v007.dpx')
+
+            # Reload from the written file and verify the value is restored
+            prefs_module2 = self._reload_prefs_with_temp_path(temp_prefs_path)
+            self.assertEqual(
+                prefs_module2.naming_demo_filename,
+                'shot_v007.dpx',
+                "naming_demo_filename must survive a save/load round-trip",
+            )
+
+    def test_naming_demo_filename_type_validation(self):
+        """Non-string value in JSON ('naming_demo_filename': 42) is ignored; module var stays at default."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+
+            prefs_data = {
+                'plugin_enabled': True,
+                'link_classes_paste_mode': 'create_link',
+                'custom_colors': [],
+                'naming_regex': '',
+                'naming_template': '',
+                'naming_demo_filename': 42,  # int — not a string, must be ignored
+            }
+            with open(temp_prefs_path, 'w') as file_handle:
+                json.dump(prefs_data, file_handle)
+
+            prefs_module = self._reload_prefs_with_temp_path(temp_prefs_path)
+
+            self.assertEqual(
+                prefs_module.naming_demo_filename,
+                'plate_v003.exr',
+                "non-string naming_demo_filename must be ignored; module var stays at default",
+            )
+
+
 if __name__ == '__main__':
     unittest.main()
