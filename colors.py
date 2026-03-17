@@ -555,6 +555,9 @@ else:
             self._local_naming_regex = prefs_module.naming_regex
             self._local_naming_template = prefs_module.naming_template
             self._local_naming_demo_filename = prefs_module.naming_demo_filename
+            self._pre_reset_naming_snapshot = None  # (regex_text, template_text) tuple or None
+            import os as os_module
+            self._publish_path = os_module.environ.get("ANCHORS_SITE_CONFIG", "")
             self._build_ui()
 
         def _build_ui(self):
@@ -634,6 +637,22 @@ else:
             # Initial indicator state
             self._update_naming_validity_indicator()
 
+            # Ctrl+Z undoes the most recent Reset action (not per-keystroke undo — QLineEdit handles that)
+            undo_reset_shortcut = QtWidgets.QShortcut(
+                QtGui.QKeySequence("Ctrl+Z"), self
+            )
+            undo_reset_shortcut.activated.connect(self._on_undo_reset_naming)
+
+            # Publish button — writes current settings to the site config path
+            naming_publish_row_layout = QtWidgets.QHBoxLayout()
+            self._publish_button = QtWidgets.QPushButton("Publish")
+            self._publish_button.setAutoDefault(False)
+            self._publish_button.setEnabled(bool(self._publish_path))
+            self._publish_button.clicked.connect(self._on_publish_naming)
+            naming_publish_row_layout.addWidget(self._publish_button)
+            naming_publish_row_layout.addStretch()
+            outer_layout.addLayout(naming_publish_row_layout)
+
             # Horizontal separator
             separator_top = QtWidgets.QFrame()
             separator_top.setFrameShape(QtWidgets.QFrame.HLine)
@@ -703,10 +722,46 @@ else:
             outer_layout.addLayout(ok_cancel_row_layout)
 
         def _on_reset_naming(self):
-            """Clear the regex and template fields, restoring hardcoded fallback behavior."""
+            """Clear the regex and template fields, saving a snapshot for undo.
+
+            Ctrl+Z (handled by _on_undo_reset_naming via QShortcut) restores the
+            pre-reset values. Only the most recent Reset is undoable — each Reset
+            overwrites the previous snapshot.
+            Test filename field is intentionally not cleared.
+            """
+            self._pre_reset_naming_snapshot = (
+                self._naming_regex_edit.text(),
+                self._naming_template_edit.text(),
+            )
             self._naming_regex_edit.setText("")
             self._naming_template_edit.setText("")
-            # Test filename field is intentionally not cleared
+
+        def _on_undo_reset_naming(self):
+            """Restore regex and template fields from the pre-reset snapshot, if one exists.
+
+            Called by the Ctrl+Z QShortcut installed in _build_ui. No-op when no
+            snapshot is present (i.e., Reset has not been clicked since the dialog opened).
+            """
+            if self._pre_reset_naming_snapshot is None:
+                return
+            saved_regex_text, saved_template_text = self._pre_reset_naming_snapshot
+            self._naming_regex_edit.setText(saved_regex_text)
+            self._naming_template_edit.setText(saved_template_text)
+            self._pre_reset_naming_snapshot = None
+
+        def _on_publish_naming(self):
+            """Write current prefs to the site config path from ANCHORS_SITE_CONFIG.
+
+            Flushes the current field values into the prefs module before publishing
+            so that the published file reflects what the user currently sees, not
+            the last-saved state.
+            Does not call save() — publish() writes to a separate path.
+            """
+            import prefs as prefs_module
+            prefs_module.naming_regex = self._naming_regex_edit.text()
+            prefs_module.naming_template = self._naming_template_edit.text()
+            prefs_module.naming_demo_filename = self._naming_test_filename_edit.text()
+            prefs_module.publish(self._publish_path)
 
         def _update_naming_validity_indicator(self):
             """Update the validity label and rendered preview based on current field values.
