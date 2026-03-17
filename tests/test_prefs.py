@@ -428,17 +428,19 @@ class TestPublish(unittest.TestCase):
             constants.OLD_PREFS_PATH = original_old_prefs_path
 
     def test_publish_writes_to_given_path(self):
-        """publish(path) creates a JSON file at the given path containing all current prefs keys."""
+        """publish(path) creates a sparse site config JSON containing ONLY naming fields.
+
+        Phase 16: publish() must write only naming_regex, naming_template,
+        naming_demo_filename. Non-naming fields (plugin_enabled,
+        link_classes_paste_mode, custom_colors) must be absent.
+        """
         with tempfile.TemporaryDirectory() as temp_dir:
             default_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
             alt_publish_path = os.path.join(temp_dir, 'published_prefs.json')
 
             prefs_module = self._reload_prefs_with_temp_path(default_prefs_path)
 
-            # Set recognisable values on all prefs fields
-            prefs_module.plugin_enabled = False
-            prefs_module.link_classes_paste_mode = 'passthrough'
-            prefs_module.custom_colors = [0x112233ff]
+            # Set recognisable values on the naming fields
             prefs_module.naming_regex = r'(?P<shot>.+)'
             prefs_module.naming_template = '{shot}'
             prefs_module.naming_demo_filename = 'clip_v001.exr'
@@ -452,12 +454,24 @@ class TestPublish(unittest.TestCase):
             with open(alt_publish_path) as file_handle:
                 data = json.load(file_handle)
 
-            self.assertEqual(data.get('plugin_enabled'), False)
-            self.assertEqual(data.get('link_classes_paste_mode'), 'passthrough')
-            self.assertEqual(data.get('custom_colors'), [0x112233ff])
+            # Naming fields must be present with correct values
             self.assertEqual(data.get('naming_regex'), r'(?P<shot>.+)')
             self.assertEqual(data.get('naming_template'), '{shot}')
             self.assertEqual(data.get('naming_demo_filename'), 'clip_v001.exr')
+
+            # Non-naming fields must be absent from the published site config
+            self.assertNotIn(
+                'plugin_enabled', data,
+                "publish() must NOT write plugin_enabled — site config must be naming-only",
+            )
+            self.assertNotIn(
+                'link_classes_paste_mode', data,
+                "publish() must NOT write link_classes_paste_mode — site config must be naming-only",
+            )
+            self.assertNotIn(
+                'custom_colors', data,
+                "publish() must NOT write custom_colors — site config must be naming-only",
+            )
 
     def test_publish_does_not_modify_default_prefs_file(self):
         """After publish(alt_path), the default PREFS_PATH file is unchanged."""
@@ -504,6 +518,248 @@ class TestPublish(unittest.TestCase):
             with open(nested_publish_path) as file_handle:
                 data = json.load(file_handle)
             self.assertIn('plugin_enabled', data)
+
+
+class TestSiteConfigLoading(unittest.TestCase):
+    """Tests for ANCHORS_SITE_CONFIG env var loading and field locking behavior.
+
+    These are Wave 0 TDD tests — they FAIL (RED) before Plan 02 adds site config
+    support to prefs.py. Attributes _site_config, _user_naming_regex,
+    _user_naming_template, _user_naming_demo_filename, and site_config_override
+    do not exist on the prefs module until Plan 02.
+
+    Each test uses _reload_prefs_with_temp_path to reload the prefs module with
+    ANCHORS_SITE_CONFIG set in the environment before the import so _load() reads it.
+    """
+
+    def setUp(self):
+        if 'prefs' in sys.modules:
+            del sys.modules['prefs']
+        # Clear the env var before each test so tests start from a clean state
+        os.environ.pop('ANCHORS_SITE_CONFIG', None)
+
+    def tearDown(self):
+        if 'prefs' in sys.modules:
+            del sys.modules['prefs']
+        # Remove the env var after each test to avoid bleed-through
+        os.environ.pop('ANCHORS_SITE_CONFIG', None)
+
+    def _reload_prefs_with_temp_path(self, temp_prefs_path):
+        """Helper: reload prefs with PREFS_PATH pointing at temp_prefs_path.
+
+        ANCHORS_SITE_CONFIG must be set in os.environ BEFORE calling this helper
+        so that _load() reads it during module import. The caller is responsible
+        for setting and clearing ANCHORS_SITE_CONFIG.
+        """
+        import constants
+        original_prefs_path = constants.PREFS_PATH
+        original_palette_path = constants.USER_PALETTE_PATH
+        original_old_prefs_path = constants.OLD_PREFS_PATH
+        try:
+            constants.PREFS_PATH = temp_prefs_path
+            constants.USER_PALETTE_PATH = temp_prefs_path + '.palette_unused'
+            constants.OLD_PREFS_PATH = temp_prefs_path + '.old_unused'
+            if 'prefs' in sys.modules:
+                del sys.modules['prefs']
+            import prefs as reloaded_prefs
+            reloaded_prefs.PREFS_PATH = temp_prefs_path
+            return reloaded_prefs
+        finally:
+            constants.PREFS_PATH = original_prefs_path
+            constants.USER_PALETTE_PATH = original_palette_path
+            constants.OLD_PREFS_PATH = original_old_prefs_path
+
+    def _write_user_prefs(self, temp_prefs_path, **overrides):
+        """Write a minimal user prefs JSON file with optional field overrides."""
+        user_prefs_data = {
+            'plugin_enabled': True,
+            'link_classes_paste_mode': 'create_link',
+            'custom_colors': [],
+            'naming_regex': 'user_regex',
+            'naming_template': 'user_template',
+            'naming_demo_filename': 'user_demo.exr',
+        }
+        user_prefs_data.update(overrides)
+        with open(temp_prefs_path, 'w') as file_handle:
+            json.dump(user_prefs_data, file_handle)
+
+    def _write_site_config(self, site_config_path, **fields):
+        """Write a site config JSON file with the given naming fields."""
+        with open(site_config_path, 'w') as file_handle:
+            json.dump(fields, file_handle)
+
+    def test_site_config_values_applied_as_effective_values(self):
+        """When ANCHORS_SITE_CONFIG points to a valid file, its values become effective values."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+            site_config_path = os.path.join(temp_dir, 'site_config.json')
+
+            self._write_user_prefs(temp_prefs_path, naming_regex='user_regex')
+            self._write_site_config(
+                site_config_path,
+                naming_regex=r'(?P<shot>.+)_v\d+',
+            )
+
+            os.environ['ANCHORS_SITE_CONFIG'] = site_config_path
+            prefs_module = self._reload_prefs_with_temp_path(temp_prefs_path)
+
+            self.assertEqual(
+                prefs_module.naming_regex,
+                r'(?P<shot>.+)_v\d+',
+                "Site config value must override user prefs value as the effective value",
+            )
+
+    def test_site_config_missing_env_var_is_silent_noop(self):
+        """When ANCHORS_SITE_CONFIG is not set, prefs loads normally from user prefs."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+
+            self._write_user_prefs(temp_prefs_path, naming_regex='user_regex')
+            # ANCHORS_SITE_CONFIG is already cleared in setUp — do not set it
+
+            prefs_module = self._reload_prefs_with_temp_path(temp_prefs_path)
+
+            self.assertEqual(
+                prefs_module.naming_regex,
+                'user_regex',
+                "Without ANCHORS_SITE_CONFIG, naming_regex must equal the user prefs value",
+            )
+
+    def test_site_config_corrupt_file_is_silent_noop(self):
+        """When ANCHORS_SITE_CONFIG points to a corrupt JSON file, prefs loads from user prefs."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+            corrupt_site_config_path = os.path.join(temp_dir, 'corrupt_site_config.json')
+
+            self._write_user_prefs(temp_prefs_path, naming_regex='user_regex')
+            # Write a corrupt (non-JSON) file
+            with open(corrupt_site_config_path, 'w') as file_handle:
+                file_handle.write('{ this is not valid JSON !!!}')
+
+            os.environ['ANCHORS_SITE_CONFIG'] = corrupt_site_config_path
+            prefs_module = self._reload_prefs_with_temp_path(temp_prefs_path)
+
+            self.assertEqual(
+                prefs_module.naming_regex,
+                'user_regex',
+                "Corrupt site config must be silently ignored; naming_regex must equal user prefs value",
+            )
+
+    def test_site_config_missing_file_path_is_silent_noop(self):
+        """When ANCHORS_SITE_CONFIG points to a non-existent file, prefs loads from user prefs."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+            nonexistent_path = os.path.join(temp_dir, 'does_not_exist.json')
+
+            self._write_user_prefs(temp_prefs_path, naming_regex='user_regex')
+            self.assertFalse(os.path.exists(nonexistent_path))
+
+            os.environ['ANCHORS_SITE_CONFIG'] = nonexistent_path
+            prefs_module = self._reload_prefs_with_temp_path(temp_prefs_path)
+
+            self.assertEqual(
+                prefs_module.naming_regex,
+                'user_regex',
+                "Missing site config file must be silently ignored; naming_regex must equal user prefs value",
+            )
+
+    def test_site_config_locks_fields_user_values_preserved_in_shadow_vars(self):
+        """When site config sets naming_regex, effective value is admin's; shadow var holds user's."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+            site_config_path = os.path.join(temp_dir, 'site_config.json')
+
+            self._write_user_prefs(temp_prefs_path, naming_regex='user_regex')
+            self._write_site_config(site_config_path, naming_regex='admin_regex')
+
+            os.environ['ANCHORS_SITE_CONFIG'] = site_config_path
+            prefs_module = self._reload_prefs_with_temp_path(temp_prefs_path)
+
+            self.assertEqual(
+                prefs_module.naming_regex,
+                'admin_regex',
+                "Effective naming_regex must be the site config (admin) value",
+            )
+            self.assertEqual(
+                prefs_module._user_naming_regex,
+                'user_regex',
+                "_user_naming_regex shadow var must hold the user's own saved value",
+            )
+
+    def test_site_config_override_true_uses_user_values(self):
+        """When site_config_override=True in user prefs, user's values win over site config."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+            site_config_path = os.path.join(temp_dir, 'site_config.json')
+
+            self._write_user_prefs(
+                temp_prefs_path,
+                naming_regex='user_regex',
+                site_config_override=True,
+            )
+            self._write_site_config(site_config_path, naming_regex='admin_regex')
+
+            os.environ['ANCHORS_SITE_CONFIG'] = site_config_path
+            prefs_module = self._reload_prefs_with_temp_path(temp_prefs_path)
+
+            self.assertEqual(
+                prefs_module.naming_regex,
+                'user_regex',
+                "When site_config_override=True, user's naming_regex must win over site config",
+            )
+
+    def test_site_config_override_round_trip(self):
+        """site_config_override=True persists through save() and is restored on reload."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+
+            self._write_user_prefs(temp_prefs_path, site_config_override=True)
+
+            prefs_module = self._reload_prefs_with_temp_path(temp_prefs_path)
+
+            self.assertIs(
+                prefs_module.site_config_override,
+                True,
+                "site_config_override must be True after loading prefs with site_config_override=True",
+            )
+
+            prefs_module.save()
+
+            prefs_module2 = self._reload_prefs_with_temp_path(temp_prefs_path)
+
+            self.assertIs(
+                prefs_module2.site_config_override,
+                True,
+                "site_config_override must still be True after save() and reload",
+            )
+
+    def test_site_config_absent_fields_not_locked(self):
+        """Fields absent from site config are not locked — they use the user's own values."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+            site_config_path = os.path.join(temp_dir, 'site_config.json')
+
+            self._write_user_prefs(
+                temp_prefs_path,
+                naming_regex='user_regex',
+                naming_template='user_template',
+            )
+            # Site config only sets naming_regex — naming_template is absent
+            self._write_site_config(site_config_path, naming_regex='admin_regex')
+
+            os.environ['ANCHORS_SITE_CONFIG'] = site_config_path
+            prefs_module = self._reload_prefs_with_temp_path(temp_prefs_path)
+
+            self.assertEqual(
+                prefs_module.naming_regex,
+                'admin_regex',
+                "naming_regex must be the site config value (it is present in site config)",
+            )
+            self.assertEqual(
+                prefs_module.naming_template,
+                'user_template',
+                "naming_template must be the user's value (it is absent from site config)",
+            )
 
 
 if __name__ == '__main__':
