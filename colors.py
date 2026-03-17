@@ -834,6 +834,7 @@ else:
                 "Publish Site Config",
                 self._publish_path,
                 "JSON files (*.json)",
+                options=QtWidgets.QFileDialog.DontConfirmOverwrite,
             )
             if not chosen_path:
                 return  # user cancelled — do nothing
