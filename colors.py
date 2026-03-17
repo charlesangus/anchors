@@ -552,9 +552,10 @@ else:
             self._original_custom_colors = list(prefs_module.custom_colors)
             self._selected_swatch_index = None  # index into _local_custom_colors
             self._swatch_buttons = []  # parallel list of QPushButton refs
-            self._local_naming_regex = prefs_module.naming_regex
-            self._local_naming_template = prefs_module.naming_template
-            self._local_naming_demo_filename = prefs_module.naming_demo_filename
+            self._local_naming_regex = prefs_module._user_naming_regex
+            self._local_naming_template = prefs_module._user_naming_template
+            self._local_naming_demo_filename = prefs_module._user_naming_demo_filename
+            self._local_site_config_override = prefs_module.site_config_override
             self._pre_reset_naming_snapshot = None  # (regex_text, template_text) tuple or None
             import os as os_module
             self._publish_path = os_module.environ.get("ANCHORS_SITE_CONFIG", "")
@@ -646,6 +647,12 @@ else:
             naming_preview_row_layout.addStretch()
             advanced_container_layout.addLayout(naming_preview_row_layout)
 
+            # Override Site Config checkbox — visible only when site config is active
+            self._override_site_config_checkbox = QtWidgets.QCheckBox("Override Site Config")
+            self._override_site_config_checkbox.setChecked(self._local_site_config_override)
+            self._override_site_config_checkbox.toggled.connect(self._on_override_site_config_toggled)
+            advanced_container_layout.addWidget(self._override_site_config_checkbox)
+
             # Publish button — inside the collapsible section
             naming_publish_row_layout = QtWidgets.QHBoxLayout()
             self._publish_button = QtWidgets.QPushButton("Publish")
@@ -662,6 +669,8 @@ else:
             self._naming_test_filename_edit.textChanged.connect(self._update_naming_validity_indicator)
             # Initial indicator state (runs even when collapsed — updates labels for when user expands)
             self._update_naming_validity_indicator()
+            # Set initial lock state for naming fields (also controls checkbox visibility)
+            self._update_naming_fields_lock_state()
 
             # Ctrl+Z undoes the most recent Reset action (not per-keystroke undo — QLineEdit handles that)
             undo_reset_shortcut = QtGui.QShortcut(
@@ -741,6 +750,32 @@ else:
             ok_cancel_row_layout.addWidget(self._cancel_button)  # Cancel on right
             outer_layout.addLayout(ok_cancel_row_layout)
 
+        def _update_naming_fields_lock_state(self):
+            """Enable or disable naming fields based on site config lock state and override flag.
+
+            When a site config is active and override is off, the three naming
+            fields are disabled (greyed out) so users cannot accidentally change
+            admin-controlled values. The Override Site Config checkbox is only
+            visible when a site config is active.
+            """
+            import prefs as prefs_module
+            site_config_is_active = bool(prefs_module._site_config)
+            fields_are_editable = (not site_config_is_active) or self._local_site_config_override
+            self._naming_regex_edit.setEnabled(fields_are_editable)
+            self._naming_template_edit.setEnabled(fields_are_editable)
+            self._naming_test_filename_edit.setEnabled(fields_are_editable)
+            if hasattr(self, '_override_site_config_checkbox'):
+                self._override_site_config_checkbox.setVisible(site_config_is_active)
+
+        def _on_override_site_config_toggled(self, is_checked):
+            """Respond to the Override Site Config checkbox being toggled.
+
+            Updates the local override flag and refreshes the lock state so the
+            naming fields enable or disable accordingly.
+            """
+            self._local_site_config_override = is_checked
+            self._update_naming_fields_lock_state()
+
         def _on_toggle_advanced_naming(self):
             """Toggle the visibility of the Advanced naming fields container."""
             currently_visible = self._advanced_container_widget.isVisible()
@@ -781,15 +816,16 @@ else:
         def _on_publish_naming(self):
             """Write current prefs to the site config path from ANCHORS_SITE_CONFIG.
 
-            Flushes the current field values into the prefs module before publishing
-            so that the published file reflects what the user currently sees, not
-            the last-saved state.
+            Flushes the current field values into the user shadow vars, then
+            re-applies effective naming values before publishing, so that the
+            published file reflects what the user currently sees.
             Does not call save() — publish() writes to a separate path.
             """
             import prefs as prefs_module
-            prefs_module.naming_regex = self._naming_regex_edit.text()
-            prefs_module.naming_template = self._naming_template_edit.text()
-            prefs_module.naming_demo_filename = self._naming_test_filename_edit.text()
+            prefs_module._user_naming_regex = self._naming_regex_edit.text()
+            prefs_module._user_naming_template = self._naming_template_edit.text()
+            prefs_module._user_naming_demo_filename = self._naming_test_filename_edit.text()
+            prefs_module._apply_effective_naming_values()
             prefs_module.publish(self._publish_path)
 
         def _update_naming_validity_indicator(self):
@@ -1021,10 +1057,14 @@ else:
             prefs_module.plugin_enabled = self._local_plugin_enabled
             prefs_module.link_classes_paste_mode = self._local_link_mode
             prefs_module.custom_colors = list(self._local_custom_colors)
-            prefs_module.naming_regex = self._local_naming_regex
-            prefs_module.naming_template = self._local_naming_template
-            prefs_module.naming_demo_filename = self._local_naming_demo_filename
-            # Persist to disk
+            # Flush naming user values to shadow vars (NOT to effective vars directly)
+            prefs_module._user_naming_regex = self._local_naming_regex
+            prefs_module._user_naming_template = self._local_naming_template
+            prefs_module._user_naming_demo_filename = self._local_naming_demo_filename
+            prefs_module.site_config_override = self._local_site_config_override
+            # Re-apply effective values so module vars reflect the new override state
+            prefs_module._apply_effective_naming_values()
+            # Persist to disk (save() reads _user_naming_* shadow vars — correct)
             prefs_module.save()
             # Apply plugin_enabled live (menu enable/disable without restart).
             # set_anchors_menu_enabled is stored on the prefs module by menu.py at startup,
