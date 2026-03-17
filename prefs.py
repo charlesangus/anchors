@@ -115,4 +115,29 @@ def save():
         )
 
 
+def publish(destination_path):
+    """Write current preference values to destination_path without altering the default prefs file.
+
+    For site administrators who want to push their current naming config
+    to the shared site config file specified by ANCHORS_SITE_CONFIG.
+    Creates parent directories if they do not exist.
+    Does not change any module-level variables or call save().
+    """
+    parent_directory = os.path.dirname(destination_path)
+    if parent_directory:
+        os.makedirs(parent_directory, exist_ok=True)
+    with open(destination_path, 'w') as file_handle:
+        json.dump(
+            {
+                'plugin_enabled': plugin_enabled,
+                'link_classes_paste_mode': link_classes_paste_mode,
+                'custom_colors': custom_colors,
+                'naming_regex': naming_regex,
+                'naming_template': naming_template,
+                'naming_demo_filename': naming_demo_filename,
+            },
+            file_handle,
+        )
+
+
 _load()  # execute at import time — single load per Nuke session

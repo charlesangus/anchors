@@ -392,5 +392,119 @@ class TestNamingDemoFilenameRoundTrip(unittest.TestCase):
             )
 
 
+class TestPublish(unittest.TestCase):
+    """Unit tests for prefs.publish(destination_path) (PREF-05/06).
+
+    publish() writes all current prefs to a caller-supplied path without
+    touching the default PREFS_PATH file or any module-level variables.
+    """
+
+    def setUp(self):
+        if 'prefs' in sys.modules:
+            del sys.modules['prefs']
+
+    def tearDown(self):
+        if 'prefs' in sys.modules:
+            del sys.modules['prefs']
+
+    def _reload_prefs_with_temp_path(self, temp_prefs_path):
+        """Helper: reload prefs with PREFS_PATH pointing at temp_prefs_path."""
+        import constants
+        original_prefs_path = constants.PREFS_PATH
+        original_palette_path = constants.USER_PALETTE_PATH
+        original_old_prefs_path = constants.OLD_PREFS_PATH
+        try:
+            constants.PREFS_PATH = temp_prefs_path
+            constants.USER_PALETTE_PATH = temp_prefs_path + '.palette_unused'
+            constants.OLD_PREFS_PATH = temp_prefs_path + '.old_unused'
+            if 'prefs' in sys.modules:
+                del sys.modules['prefs']
+            import prefs as reloaded_prefs
+            reloaded_prefs.PREFS_PATH = temp_prefs_path
+            return reloaded_prefs
+        finally:
+            constants.PREFS_PATH = original_prefs_path
+            constants.USER_PALETTE_PATH = original_palette_path
+            constants.OLD_PREFS_PATH = original_old_prefs_path
+
+    def test_publish_writes_to_given_path(self):
+        """publish(path) creates a JSON file at the given path containing all current prefs keys."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            default_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+            alt_publish_path = os.path.join(temp_dir, 'published_prefs.json')
+
+            prefs_module = self._reload_prefs_with_temp_path(default_prefs_path)
+
+            # Set recognisable values on all prefs fields
+            prefs_module.plugin_enabled = False
+            prefs_module.link_classes_paste_mode = 'passthrough'
+            prefs_module.custom_colors = [0x112233ff]
+            prefs_module.naming_regex = r'(?P<shot>.+)'
+            prefs_module.naming_template = '{shot}'
+            prefs_module.naming_demo_filename = 'clip_v001.exr'
+
+            prefs_module.publish(alt_publish_path)
+
+            self.assertTrue(
+                os.path.exists(alt_publish_path),
+                "publish() must create a file at the given destination path",
+            )
+            with open(alt_publish_path) as file_handle:
+                data = json.load(file_handle)
+
+            self.assertEqual(data.get('plugin_enabled'), False)
+            self.assertEqual(data.get('link_classes_paste_mode'), 'passthrough')
+            self.assertEqual(data.get('custom_colors'), [0x112233ff])
+            self.assertEqual(data.get('naming_regex'), r'(?P<shot>.+)')
+            self.assertEqual(data.get('naming_template'), '{shot}')
+            self.assertEqual(data.get('naming_demo_filename'), 'clip_v001.exr')
+
+    def test_publish_does_not_modify_default_prefs_file(self):
+        """After publish(alt_path), the default PREFS_PATH file is unchanged."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            default_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+            alt_publish_path = os.path.join(temp_dir, 'site_config.json')
+
+            prefs_module = self._reload_prefs_with_temp_path(default_prefs_path)
+            # Force the default prefs file to exist (save() writes it on first run)
+            prefs_module.save()
+
+            default_mtime_before = os.path.getmtime(default_prefs_path)
+
+            prefs_module.publish(alt_publish_path)
+
+            default_mtime_after = os.path.getmtime(default_prefs_path)
+            self.assertEqual(
+                default_mtime_before,
+                default_mtime_after,
+                "publish() must not touch the default PREFS_PATH file",
+            )
+            self.assertFalse(
+                os.path.exists(default_prefs_path + '_backup'),
+                "publish() must not create backup or side-effect files",
+            )
+
+    def test_publish_creates_parent_directories(self):
+        """If the parent directory does not exist, publish() creates it."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            default_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+            nested_publish_path = os.path.join(temp_dir, 'subdir', 'deep', 'site_config.json')
+
+            prefs_module = self._reload_prefs_with_temp_path(default_prefs_path)
+
+            # Parent directories do not exist yet
+            self.assertFalse(os.path.exists(os.path.dirname(nested_publish_path)))
+
+            prefs_module.publish(nested_publish_path)
+
+            self.assertTrue(
+                os.path.exists(nested_publish_path),
+                "publish() must create parent directories and the destination file",
+            )
+            with open(nested_publish_path) as file_handle:
+                data = json.load(file_handle)
+            self.assertIn('plugin_enabled', data)
+
+
 if __name__ == '__main__':
     unittest.main()
