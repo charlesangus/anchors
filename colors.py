@@ -578,7 +578,6 @@ else:
             # ---- Anchor Naming section ----
             naming_section_label = QtWidgets.QLabel("Anchor Naming")
             naming_section_label.setFocusPolicy(Qt.NoFocus)
-            outer_layout.addWidget(naming_section_label)
 
             # Advanced toggle button — collapsed by default
             self._advanced_toggle_button = QtWidgets.QPushButton("\u25b6 Advanced")
@@ -586,7 +585,6 @@ else:
             self._advanced_toggle_button.setFocusPolicy(Qt.NoFocus)
             self._advanced_toggle_button.setAutoDefault(False)
             self._advanced_toggle_button.clicked.connect(self._on_toggle_advanced_naming)
-            outer_layout.addWidget(self._advanced_toggle_button)
 
             # Collapsible container for the technical naming fields
             self._advanced_container_widget = QtWidgets.QWidget()
@@ -645,7 +643,15 @@ else:
             naming_preview_row_layout.addStretch()
             advanced_container_layout.addLayout(naming_preview_row_layout)
 
-            outer_layout.addWidget(self._advanced_container_widget)
+            # Publish button — inside the collapsible section
+            naming_publish_row_layout = QtWidgets.QHBoxLayout()
+            self._publish_button = QtWidgets.QPushButton("Publish")
+            self._publish_button.setAutoDefault(False)
+            self._publish_button.setEnabled(bool(self._publish_path))
+            self._publish_button.clicked.connect(self._on_publish_naming)
+            naming_publish_row_layout.addWidget(self._publish_button)
+            naming_publish_row_layout.addStretch()
+            advanced_container_layout.addLayout(naming_publish_row_layout)
 
             # Wire live validity indicator to all three text fields (wired after widgets are created)
             self._naming_regex_edit.textChanged.connect(self._update_naming_validity_indicator)
@@ -659,23 +665,6 @@ else:
                 QtGui.QKeySequence("Ctrl+Z"), self
             )
             undo_reset_shortcut.activated.connect(self._on_undo_reset_naming)
-
-            # Publish button — always visible (outside the collapsible section)
-            naming_publish_row_layout = QtWidgets.QHBoxLayout()
-            self._publish_button = QtWidgets.QPushButton("Publish")
-            self._publish_button.setAutoDefault(False)
-            self._publish_button.setEnabled(bool(self._publish_path))
-            self._publish_button.clicked.connect(self._on_publish_naming)
-            naming_publish_row_layout.addWidget(self._publish_button)
-            naming_publish_row_layout.addStretch()
-            outer_layout.addLayout(naming_publish_row_layout)
-
-            # Horizontal separator
-            separator_top = QtWidgets.QFrame()
-            separator_top.setFrameShape(QtWidgets.QFrame.HLine)
-            separator_top.setFrameShadow(QtWidgets.QFrame.Sunken)
-            separator_top.setFocusPolicy(Qt.NoFocus)
-            outer_layout.addWidget(separator_top)
 
             # Label: Custom Colors
             custom_colors_label = QtWidgets.QLabel("Custom Colors")
@@ -712,12 +701,24 @@ else:
 
             outer_layout.addLayout(button_row_layout)
 
-            # Horizontal separator
-            separator_bottom = QtWidgets.QFrame()
-            separator_bottom.setFrameShape(QtWidgets.QFrame.HLine)
-            separator_bottom.setFrameShadow(QtWidgets.QFrame.Sunken)
-            separator_bottom.setFocusPolicy(Qt.NoFocus)
-            outer_layout.addWidget(separator_bottom)
+            # Horizontal separator between Custom Colors and Anchor Naming
+            separator_above_naming = QtWidgets.QFrame()
+            separator_above_naming.setFrameShape(QtWidgets.QFrame.HLine)
+            separator_above_naming.setFrameShadow(QtWidgets.QFrame.Sunken)
+            separator_above_naming.setFocusPolicy(Qt.NoFocus)
+            outer_layout.addWidget(separator_above_naming)
+
+            # ---- Anchor Naming section (below Custom Colors) ----
+            outer_layout.addWidget(naming_section_label)
+            outer_layout.addWidget(self._advanced_toggle_button)
+            outer_layout.addWidget(self._advanced_container_widget)
+
+            # Horizontal separator between Anchor Naming and OK/Cancel
+            separator_below_naming = QtWidgets.QFrame()
+            separator_below_naming.setFrameShape(QtWidgets.QFrame.HLine)
+            separator_below_naming.setFrameShadow(QtWidgets.QFrame.Sunken)
+            separator_below_naming.setFocusPolicy(Qt.NoFocus)
+            outer_layout.addWidget(separator_below_naming)
 
             # Establish explicit tab order so swatch buttons are reachable via Tab.
             self._update_swatch_tab_order()
