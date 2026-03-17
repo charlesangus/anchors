@@ -136,7 +136,7 @@ Plans:
 **Goal:** Publish button is always enabled and always opens a file save dialog; last-used path persists to prefs so site admins can create the site config file even before ANCHORS_SITE_CONFIG is set
 **Requirements**: none (inserted phase)
 **Depends on:** Phase 16
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 16.1-01-PLAN.md — Add last_publish_path to prefs.py; always-enable Publish button; open QFileDialog on click; persist chosen path

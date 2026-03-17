@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Foundations
 status: executing
-stopped_at: Phase 16.1 context gathered
-last_updated: "2026-03-17T11:29:55.982Z"
+stopped_at: Completed 16.1-publish-always-available-with-file-save-dialog 16.1-01-PLAN.md
+last_updated: "2026-03-17T11:41:12.554Z"
 last_activity: 2026-03-16 — Phase 14 Plan 02 complete; BUG-04 fixed, Dot elif removed from anchor_shortcut()
 progress:
   total_phases: 7
-  completed_phases: 5
-  total_plans: 14
-  completed_plans: 14
+  completed_phases: 6
+  total_plans: 15
+  completed_plans: 15
   percent: 5
 ---
 
@@ -59,6 +59,7 @@ Progress: [█░░░░░░░░░] 5%
 | Phase 16-site-config P01 | 3 | 2 tasks | 1 files |
 | Phase 16-site-config P02 | 3 | 2 tasks | 2 files |
 | Phase 16-site-config P03 | 6 | 2 tasks | 1 files |
+| Phase 16.1-publish-always-available-with-file-save-dialog P01 | 2 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -94,6 +95,9 @@ Recent decisions relevant to v1.3:
 - [Phase 16-site-config]: 16-02: _load_site_config() called before early return in _load() to ensure site config applies even on first run (no prefs file)
 - [Phase 16-site-config]: 16-03: auto_advance=true — Task 2 human-verify checkpoint auto-approved; no UI runtime available in this environment
 - [Phase 16-site-config]: 16-03: _update_naming_fields_lock_state() called at end of _build_ui() after all widgets created — ensures initial lock state set correctly on dialog open
+- [Phase 16.1-publish-always-available-with-file-save-dialog]: 16.1-01: _publish_path fallback chain: ANCHORS_SITE_CONFIG or prefs_module.last_publish_path or '/' — allows cold-start without env var
+- [Phase 16.1-publish-always-available-with-file-save-dialog]: 16.1-01: last_publish_path default is '' at module level; '/' only applied in PrefsDialog.__init__() as UI default
+- [Phase 16.1-publish-always-available-with-file-save-dialog]: 16.1-01: auto_advance=true — Task 3 human-verify checkpoint auto-approved; no UI runtime available in this environment
 
 ### Roadmap Evolution
 
@@ -110,6 +114,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-17T11:29:55.979Z
-Stopped at: Phase 16.1 context gathered
-Resume file: .planning/phases/16.1-publish-always-available-with-file-save-dialog/16.1-CONTEXT.md
+Last session: 2026-03-17T11:41:12.552Z
+Stopped at: Completed 16.1-publish-always-available-with-file-save-dialog 16.1-01-PLAN.md
+Resume file: None
