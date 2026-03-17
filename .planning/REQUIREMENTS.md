@@ -18,9 +18,9 @@
 
 ### Site Config
 
-- [ ] **SITE-01**: Site-level config file path resolved from `ANCHORS_SITE_CONFIG` env var
-- [ ] **SITE-02**: Site config can set and lock user-configurable settings (naming regex, template, and any other prefs)
-- [ ] **SITE-03**: "Override Site Config" checkbox in PrefsDialog re-enables individual locked fields for the user
+- [x] **SITE-01**: Site-level config file path resolved from `ANCHORS_SITE_CONFIG` env var
+- [x] **SITE-02**: Site config can set and lock user-configurable settings (naming regex, template, and any other prefs)
+- [x] **SITE-03**: "Override Site Config" checkbox in PrefsDialog re-enables individual locked fields for the user
 
 ### Bug Fixes
 
@@ -64,9 +64,9 @@
 | NAME-01 | Phase 15 | Complete |
 | NAME-02 | Phase 15 | Complete |
 | NAME-03 | Phase 15 | Complete |
-| SITE-01 | Phase 16 | Pending |
-| SITE-02 | Phase 16 | Pending |
-| SITE-03 | Phase 16 | Pending |
+| SITE-01 | Phase 16 | Complete |
+| SITE-02 | Phase 16 | Complete |
+| SITE-03 | Phase 16 | Complete |
 | API-01 | Phase 17 | Pending |
 | API-02 | Phase 17 | Pending |
 | API-03 | Phase 17 | Pending |

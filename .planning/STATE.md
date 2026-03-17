@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Foundations
 status: executing
-stopped_at: Phase 16 context gathered
-last_updated: "2026-03-17T06:22:29.253Z"
+stopped_at: Completed 16-site-config-01-PLAN.md
+last_updated: "2026-03-17T06:52:44.377Z"
 last_activity: 2026-03-16 — Phase 14 Plan 02 complete; BUG-04 fixed, Dot elif removed from anchor_shortcut()
 progress:
   total_phases: 6
   completed_phases: 4
-  total_plans: 11
-  completed_plans: 11
+  total_plans: 14
+  completed_plans: 12
   percent: 5
 ---
 
@@ -56,6 +56,7 @@ Progress: [█░░░░░░░░░] 5%
 | Phase 15.1-additional-preferences-requirements P01 | 2 | 2 tasks | 2 files |
 | Phase 15.1-additional-preferences-requirements P02 | 2 | 2 tasks | 1 files |
 | Phase 15.1-additional-preferences-requirements P03 | 3 | 2 tasks | 1 files |
+| Phase 16-site-config P01 | 3 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -85,6 +86,8 @@ Recent decisions relevant to v1.3:
 - [Phase 15.1-additional-preferences-requirements]: _on_publish_naming flushes current field values before calling publish() so published file reflects live UI state
 - [Phase 15.1-additional-preferences-requirements]: auto_advance=true — Task 2 human-verify checkpoint auto-approved; no UI runtime available in this environment
 - [Phase 15.1-additional-preferences-requirements]: Collapsible Advanced section: flat QPushButton + QWidget.setVisible(False) default; _on_toggle_advanced_naming flips visibility and swaps triangle in button text
+- [Phase 16-site-config]: 16-01: Noop tests pass GREEN in RED phase — prefs doesn't read ANCHORS_SITE_CONFIG yet so user values used by default; meaningful RED tests are the feature assertion tests (4 failing)
+- [Phase 16-site-config]: 16-01: test_publish_writes_to_given_path updated to remove non-naming field setup and add assertNotIn for plugin_enabled/link_classes_paste_mode/custom_colors — defines publish() naming-only restriction target for Plan 02
 
 ### Roadmap Evolution
 
@@ -100,6 +103,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-17T06:22:29.250Z
-Stopped at: Phase 16 context gathered
-Resume file: .planning/phases/16-site-config/16-CONTEXT.md
+Last session: 2026-03-17T06:52:44.375Z
+Stopped at: Completed 16-site-config-01-PLAN.md
+Resume file: None

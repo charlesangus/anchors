@@ -162,5 +162,5 @@ Plans:
 | 14. Bug Fixes | 2/2 | Complete    | 2026-03-16 | - |
 | 15. Anchor Naming | 3/3 | Complete    | 2026-03-17 | - |
 | 15.1. Additional Preferences Requirements | 3/3 | Complete    | 2026-03-17 | - |
-| 16. Site Config | v1.3 | 0/? | Not started | - |
+| 16. Site Config | 1/3 | In Progress|  | - |
 | 17. Public API | v1.3 | 0/? | Not started | - |
