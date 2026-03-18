@@ -177,4 +177,4 @@ Plans:
 | 15. Anchor Naming | 3/3 | Complete    | 2026-03-17 | - |
 | 15.1. Additional Preferences Requirements | 3/3 | Complete    | 2026-03-17 | - |
 | 16. Site Config | 3/3 | Complete    | 2026-03-17 | - |
-| 17. Public API | v1.3 | 0/2 | In progress | - |
+| 17. Public API | 1/2 | In Progress|  | - |

@@ -29,9 +29,9 @@
 
 ### Public API
 
-- [ ] **API-01**: Public `anchors` API module exposes a function to create an anchor with specified name, color, and source node
-- [ ] **API-02**: Public API exposes a function to wire an existing node to an anchor by anchor name
-- [ ] **API-03**: All public API functions are documented with docstrings (parameters, return values, exceptions)
+- [x] **API-01**: Public `anchors` API module exposes a function to create an anchor with specified name, color, and source node
+- [x] **API-02**: Public API exposes a function to wire an existing node to an anchor by anchor name
+- [x] **API-03**: All public API functions are documented with docstrings (parameters, return values, exceptions)
 
 ## Future Requirements
 
@@ -67,9 +67,9 @@
 | SITE-01 | Phase 16 | Complete |
 | SITE-02 | Phase 16 | Complete |
 | SITE-03 | Phase 16 | Complete |
-| API-01 | Phase 17 | Pending |
-| API-02 | Phase 17 | Pending |
-| API-03 | Phase 17 | Pending |
+| API-01 | Phase 17 | Complete |
+| API-02 | Phase 17 | Complete |
+| API-03 | Phase 17 | Complete |
 
 **Coverage:**
 - v1.3 requirements: 13 total
