@@ -1073,12 +1073,19 @@ else:
             self._local_link_mode = (
                 "create_link" if self._link_mode_checkbox.isChecked() else "passthrough"
             )
+            # Flush plugin_enabled and link mode to prefs module immediately
+            prefs_module.plugin_enabled = self._local_plugin_enabled
+            prefs_module.link_classes_paste_mode = self._local_link_mode
+            # Apply plugin_enabled live (menu enable/disable without restart).
+            # set_anchors_menu_enabled is stored on the prefs module by menu.py at startup,
+            # avoiding any import conflict with Nuke's built-in 'menu' module.
+            set_menu_enabled = getattr(prefs_module, 'set_anchors_menu_enabled', None)
+            if set_menu_enabled is not None:
+                set_menu_enabled(prefs_module.plugin_enabled)
+            # Read naming fields and custom colors
             self._local_naming_regex = self._naming_regex_edit.text()
             self._local_naming_template = self._naming_template_edit.text()
             self._local_naming_demo_filename = self._naming_test_filename_edit.text()
-            # Flush local working copies to prefs module-level variables
-            prefs_module.plugin_enabled = self._local_plugin_enabled
-            prefs_module.link_classes_paste_mode = self._local_link_mode
             prefs_module.custom_colors = list(self._local_custom_colors)
             # Flush naming user values to shadow vars (NOT to effective vars directly)
             prefs_module._user_naming_regex = self._local_naming_regex
@@ -1089,12 +1096,6 @@ else:
             prefs_module._apply_effective_naming_values()
             # Persist to disk (save() reads _user_naming_* shadow vars — correct)
             prefs_module.save()
-            # Apply plugin_enabled live (menu enable/disable without restart).
-            # set_anchors_menu_enabled is stored on the prefs module by menu.py at startup,
-            # avoiding any import conflict with Nuke's built-in 'menu' module.
-            set_menu_enabled = getattr(prefs_module, 'set_anchors_menu_enabled', None)
-            if set_menu_enabled is not None:
-                set_menu_enabled(prefs_module.plugin_enabled)
             # Recolor is applied immediately in _on_edit_color (on color picker confirm),
             # not here on OK — so no recolor call needed at accept time.
             self.accept()

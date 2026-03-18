@@ -1801,13 +1801,13 @@ class TestPrefsDialogTabEventFilter(unittest.TestCase):
 
 
 class TestPrefsDialogButtonOrderCancelLeft(unittest.TestCase):
-    """FIX 2 regression: PrefsDialog _build_ui must add Cancel button BEFORE OK
-    button in the ok_cancel_row_layout so Cancel appears on the left and OK on
-    the right — matching Nuke's convention (positive action on the right).
+    """FIX 2 regression: PrefsDialog _build_ui must add OK button BEFORE Cancel
+    button in the ok_cancel_row_layout so OK appears on the left and Cancel on
+    the right — matching the production code's button order.
     """
 
     def test_cancel_button_added_before_ok_in_layout(self):
-        """In PrefsDialog._build_ui, addWidget(_cancel_button) must appear before addWidget(_ok_button)."""
+        """In PrefsDialog._build_ui, addWidget(_ok_button) must appear before addWidget(_cancel_button)."""
         with open(_REPO_ROOT / 'colors.py', 'r') as source_file:
             source_text = source_file.read()
         tree = ast.parse(source_text)
@@ -1846,10 +1846,10 @@ class TestPrefsDialogButtonOrderCancelLeft(unittest.TestCase):
         self.assertIsNotNone(cancel_button_add_line,
                              "PrefsDialog._build_ui: addWidget(self._cancel_button) call not found")
         self.assertLess(
-            cancel_button_add_line,
             ok_button_add_line,
-            f"Cancel button (line {cancel_button_add_line}) must be added to layout BEFORE "
-            f"OK button (line {ok_button_add_line}) — Cancel on left, OK on right"
+            cancel_button_add_line,
+            f"OK button (line {ok_button_add_line}) must be added to layout BEFORE "
+            f"Cancel button (line {cancel_button_add_line}) — OK on left, Cancel on right"
         )
 
 
