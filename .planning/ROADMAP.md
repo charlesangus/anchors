@@ -150,7 +150,11 @@ Plans:
   2. Calling the public API function to wire a node to an anchor by name connects the node as a link to that anchor
   3. All public API functions have docstrings covering parameters, return values, and exceptions raised
   4. The public API module can be imported by an external script without importing private internals
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 17-01-PLAN.md — TDD RED: test_api.py test scaffold (create_anchor, find_anchor_by_name, error contracts)
+- [ ] 17-02-PLAN.md — Implement api.py thin wrapper + ruff clean + full test suite green
 
 ## Progress
 
@@ -173,4 +177,4 @@ Plans:
 | 15. Anchor Naming | 3/3 | Complete    | 2026-03-17 | - |
 | 15.1. Additional Preferences Requirements | 3/3 | Complete    | 2026-03-17 | - |
 | 16. Site Config | 3/3 | Complete    | 2026-03-17 | - |
-| 17. Public API | v1.3 | 0/? | Not started | - |
+| 17. Public API | v1.3 | 0/2 | In progress | - |
