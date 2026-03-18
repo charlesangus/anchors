@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Foundations
-current_phase: 17-public-api
-status: In Progress
-last_updated: "2026-03-18T13:18:52Z"
-last_activity: "2026-03-18 - Completed 17-01-PLAN.md (RED phase test suite for api.py)"
+current_phase: 17-public-api (Plan 03 of 03 — next)
+status: executing
+last_updated: "2026-03-18T13:22:56.355Z"
+last_activity: 2026-03-18 - Completed 17-02-PLAN.md (GREEN phase: api.py implemented, 183 tests passing)
 progress:
   total_phases: 7
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 17
-  completed_plans: 16
+  completed_plans: 17
 ---
 
 # Session State
@@ -22,7 +22,7 @@ See: .planning/PROJECT.md
 ## Position
 
 **Milestone:** v1.3 Foundations
-**Current phase:** 17-public-api (Plan 02 of 03 — next)
+**Current phase:** 17-public-api (Plan 03 of 03 — next)
 **Status:** In Progress
 
 ## Decisions
@@ -30,6 +30,8 @@ See: .planning/PROJECT.md
 - (17-01) Tests mock anchor internals via unittest.mock.patch — api.py is a thin delegation layer and tests should not depend on anchor.py's real behavior
 - (17-01) RuntimeError guard for nuke-absent sessions checks sys.modules at call time in each public function
 - (17-01) find_anchor_by_name exposed as a public helper alongside create_anchor
+- [Phase 17-02]: Used sys.modules['nuke'] check in _assert_nuke_session() — works in tests (stub installed/removed) and in real Nuke (nuke always present)
+- [Phase 17-02]: No module-level import nuke in api.py — api.py calls no nuke APIs directly, only delegates to anchor.py
 
 ## Session Log
 
@@ -42,4 +44,4 @@ See: .planning/PROJECT.md
 |---|-------------|------|--------|-----------|
 | 260317-nnh | fix failing tests | 2026-03-18 | 1deabad | [260317-nnh-fix-failing-tests](./quick/260317-nnh-fix-failing-tests/) |
 
-Last activity: 2026-03-18 - Completed 17-01-PLAN.md (RED phase test suite for api.py)
+Last activity: 2026-03-18 - Completed 17-02-PLAN.md — GREEN phase: api.py implemented (api.py, commit a1803ed)
