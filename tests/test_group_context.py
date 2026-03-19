@@ -130,3 +130,135 @@ class TestLabelPropagationGroupContext(unittest.TestCase):
             assert 'group' in call_kwargs.kwargs, (
                 "_update_dot_link_labels must pass group= to nuke.allNodes"
             )
+
+
+class TestAllAnchorsGroupContext(unittest.TestCase):
+    """Verify all_anchors() uses Group-aware scanning."""
+
+    def test_all_anchors_uses_group_context(self):
+        """all_anchors() must call all_nodes_in_context(), not bare nuke.allNodes()."""
+        nuke.allNodes.reset_mock()
+        nuke.allNodes.side_effect = None
+        nuke.allNodes.return_value = []
+
+        from anchor import all_anchors
+        all_anchors()
+
+        # Verify group= kwarg was passed
+        if nuke.allNodes.called:
+            call_kwargs = nuke.allNodes.call_args
+            assert 'group' in call_kwargs.kwargs, (
+                "all_anchors must use all_nodes_in_context (group= kwarg)"
+            )
+
+
+class TestGetLinksForAnchorGroupContext(unittest.TestCase):
+    """Verify get_links_for_anchor() uses Group-aware scanning."""
+
+    def test_get_links_for_anchor_uses_group_context(self):
+        """get_links_for_anchor() must scan current Group context."""
+        anchor_node = StubNode('Anchor_Test', knobs_dict={
+            'tile_color': StubKnob(0),
+            'label': StubKnob('Test'),
+        })
+        nuke.allNodes.reset_mock()
+        nuke.allNodes.side_effect = None
+        nuke.allNodes.return_value = []
+        root_mock = nuke.root()
+        root_mock.name.return_value = 'test.nk'
+
+        from anchor import get_links_for_anchor
+        get_links_for_anchor(anchor_node)
+
+        if nuke.allNodes.called:
+            call_kwargs = nuke.allNodes.call_args
+            assert 'group' in call_kwargs.kwargs, (
+                "get_links_for_anchor must use all_nodes_in_context (group= kwarg)"
+            )
+
+
+class TestRenameAnchorGroupContext(unittest.TestCase):
+    """Verify rename_anchor_to() scans current Group context for link nodes."""
+
+    def test_rename_anchor_to_noops_uses_group_context(self):
+        """rename_anchor_to() for NoOp anchors must scan current Group context."""
+        from constants import ANCHOR_PREFIX
+        anchor_node = StubNode(ANCHOR_PREFIX + 'Old', knobs_dict={
+            'tile_color': StubKnob(0),
+            'label': StubKnob('Old'),
+        })
+        nuke.allNodes.reset_mock()
+        nuke.allNodes.side_effect = None
+        nuke.allNodes.return_value = []
+        root_mock = nuke.root()
+        root_mock.name.return_value = 'test.nk'
+
+        from anchor import rename_anchor_to
+        rename_anchor_to(anchor_node, 'NewName')
+
+        if nuke.allNodes.called:
+            for call in nuke.allNodes.call_args_list:
+                assert 'group' in (call.kwargs or {}), (
+                    "rename_anchor_to must use all_nodes_in_context (group= kwarg)"
+                )
+
+
+class TestReconnectGroupContext(unittest.TestCase):
+    """Verify reconnect operations use Group-aware scanning."""
+
+    def test_reconnect_anchor_node_uses_group_context(self):
+        """reconnect_anchor_node() must scan current Group context."""
+        anchor_node = StubNode('Anchor_Test', knobs_dict={
+            'tile_color': StubKnob(0),
+            'label': StubKnob('Test'),
+        })
+        nuke.allNodes.reset_mock()
+        nuke.allNodes.side_effect = None
+        nuke.allNodes.return_value = []
+        root_mock = nuke.root()
+        root_mock.name.return_value = 'test.nk'
+
+        from anchor import reconnect_anchor_node
+        reconnect_anchor_node(anchor_node)
+
+        if nuke.allNodes.called:
+            call_kwargs = nuke.allNodes.call_args
+            assert 'group' in call_kwargs.kwargs, (
+                "reconnect_anchor_node must use all_nodes_in_context (group= kwarg)"
+            )
+
+    def test_reconnect_all_links_uses_group_context(self):
+        """reconnect_all_links() must scan current Group context."""
+        nuke.allNodes.reset_mock()
+        nuke.allNodes.side_effect = None
+        nuke.allNodes.return_value = []
+
+        from anchor import reconnect_all_links
+        reconnect_all_links()
+
+        if nuke.allNodes.called:
+            call_kwargs = nuke.allNodes.call_args
+            assert 'group' in call_kwargs.kwargs, (
+                "reconnect_all_links must use all_nodes_in_context (group= kwarg)"
+            )
+
+
+class TestNavigateGroupContext(unittest.TestCase):
+    """Verify navigation picker uses Group-aware scanning."""
+
+    def test_anchor_navigate_plugin_get_items_uses_group_context(self):
+        """AnchorNavigatePlugin.get_items() must scan backdrops in current Group context."""
+        nuke.allNodes.reset_mock()
+        nuke.allNodes.side_effect = None
+        nuke.allNodes.return_value = []
+
+        from anchor import AnchorNavigatePlugin
+        plugin = AnchorNavigatePlugin()
+        plugin.get_items()
+
+        # Should have been called at least twice: once for all_anchors(), once for BackdropNode
+        if nuke.allNodes.called:
+            for call in nuke.allNodes.call_args_list:
+                assert 'group' in (call.kwargs or {}), (
+                    "AnchorNavigatePlugin.get_items must use all_nodes_in_context (group= kwarg)"
+                )
