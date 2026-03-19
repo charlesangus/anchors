@@ -304,11 +304,13 @@ def rename_anchor(anchor_node):
         return
 
     current_color = int(anchor_node['tile_color'].value())
+    auto_derived_color = int(find_anchor_color(anchor_node))
     dialog = ColorPaletteDialog(
         initial_color=current_color,
         show_name_field=True,
         initial_name=suggested,
         custom_colors=prefs.custom_colors,
+        default_color=auto_derived_color,
     )
     if dialog.exec_() != QtWidgets.QDialog.Accepted:
         return
@@ -373,6 +375,7 @@ def create_anchor():
         show_name_field=True,
         initial_name=suggested,
         custom_colors=prefs.custom_colors,
+        default_color=int(pre_color),
     )
     if dialog.exec_() != QtWidgets.QDialog.Accepted:
         return
