@@ -47,45 +47,60 @@ Added `tests/test_group_context.py` with 11 test classes, 210 tests total passin
 
 ---
 
-## Root Cause Analysis
+## Corrected Understanding of `nuke.allNodes()` Behaviour
 
-The approach used `nuke.thisGroup()`. This is the wrong API for this use case.
+**`nuke.allNodes()` already returns nodes in the current context.** It is context-sensitive. The `with group_node:` pattern confirms this:
 
-**`nuke.thisGroup()`** — Returns the Group node that the *currently-executing script* belongs to. For root-level menu callbacks this is always `nuke.root()`. Confirmed: does not work.
+```python
+with group_node:
+    all_nodes = nuke.allNodes()  # returns nodes inside group_node
+```
 
-**`nuke.lastHitGroup()`** — Confirmed by UAT:
-- ✓ Works in **Group View** (floating panel: user opened Group internals in a separate panel while main DAG stays at root)
-- ✗ Does NOT work **inside a Group** (main DAG navigated into the Group) — returns root node in that case
+When a menu item fires inside a Group, `nuke.allNodes()` already returns that Group's nodes — no `group=` parameter needed. This means **Attempt 1's `all_nodes_in_context()` helper was redundant** for menu callbacks; the bare calls already did the right thing in that context.
 
-So there are **two distinct contexts** we need to handle, and no single API covers both:
+**`nuke.lastHitGroup()` behaviour — confirmed by UAT:**
+- ✓ Works in **Group View** (floating panel: Group internals exposed at root level)
+- ✗ Does NOT work **inside a Group** (navigated main DAG) — returns root node
 
-| Context | Description | `nuke.lastHitGroup()` | `nuke.thisGroup()` |
-|---------|-------------|----------------------|-------------------|
-| Root DAG | User is at top-level script | root | root |
-| Group View (floating) | Group panel open alongside root DAG | ✓ returns the Group | root |
-| Inside a Group (navigated) | Main DAG view shows Group contents | root | root |
+**Menu item context — confirmed:** Menu items are invoked with the context of the current DAG/group. `nuke.thisGroup()` and `nuke.allNodes()` from a menu callback correctly reflect the active Group context. The Script Editor is always root context and cannot be used to test this.
+
+---
+
+## Revised Root Cause Analysis
+
+Given the above, the actual bugs are elsewhere. Current hypotheses (unconfirmed):
+
+### 1. `nuke.exists(node.name())` fails in Qt signal context
+
+`AnchorPlugin.invoke()` and `AnchorNavigatePlugin.invoke()` are called from a Qt signal (`clicked` / `returnPressed`), which fires **outside** the original menu-callback context. At that point `nuke.exists(node.name())` checks the local node name (e.g. `"Anchor_Foo"`) in whatever context is active — which may be root. A Group-internal node named `"Anchor_Foo"` would not be found at root → early return → no link created / no navigation.
+
+Fix candidate: use `node.fullName()` (returns the full dotted path, e.g. `"MyGroup.Anchor_Foo"`) which `nuke.exists()` accepts regardless of context.
+
+### 2. Scope mismatch for link creation
+
+Before Attempt 1, bare `nuke.allNodes()` in a menu callback inside a Group returned **Group-internal nodes** (correct context). If the Group contains no anchors, `all_anchors()` returns empty → `select_anchor_and_create()` returns early → picker never opens. This is the "same behaviour as before" the user describes.
+
+The question this raises: **what should the anchor search scope be for link creation inside a Group?** Options:
+- Only Group-internal anchors (current behaviour — correct if anchor and link are both inside the Group)
+- Root-level anchors (useful if you want to reference a root-level anchor from inside a Group)
+- All anchors recursively (broadest)
+
+This needs a design decision before coding.
+
+### 3. Copy-paste in Group View broken
+
+`anchors.copy_anchors()` and `paste_anchors()` are triggered via `menu.addCommand("Edit/Copy", ...)`. In Group View (floating panel), the copy/paste context may not be the Group. `nuke.allNodes()` there may return root nodes. `find_anchor_node()` uses `nuke.toNode()` with a full path — this may or may not cross group boundaries correctly.
+
+Needs investigation of what `nuke.allNodes()` and `nuke.toNode()` return in the Group View floating panel context.
 
 ---
 
 ## Open Questions for Attempt 2
 
-The fundamental problem: **there is no confirmed Nuke Python API that reliably returns "the Group whose DAG is currently displayed in the main panel."**
-
-Candidates to investigate:
-
-1. **`nuke.selectedNodes()`** — When inside a Group, selected nodes belong to that Group. `nuke.selectedNodes()[0].parent()` might give the current Group. But fails if nothing is selected.
-
-2. **`nuke.activeViewer().node().dependencies()`** — The viewer is inside the current DAG; traversing its graph might identify the Group container. Fragile.
-
-3. **TCL bridge** — `nuke.tcl('nuke currentGroup')` or similar. Nuke's TCL layer may expose the current DAG context that Python doesn't surface directly.
-
-4. **`nuke.zoom()` / `nuke.center()` context** — These operate on the current DAG view; they may have a companion API to identify which group that view belongs to.
-
-5. **Combining both APIs** — Use `nuke.lastHitGroup()` for Group View cases (where it works), and a fallback for the navigated-inside case.
-
-6. **Node creation as a probe** — Create a temporary node, check its `.parent()`, delete it. Hacky but definitive.
-
-**Before writing Attempt 2:** Investigate these in a live Nuke session to find what actually returns the correct Group in the "navigated inside" case.
+1. What should the anchor search scope be for **link creation** inside a Group? (Group-only vs root vs recursive)
+2. Does `nuke.exists(node.fullName())` fix the invoke() early-return in the Qt signal context?
+3. In **Group View** (floating panel), what context does the menu callback see? Does `nuke.allNodes()` return Group nodes or root nodes there?
+4. Does `nuke.zoomToFitSelected()` correctly zoom the active Group DAG after navigation, or does it operate on the wrong panel?
 
 ---
 
