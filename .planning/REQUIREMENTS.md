@@ -7,9 +7,9 @@
 
 ### Group Support
 
-- [ ] **GROUP-01**: Copy/paste (Ctrl+C/V) works correctly when the user is inside a Group's nested DAG
+- [x] **GROUP-01**: Copy/paste (Ctrl+C/V) works correctly when the user is inside a Group's nested DAG
 - [ ] **GROUP-02**: Anchor creation popup opens and functions correctly inside a Group (respects `nuke.lastHitGroup()`)
-- [ ] **GROUP-03**: Link creation works correctly inside a Group's nested DAG
+- [x] **GROUP-03**: Link creation works correctly inside a Group's nested DAG
 - [ ] **GROUP-04**: Anchor navigation (Alt+A picker) works correctly inside a Group's nested DAG
 
 ### Documentation
@@ -53,9 +53,9 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| GROUP-01 | Phase 18 | Pending |
+| GROUP-01 | Phase 18 | Complete |
 | GROUP-02 | Phase 18 | Pending |
-| GROUP-03 | Phase 18 | Pending |
+| GROUP-03 | Phase 18 | Complete |
 | GROUP-04 | Phase 18 | Pending |
 | DOCS-01 | Phase 19 | Pending |
 | DOCS-02 | Phase 19 | Pending |

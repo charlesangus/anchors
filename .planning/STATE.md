@@ -2,15 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Group Support
-current_phase: 18
-status: roadmap ready
-last_updated: "2026-03-19T12:00:00.000Z"
-last_activity: "2026-03-19 — v1.4 roadmap created (Phases 18-19)"
+status: in_progress
+last_updated: "2026-03-19T12:55:00.000Z"
+last_activity: 2026-03-19
 progress:
   total_phases: 2
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 2
+  completed_plans: 1
 ---
 
 # Session State
@@ -25,19 +24,21 @@ See: .planning/PROJECT.md (updated 2026-03-19 after v1.4 milestone start)
 ## Position
 
 Phase: 18 — Group Context Support
-Plan: —
-Status: Roadmap ready, planning Phase 18
-Last activity: 2026-03-19 — v1.4 roadmap created (Phases 18-19)
+Plan: 01 complete, 02 pending
+Status: 18-01-PLAN.md complete
+Last activity: 2026-03-19
 
 ## Progress Bar
 
 ```
-v1.4: [░░░░░░░░░░] 0/2 phases  0/0 plans
+v1.4: [█████░░░░░] 50%  0/2 phases  1/2 plans
 ```
 
 ## Decisions
 
 (Full log in PROJECT.md Key Decisions table)
+
+- [Phase 18]: Single all_nodes_in_context() helper in link.py: consistent, testable, single point of truth for Group-context node scanning
 
 ## Session Log
 
@@ -53,4 +54,4 @@ v1.4: [░░░░░░░░░░] 0/2 phases  0/0 plans
 | 260318-r7o | add Default Colour swatch to ColorPaletteDialog create/rename flows | 2026-03-19 | e654c3f | Verified | [260318-r7o-in-the-anchor-create-rename-popup-add-a-](./quick/260318-r7o-in-the-anchor-create-rename-popup-add-a-/) |
 | 260318-uf4 | gate Dot anchor detection on font size < 33, add Label (Small) command | 2026-03-19 | 605a4a3 | Verified | [260318-uf4-dots-should-not-be-considered-for-naviga](./quick/260318-uf4-dots-should-not-be-considered-for-naviga/) |
 
-Last activity: 2026-03-19 - v1.4 roadmap created (Phases 18-19)
+Last activity: 2026-03-19 - Completed 18-01-PLAN.md (Group-context helper, 204 tests green)
