@@ -63,7 +63,7 @@ Full archive: `.planning/milestones/v1.3-ROADMAP.md`
 
 ### v1.4 Group Support
 
-- [ ] **Phase 18: Group Context Support** - All plugin operations work correctly inside Group nested DAGs
+- [x] **Phase 18: Group Context Support** - All plugin operations work correctly inside Group nested DAGs (completed 2026-03-19)
 - [ ] **Phase 19: Quick Start Documentation** - docs/ guide covering anchor creation, navigation, and copy/paste semantics
 
 ## Phase Details
@@ -77,7 +77,7 @@ Full archive: `.planning/milestones/v1.3-ROADMAP.md`
   2. User inside a Group can press `a` to open the anchor creation popup, name an anchor, and have it created in the Group's nested graph
   3. User inside a Group can create a link to an anchor and have it wired correctly within the Group's nested graph
   4. User inside a Group can press Alt+A to open the navigation picker and jump to an anchor within the Group context
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 18-01-PLAN.md — Group-context utility helper and foundation module updates (link.py, anchors.py, labels.py)
 - [ ] 18-02-PLAN.md — Anchor.py Group-aware operations (creation, navigation, rename, reconnection)
@@ -117,5 +117,5 @@ Plans:
 | 16. Site Config | v1.3 | 3/3 | Complete | 2026-03-17 |
 | 16.1. Publish Always Available with File Save Dialog | v1.3 | 1/1 | Complete | 2026-03-17 |
 | 17. Public API | v1.3 | 2/2 | Complete | 2026-03-18 |
-| 18. Group Context Support | 1/2 | In Progress|  | - |
+| 18. Group Context Support | 2/2 | Complete   | 2026-03-19 | - |
 | 19. Quick Start Documentation | v1.4 | 0/? | Not started | - |
