@@ -16,6 +16,14 @@
 
 Copy and paste must reconnect predictably — anchors provide stable, navigable references; hidden inputs reconnect to their source without ceremony.
 
+## Current Milestone: v1.4 Group Support
+
+**Goal:** Full plugin functionality inside Nuke Group nodes, plus a Quick Start guide for new users.
+
+**Target features:**
+- All plugin operations (copy/paste, anchor creation, link creation, navigation, popups) work correctly inside Group nodes by respecting `nuke.lastHitGroup()`
+- `docs/` Quick Start guide covering anchor creation, Alt+A navigation, and copy/paste semantics
+
 ## Requirements
 
 ### Validated
@@ -65,7 +73,8 @@ Copy and paste must reconnect predictably — anchors provide stable, navigable 
 
 ### Active
 
-(none — planning next milestone)
+- [ ] Plugin fully functional inside Group nodes (copy/paste, anchor creation, link creation, navigation, popups)
+- [ ] Quick Start guide in `docs/` covering anchor creation, Alt+A navigation, and copy/paste semantics
 
 ### Out of Scope
 
@@ -134,5 +143,22 @@ Copy and paste must reconnect predictably — anchors provide stable, navigable 
 | api.py as thin delegation layer over anchor.py with sys.modules guard | No logic duplication; guard raises RuntimeError early in non-Nuke sessions without try/import | ✓ Good |
 | __all__ at module bottom declares stable public surface of api.py | Explicit exports prevent internal symbols leaking into callers' namespaces | ✓ Good |
 
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd:transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd:complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
+
 ---
-*Last updated: 2026-03-18 after v1.3 milestone*
+*Last updated: 2026-03-19 after v1.4 milestone start*

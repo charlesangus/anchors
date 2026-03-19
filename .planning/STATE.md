@@ -1,31 +1,33 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.3
-milestone_name: Foundations
-current_phase: 17-public-api (Plan 03 of 03 — next)
-status: completed
-last_updated: "2026-03-19T01:44:03.341Z"
-last_activity: "2026-03-18 - Completed 17-02-PLAN.md — GREEN phase: api.py implemented (api.py, commit a1803ed)"
+milestone: v1.4
+milestone_name: Group Support
+current_phase: —
+status: defining requirements
+last_updated: "2026-03-19T12:00:00.000Z"
+last_activity: "2026-03-19 — Milestone v1.4 started"
 progress:
-  total_phases: 7
-  completed_phases: 7
-  total_plans: 17
-  completed_plans: 17
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Session State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-18 after v1.3 milestone)
+See: .planning/PROJECT.md (updated 2026-03-19 after v1.4 milestone start)
 
 **Core value:** Copy and paste must reconnect predictably — anchors provide stable, navigable references; hidden inputs reconnect to their source without ceremony.
-**Current focus:** Planning next milestone
+**Current focus:** Defining requirements for v1.4
 
 ## Position
 
-**Milestone:** v1.3 Foundations — SHIPPED 2026-03-18
-**Status:** Archived. Ready for next milestone.
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-19 — Milestone v1.4 started
 
 ## Decisions
 
