@@ -116,6 +116,16 @@ completed: 2026-03-16
 - Plan 03 can add the PrefsDialog UI fields for `naming_regex` and `naming_template`
 - Plan 04 (site-config locking) can lock these fields once the UI exists
 
+## Self-Check: PASSED
+
+- FOUND: `/workspace/prefs.py` — naming_regex and naming_template fields present
+- FOUND: `/workspace/anchor.py` — _FRAME_TOKEN_PATTERN and rewritten suggest_anchor_name() present
+- FOUND: `/workspace/.planning/phases/15-anchor-naming/15-02-SUMMARY.md`
+- FOUND: commit `7e8b464` (Task 1)
+- FOUND: commit `d05a329` (Task 2)
+- FOUND: commit `743ed90` (metadata)
+- All 20 tests pass GREEN (13 anchor naming + 7 prefs)
+
 ---
 *Phase: 15-anchor-naming*
 *Completed: 2026-03-16*
