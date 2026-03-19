@@ -42,6 +42,6 @@ See: .planning/PROJECT.md (updated 2026-03-18 after v1.3 milestone)
 |---|-------------|------|--------|--------|-----------|
 | 260317-nnh | fix failing tests | 2026-03-18 | 1deabad | | [260317-nnh-fix-failing-tests](./quick/260317-nnh-fix-failing-tests/) |
 | 260318-r7o | add Default Colour swatch to ColorPaletteDialog create/rename flows | 2026-03-19 | e654c3f | Verified | [260318-r7o-in-the-anchor-create-rename-popup-add-a-](./quick/260318-r7o-in-the-anchor-create-rename-popup-add-a-/) |
-| 260318-uf4 | gate Dot anchor detection on font size < 33, add Label (Small) command | 2026-03-19 | 605a4a3 | Complete | [260318-uf4-dots-should-not-be-considered-for-naviga](./quick/260318-uf4-dots-should-not-be-considered-for-naviga/) |
+| 260318-uf4 | gate Dot anchor detection on font size < 33, add Label (Small) command | 2026-03-19 | 605a4a3 | Verified | [260318-uf4-dots-should-not-be-considered-for-naviga](./quick/260318-uf4-dots-should-not-be-considered-for-naviga/) |
 
-Last activity: 2026-03-19 - Completed quick task 260318-uf4 — Dot anchor font size gate (note_font_size < 33 excluded) and Label (Small) command (constants.py, link.py, labels.py, menu.py, commit 605a4a3)
+Last activity: 2026-03-19 - Completed quick task 260318-uf4: dots should not be considered for navigation unless their label is at least font size 33, nor should they be considered/treated as anchor dots. Add a command to label a dot with font size 33
