@@ -69,7 +69,7 @@ Full archive: `.planning/milestones/v1.3-ROADMAP.md`
 ## Phase Details
 
 ### Phase 18: Group Context Support
-**Goal**: All plugin entry points (copy/paste, anchor creation, link creation, navigation) work correctly when the user is inside a Group node's nested DAG by respecting `nuke.lastHitGroup()`
+**Goal**: All plugin entry points (copy/paste, anchor creation, link creation, navigation) work correctly when the user is inside a Group node's nested DAG by respecting `nuke.thisGroup()`
 **Depends on**: Nothing (self-contained fix across existing entry points)
 **Requirements**: GROUP-01, GROUP-02, GROUP-03, GROUP-04
 **Success Criteria** (what must be TRUE):
@@ -77,7 +77,10 @@ Full archive: `.planning/milestones/v1.3-ROADMAP.md`
   2. User inside a Group can press `a` to open the anchor creation popup, name an anchor, and have it created in the Group's nested graph
   3. User inside a Group can create a link to an anchor and have it wired correctly within the Group's nested graph
   4. User inside a Group can press Alt+A to open the navigation picker and jump to an anchor within the Group context
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 18-01-PLAN.md — Group-context utility helper and foundation module updates (link.py, anchors.py, labels.py)
+- [ ] 18-02-PLAN.md — Anchor.py Group-aware operations (creation, navigation, rename, reconnection)
 
 ### Phase 19: Quick Start Documentation
 **Goal**: A `docs/` Quick Start guide exists that a new user can read to get productive with the plugin's three primary workflows
@@ -114,5 +117,5 @@ Full archive: `.planning/milestones/v1.3-ROADMAP.md`
 | 16. Site Config | v1.3 | 3/3 | Complete | 2026-03-17 |
 | 16.1. Publish Always Available with File Save Dialog | v1.3 | 1/1 | Complete | 2026-03-17 |
 | 17. Public API | v1.3 | 2/2 | Complete | 2026-03-18 |
-| 18. Group Context Support | v1.4 | 0/? | Not started | - |
+| 18. Group Context Support | v1.4 | 0/2 | Not started | - |
 | 19. Quick Start Documentation | v1.4 | 0/? | Not started | - |
