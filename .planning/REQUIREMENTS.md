@@ -53,20 +53,20 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| GROUP-01 | TBD | Pending |
-| GROUP-02 | TBD | Pending |
-| GROUP-03 | TBD | Pending |
-| GROUP-04 | TBD | Pending |
-| DOCS-01 | TBD | Pending |
-| DOCS-02 | TBD | Pending |
-| DOCS-03 | TBD | Pending |
-| DOCS-04 | TBD | Pending |
+| GROUP-01 | Phase 18 | Pending |
+| GROUP-02 | Phase 18 | Pending |
+| GROUP-03 | Phase 18 | Pending |
+| GROUP-04 | Phase 18 | Pending |
+| DOCS-01 | Phase 19 | Pending |
+| DOCS-02 | Phase 19 | Pending |
+| DOCS-03 | Phase 19 | Pending |
+| DOCS-04 | Phase 19 | Pending |
 
 **Coverage:**
 - v1.4 requirements: 8 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 8 ⚠️
+- Mapped to phases: 8 (Phase 18: 4, Phase 19: 4)
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-19*
-*Last updated: 2026-03-19 after initial definition*
+*Last updated: 2026-03-19 after v1.4 roadmap creation*

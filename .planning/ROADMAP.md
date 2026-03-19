@@ -6,6 +6,7 @@
 - ✅ **v1.1 Polish** — Phases 6-7 (shipped 2026-03-12)
 - ✅ **v1.2 Hardening** — Phases 8-12 (shipped 2026-03-15)
 - ✅ **v1.3 Foundations** — Phases 13-17 (shipped 2026-03-18)
+- 🔄 **v1.4 Group Support** — Phases 18-19 (in progress)
 
 ## Phases
 
@@ -60,6 +61,36 @@ Full archive: `.planning/milestones/v1.3-ROADMAP.md`
 
 </details>
 
+### v1.4 Group Support
+
+- [ ] **Phase 18: Group Context Support** - All plugin operations work correctly inside Group nested DAGs
+- [ ] **Phase 19: Quick Start Documentation** - docs/ guide covering anchor creation, navigation, and copy/paste semantics
+
+## Phase Details
+
+### Phase 18: Group Context Support
+**Goal**: All plugin entry points (copy/paste, anchor creation, link creation, navigation) work correctly when the user is inside a Group node's nested DAG by respecting `nuke.lastHitGroup()`
+**Depends on**: Nothing (self-contained fix across existing entry points)
+**Requirements**: GROUP-01, GROUP-02, GROUP-03, GROUP-04
+**Success Criteria** (what must be TRUE):
+  1. User inside a Group can Ctrl+C/V nodes and get the same clipboard behavior (hidden-input-aware paste, link stamping) as in the root DAG
+  2. User inside a Group can press `a` to open the anchor creation popup, name an anchor, and have it created in the Group's nested graph
+  3. User inside a Group can create a link to an anchor and have it wired correctly within the Group's nested graph
+  4. User inside a Group can press Alt+A to open the navigation picker and jump to an anchor within the Group context
+**Plans**: TBD
+
+### Phase 19: Quick Start Documentation
+**Goal**: A `docs/` Quick Start guide exists that a new user can read to get productive with the plugin's three primary workflows
+**Depends on**: Phase 18 (documents the final, working behavior including Group support)
+**Requirements**: DOCS-01, DOCS-02, DOCS-03, DOCS-04
+**Success Criteria** (what must be TRUE):
+  1. A Markdown file exists at `docs/quick-start.md` (or similar) covering plugin orientation and all three primary workflows
+  2. Reader can follow the anchor creation section (`a` shortcut, naming dialog, color picker) and know what to expect at each step
+  3. Reader can follow the anchor navigation section (Alt+A picker, jumping to anchor location) and know what to expect
+  4. Reader can follow the copy/paste semantics section and understand how Ctrl+C/V behaves differently with anchors and links
+  5. Each workflow section contains PNG screenshot placeholder markers so screenshots can be added later without restructuring the doc
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -83,3 +114,5 @@ Full archive: `.planning/milestones/v1.3-ROADMAP.md`
 | 16. Site Config | v1.3 | 3/3 | Complete | 2026-03-17 |
 | 16.1. Publish Always Available with File Save Dialog | v1.3 | 1/1 | Complete | 2026-03-17 |
 | 17. Public API | v1.3 | 2/2 | Complete | 2026-03-18 |
+| 18. Group Context Support | v1.4 | 0/? | Not started | - |
+| 19. Quick Start Documentation | v1.4 | 0/? | Not started | - |
