@@ -228,7 +228,7 @@ class TestGetItemsIncludesBackdrops(unittest.TestCase):
         """get_items() includes an item with menupath 'Backdrops/GradeStack' for labelled backdrop."""
         labelled_backdrop = self._make_stub_backdrop('GradeStack')
 
-        def _allNodes_side_effect(class_name=None, **kwargs):
+        def _allNodes_side_effect(class_name=None):
             if class_name == 'BackdropNode':
                 return [labelled_backdrop]
             return []
@@ -246,7 +246,7 @@ class TestGetItemsIncludesBackdrops(unittest.TestCase):
         """get_items() excludes BackdropNodes with an empty label."""
         unlabelled_backdrop = self._make_stub_backdrop('')
 
-        def _allNodes_side_effect(class_name=None, **kwargs):
+        def _allNodes_side_effect(class_name=None):
             if class_name == 'BackdropNode':
                 return [unlabelled_backdrop]
             return []
@@ -264,7 +264,7 @@ class TestGetItemsIncludesBackdrops(unittest.TestCase):
         """get_items() excludes BackdropNodes whose label is whitespace only."""
         whitespace_backdrop = self._make_stub_backdrop('   ')
 
-        def _allNodes_side_effect(class_name=None, **kwargs):
+        def _allNodes_side_effect(class_name=None):
             if class_name == 'BackdropNode':
                 return [whitespace_backdrop]
             return []
@@ -282,7 +282,7 @@ class TestGetItemsIncludesBackdrops(unittest.TestCase):
         """get_items() includes anchor nodes with Anchors/ prefix."""
         stub_anchor_node = self._make_stub_anchor('Foo')
 
-        def _allNodes_side_effect(class_name=None, **kwargs):
+        def _allNodes_side_effect(class_name=None):
             if class_name == 'BackdropNode':
                 return []
             return [stub_anchor_node]
@@ -364,7 +364,7 @@ class TestPickerLaunchGuard(unittest.TestCase):
         """select_anchor_and_navigate() launches picker when no anchors but labelled backdrops exist."""
         labelled_backdrop = self._make_stub_backdrop('GradeStack')
 
-        def _allNodes_side_effect(class_name=None, **kwargs):
+        def _allNodes_side_effect(class_name=None):
             if class_name == 'BackdropNode':
                 return [labelled_backdrop]
             return []
@@ -382,7 +382,7 @@ class TestPickerLaunchGuard(unittest.TestCase):
 
     def test_picker_suppressed_when_no_anchors_and_no_labelled_backdrops(self):
         """select_anchor_and_navigate() returns without creating widget when nothing to show."""
-        def _allNodes_side_effect(class_name=None, **kwargs):
+        def _allNodes_side_effect(class_name=None):
             return []
 
         import nuke as nuke_stub

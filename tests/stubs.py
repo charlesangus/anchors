@@ -132,8 +132,6 @@ def make_stub_nuke_module():
     root_obj.name.return_value = 'destScript.nk'
     stub.root = MagicMock(return_value=root_obj)
 
-    root_group = MagicMock(name='root_group')
-    stub.thisGroup = MagicMock(return_value=root_group)
     stub.allNodes = MagicMock(return_value=[])
     stub.toNode = MagicMock(side_effect=lambda name: MagicMock() if name == "preferences" else None)
     stub.createNode = MagicMock()

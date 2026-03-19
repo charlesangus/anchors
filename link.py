@@ -22,26 +22,6 @@ from constants import (
 )
 
 
-def all_nodes_in_context(node_class=None):
-    """Return all nodes in the current Group context.
-
-    When the user is inside a Group node, nuke.allNodes() without a group=
-    parameter returns root-level nodes. This helper passes
-    group=nuke.thisGroup() so that operations always target the DAG the user
-    is currently viewing.
-
-    Parameters
-    ----------
-    node_class : str or None
-        Optional Nuke node class filter (e.g. 'BackdropNode'). When provided,
-        only nodes of that class are returned.
-    """
-    current_group = nuke.thisGroup()
-    if node_class is not None:
-        return nuke.allNodes(node_class, group=current_group)
-    return nuke.allNodes(group=current_group)
-
-
 def get_fully_qualified_node_name(node):
     """Return <script_stem>.<node.fullName()> so we can detect cross-script refs."""
     return f"{nuke.root().name().split('.')[0]}.{node.fullName()}"
@@ -80,7 +60,7 @@ def find_smallest_containing_backdrop(node):
     """Return the smallest BackdropNode that fully contains *node*, or None."""
     nx, ny = node.xpos(), node.ypos()
     containing = []
-    for bd in all_nodes_in_context('BackdropNode'):
+    for bd in nuke.allNodes('BackdropNode'):
         bx = bd.xpos()
         by = bd.ypos()
         bw = bd['bdwidth'].value()

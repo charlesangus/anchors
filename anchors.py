@@ -20,7 +20,6 @@ from constants import (
 )
 from link import (
     add_input_knob,
-    all_nodes_in_context,
     find_anchor_node,
     get_fully_qualified_node_name,
     get_link_class_for_source,
@@ -58,7 +57,7 @@ def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: 3 node-cl
                 stored_fqnn = ""
             else:
                 anchor_for_node = None
-                for candidate in all_nodes_in_context():
+                for candidate in nuke.allNodes():
                     if is_anchor(candidate) and candidate.input(0) is node:
                         anchor_for_node = candidate
                         break
