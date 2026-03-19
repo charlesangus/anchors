@@ -4,7 +4,7 @@ milestone: v1.3
 milestone_name: Foundations
 current_phase: 17-public-api (Plan 03 of 03 — next)
 status: completed
-last_updated: "2026-03-18T13:25:30.914Z"
+last_updated: "2026-03-19T01:44:03.341Z"
 last_activity: "2026-03-18 - Completed 17-02-PLAN.md — GREEN phase: api.py implemented (api.py, commit a1803ed)"
 progress:
   total_phases: 7
@@ -17,21 +17,19 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md
+See: .planning/PROJECT.md (updated 2026-03-18 after v1.3 milestone)
+
+**Core value:** Copy and paste must reconnect predictably — anchors provide stable, navigable references; hidden inputs reconnect to their source without ceremony.
+**Current focus:** Planning next milestone
 
 ## Position
 
-**Milestone:** v1.3 Foundations
-**Current phase:** 17-public-api (Plan 03 of 03 — next)
-**Status:** Milestone complete
+**Milestone:** v1.3 Foundations — SHIPPED 2026-03-18
+**Status:** Archived. Ready for next milestone.
 
 ## Decisions
 
-- (17-01) Tests mock anchor internals via unittest.mock.patch — api.py is a thin delegation layer and tests should not depend on anchor.py's real behavior
-- (17-01) RuntimeError guard for nuke-absent sessions checks sys.modules at call time in each public function
-- (17-01) find_anchor_by_name exposed as a public helper alongside create_anchor
-- [Phase 17-02]: Used sys.modules['nuke'] check in _assert_nuke_session() — works in tests (stub installed/removed) and in real Nuke (nuke always present)
-- [Phase 17-02]: No module-level import nuke in api.py — api.py calls no nuke APIs directly, only delegates to anchor.py
+(Full log in PROJECT.md Key Decisions table)
 
 ## Session Log
 

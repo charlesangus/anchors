@@ -136,6 +136,53 @@
 
 ---
 
+## Milestone: v1.3 — Foundations
+
+**Shipped:** 2026-03-18
+**Phases:** 7 (13, 14, 15, 15.1, 16, 16.1, 17) | **Plans:** 17
+
+### What Was Built
+- Project renamed from `paste_hidden` to `anchors` across all source, tests, CI, and GitHub repo; migration path for old prefs file via `OLD_PREFS_PATH` in `constants.py`
+- BUG-03: anchor creation dialog name reliably applied via `ColorPaletteDialog.accept()` override; scattered `chosen_name` assignments removed
+- BUG-04: Dot→NoOp anchor dispatch fixed by removing `elif Dot` branch from `anchor_shortcut()`; five regression tests
+- Configurable regex + template anchor naming: `suggest_anchor_name()` backend with named capture groups; live validity indicator and Reset button in PrefsDialog
+- PrefsDialog Anchor Naming polished: live preview label, undoable Reset, `naming_demo_filename` persistence, Publish button, collapsible Advanced section (QPushButton + QWidget.setVisible())
+- Site-level config system: `ANCHORS_SITE_CONFIG` env var, two-layer prefs (effective vars + `_user_naming_*` shadow vars), lock/unlock UI with override checkbox in PrefsDialog
+- Always-enabled Publish button with `QFileDialog.getSaveFileName` flow; `last_publish_path` persists to prefs for first-time site config creation
+- `api.py` public module: `create_anchor()`, `find_anchor_by_name()`, `sys.modules` guard, `__all__` stable surface, NumPy-style docstrings
+
+### What Worked
+- **Two inserted decimal phases (15.1, 16.1)** handled cleanly — the decimal phase pattern is fully proven. No disruption to phase 16 or 17 numbering.
+- **Two-layer prefs system** (shadow vars + effective vars) was the right design for site config — PrefsDialog seeds from shadow vars, flushes to shadow vars on OK, then calls `_apply_effective_naming_values()`. Clear separation prevents shadow/effective confusion.
+- **Collapsible Advanced section pattern** (flat QPushButton with triangle arrows + `QWidget.setVisible()`) added no custom widget overhead and integrates cleanly with the lock/unlock pattern from Phase 16.
+- **api.py thin delegation** with `sys.modules` guard was correct — no logic duplication with `anchor.py`; `__all__` makes the public surface explicit at a glance.
+- **path-priority chain** for Publish dialog (env var → last_publish_path → '/') covered all cases without branching logic in the UI.
+
+### What Was Inefficient
+- **Phase 16.1 revert cycle**: two commits were needed for the `DontConfirmOverwrite` fix — the initial diagnosis was wrong (thought the flag prevented overwrite confirmation, but Qt was returning empty path). A QFileDialog.result() check would have caught this faster. The revert + rediagnosis added one iteration.
+- **No milestone audit (v1.3-MILESTONE-AUDIT.md)** — milestone completed without the pre-archive audit step. All requirements were 13/13 checked off, so it was safe to proceed, but the audit would have caught any integration gaps between api.py and the public surface.
+- **ROADMAP.md plan checkboxes still `[ ]` at phase completion** — same discipline failure as v1.0, v1.1, v1.2. The plans were complete (SUMMARY.md existed) but the ROADMAP.md plan list kept `[ ]`. Four milestones of the same issue.
+
+### Patterns Established
+- **Migration path in constants.py**: `OLD_PREFS_PATH = ...` gives tests a patchable constant before reimport — avoids hardcoded paths in `prefs.py`.
+- **Collapsible section via QPushButton + QWidget**: `▶`/`▼` flat button toggles a plain `QWidget` container; no custom widget; rows moved to inner `QVBoxLayout` with zero margins.
+- **Two-layer prefs for site config**: effective vars (`naming_regex`, `naming_template`) are what the plugin uses; `_user_naming_*` shadow vars are what the user set. Flush shadow → effective via `_apply_effective_naming_values()` on every accept.
+- **sys.modules guard over try/import**: `_assert_nuke_session` checks `sys.modules['nuke']` rather than `try: import nuke` — cleaner, no side effects.
+- **NumPy-style docstrings + __all__**: Parameters, Returns, Raises, Examples in all public functions; `__all__` at module bottom declares the stable surface explicitly.
+
+### Key Lessons
+1. **QFileDialog.getSaveFileName returns empty string on cancel or overwrite-declined** — always check the returned path before calling downstream publish logic. `DontConfirmOverwrite` is not the right fix for overwrite handling; just let Qt's default dialog handle it.
+2. **Run the milestone audit**: even with 13/13 requirements checked, the audit would have verified cross-phase integration (api.py → anchor.py wiring, site config → prefs dialog interactions). Missing it is a gap in the completion ritual.
+3. **ROADMAP.md plan checkbox discipline: still unresolved after 4 milestones.** Either automate the checkbox update when SUMMARY.md is created, or accept that ROADMAP.md plan lists are decorative (not a progress gate) and stop flagging it as an issue.
+4. **Decimal phase insertion works well for mid-stream scope additions** — 15.1 and 16.1 both had clear scope boundaries and didn't create confusion about their relationship to the parent phases.
+
+### Cost Observations
+- Model: claude-sonnet-4-6 (100%)
+- Sessions: multiple (separated by phase)
+- Notable: Phase 16.1 required a revert + rediagnosis cycle (2 extra commits). Phases 15–16 were the most complex UI work in any milestone — PrefsDialog has significant accumulated surface area. Phase 17 (public API) was the fastest in the milestone (~2 plans, thin delegation pattern).
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -145,6 +192,7 @@
 | v1.0 | 5 | 13 | Initial milestone — established TDD stub pattern, yolo mode, DOT_TYPE architecture |
 | v1.1 | 2 | 8 | Prefs system, UI dialogs, UAT-driven bug fix cycle; constructor injection prevents circular import |
 | v1.2 | 5 | 9 | Infrastructure hardening — test centralization, bug fixes with regression tests, CI/CD, stub alignment |
+| v1.3 | 7 | 17 | Project rename, configurable naming, site config, public API; decimal phase insertions × 2 |
 
 ### Cumulative Quality
 
@@ -153,6 +201,7 @@
 | v1.0 | 74+ | 0 (no new external deps) |
 | v1.1 | 100+ | 0 (no new external deps) |
 | v1.2 | 132 | 0 (ruff dev-only; no runtime deps) |
+| v1.3 | 150+ | 0 (no new external deps) |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -161,3 +210,5 @@
 3. UAT-driven fix cycles with regression tests (v1.1 Phase 7-03, v1.2 Phase 9) produce zero post-merge regressions
 4. REQUIREMENTS.md checkbox discipline: tick on UAT pass, not at archive time (failed 3 milestones in a row — automate or ritualize)
 5. Explicit file manifests beat wildcards for release artifacts — prevents accidental inclusion of dev artifacts
+6. Run the milestone audit before archiving — even with all requirements checked, cross-phase integration gaps may exist
+7. Decimal phase insertions (15.1, 16.1) work cleanly — use them for mid-stream scope additions without disrupting numbering

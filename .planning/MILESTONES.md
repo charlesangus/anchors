@@ -1,5 +1,28 @@
 # Milestones
 
+## v1.3 Foundations (Shipped: 2026-03-18)
+
+**Phases completed:** 7 phases (Phases 13–17 incl. 15.1, 16.1), 17 plans
+
+**Timeline:** 2026-03-15 → 2026-03-18 (3 days)
+**LOC:** ~10,212 Python total
+**Git range:** `e80ab07` → `4865e6e`
+
+**Key accomplishments:**
+- Renamed project from `paste_hidden` to `anchors` across all source, tests, CI, and GitHub repo with migration path for old prefs (REN-01, REN-02)
+- Fixed anchor creation dialog name reliability (BUG-03) and Dot→NoOp anchor dispatch (BUG-04) with regression coverage
+- Configurable regex + template anchor naming with live validity indicator in PrefsDialog (NAME-01–03)
+- PrefsDialog Anchor Naming polish: collapsible Advanced section, live preview label, undoable Reset, Publish button (PREF-01–06)
+- Site-level config via `ANCHORS_SITE_CONFIG` env var with two-layer prefs system and per-field lock/override checkbox in PrefsDialog (SITE-01–03)
+- Always-enabled Publish button with file save dialog and `last_publish_path` persistence for first-time site config creation
+- Public `api.py` module exposing `create_anchor()` and `find_anchor_by_name()` with NumPy-style docstrings and `__all__` stable surface (API-01–03)
+
+**Requirements:** 13/13 v1.3 requirements satisfied
+
+**Archive:** `.planning/milestones/v1.3-ROADMAP.md`, `.planning/milestones/v1.3-REQUIREMENTS.md`
+
+---
+
 ## v1.2 Hardening (Shipped: 2026-03-15)
 
 **Phases completed:** 5 phases (Phases 8-12), 9 plans

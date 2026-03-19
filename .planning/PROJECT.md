@@ -1,14 +1,16 @@
-# paste_hidden
+# anchors
 
 ## What This Is
 
-`paste_hidden` is a Foundry Nuke plugin that replaces Nuke's native clipboard system with one that intelligently handles hidden inputs, and adds a named anchor/link reference system for navigating and reusing node graph connections. It is used by a single VFX artist to manage complex compositing node graphs.
+`anchors` (formerly `paste_hidden`) is a Foundry Nuke plugin that replaces Nuke's native clipboard system with one that intelligently handles hidden inputs, and adds a named anchor/link reference system for navigating and reusing node graph connections. It is used by a single VFX artist to manage complex compositing node graphs.
 
 **v1.0 shipped:** Clear paste semantics for all node types, cross-script anchor reconnection, anchor color system with palette dialog, DAG navigation history (Alt+Z back), backdrop navigation inclusion, DOT_TYPE-gated Dot subtype distinction, 74+ offline unit tests.
 
 **v1.1 shipped:** JSON-backed prefs singleton (plugin_enabled, link_classes_paste_mode, custom_colors), plugin-wide enable/disable gating, LINK_CLASSES passthrough mode, click-to-select ColorPaletteDialog, PrefsDialog with full custom color CRUD, and Preferences... menu entry.
 
 **v1.2 shipped:** 132-test suite with centralized stub infrastructure (tests/stubs.py + conftest.py), BUG-01/BUG-02 cross-script paste fixes with regression tests, zero ruff violations across all 10 source files, tag-triggered GitHub Actions CI/CD (pytest gate + versioned ZIP + GitHub Release), and nuke -t validation scripts confirming stub alignment to real Nuke 16.0v6.
+
+**v1.3 shipped:** Project renamed to `anchors`. Configurable regex+template anchor naming with live preview. Site-level config (`ANCHORS_SITE_CONFIG`) with per-field lock/override. Anchor creation bug fixes (dialog name reliability, Dot→NoOp dispatch). Public `api.py` module for external script integration. PrefsDialog Anchor Naming fully polished with collapsible Advanced section, undoable Reset, and always-available Publish button with file save dialog.
 
 ## Core Value
 
@@ -52,19 +54,18 @@ Copy and paste must reconnect predictably — anchors provide stable, navigable 
 - ✓ Zero ruff violations (E, F, W, B, C90, I, SIM) across all 10 source files; FROZEN annotations on 8 serialized knob constants — v1.2
 - ✓ Tag-triggered GitHub Actions CI/CD: pytest gate → versioned ZIP (explicit manifest) → GitHub Release — v1.2
 - ✓ `nuke -t` validation scripts probing stub alignment and cross-script paste behavior; two divergences corrected — v1.2
+- ✓ Project renamed from `paste_hidden` to `anchors` across all source, tests, CI, and GitHub repo — v1.3
+- ✓ BUG-03: Anchor creation dialog name reliably applied to node every time — v1.3
+- ✓ BUG-04: "a" on Dot node creates NoOp-based anchor (not Dot anchor) — v1.3
+- ✓ Configurable regex + template for default anchor name derived from file knob, with live validity indicator and fallback — v1.3
+- ✓ PrefsDialog Anchor Naming fully polished: collapsible Advanced section, live preview, undoable Reset, Publish button — v1.3
+- ✓ Site-level config via `ANCHORS_SITE_CONFIG` env var: two-layer prefs system with per-field lock/override checkbox — v1.3
+- ✓ Always-enabled Publish button with file save dialog; `last_publish_path` persists across sessions — v1.3
+- ✓ Public `api.py` module: `create_anchor()`, `find_anchor_by_name()` with NumPy docstrings and `__all__` stable surface — v1.3
 
 ### Active
 
-- [ ] Project renamed from `paste_hidden` to `anchors` (REN-01, REN-02)
-- [ ] Configurable regex + template for default anchor name from file knob (NAME-01, NAME-02, NAME-03)
-- [ ] Site-level config via `ANCHORS_SITE_CONFIG` env var with per-field lock/override (SITE-01, SITE-02, SITE-03)
-- [ ] Anchor creation dialog name reliably applied to node (BUG-03)
-- [ ] "a" on Dot node creates NoOp anchor, not Dot anchor (BUG-04)
-- [ ] Public API for external modules to create/wire anchors (API-01, API-02, API-03)
-
-### Future
-
-- [ ] Undo/redo stack integration (out of scope; Nuke API complexity)
+(none — planning next milestone)
 
 ### Out of Scope
 
@@ -76,13 +77,17 @@ Copy and paste must reconnect predictably — anchors provide stable, navigable 
 
 ## Context
 
-**v1.2 shipped 2026-03-15.** Codebase: ~3,089 LOC Python (10 source files), plus `tests/` (132 unit tests across 6 test files), `validation/` (2 nuke -t scripts), `.github/workflows/release.yml` (CI/CD pipeline).
+**v1.3 shipped 2026-03-18.** Codebase: ~10,212 LOC Python total (source + tests), across 83 files modified in v1.3 alone.
 
-Tech stack: Python 3 (Nuke embedded), PySide2/PySide6 (Qt guard for headless), ruff for linting (zero violations), GitHub Actions for CI/CD. No external runtime dependencies.
+**Source files:** `anchors.py`, `anchor.py`, `api.py`, `colors.py`, `constants.py`, `menu.py`, `prefs.py` (7 source files). `api.py` added in v1.3 as stable public surface.
 
-Architecture: Two systems unified under clear semantics — hidden-input Dots (positional, local-only reconnect) and named Link nodes (FQNN-tracked, cross-script reconnect by anchor name). DOT_TYPE knob stamps distinction at copy time. Link class determined once at anchor creation via canSetInput probe, cached on hidden knob. Prefs module is a module-level singleton loaded at import; `PrefsDialog` owns the persistence lifecycle (save() called only on OK).
+**Tests:** Extended to cover anchor naming, site config, prefs round-trips, and public API. `tests/test_prefs.py` is now 700+ lines (primary prefs + naming + site config + publish coverage).
 
-TDD infrastructure: `tests/stubs.py` (StubNode/StubKnob/make_stub_nuke_module), `tests/conftest.py` (shared stub installation for pytest flat discovery), `tests/__init__.py` (idempotent stub installation for unittest discover). 132 tests pass under both `pytest tests/` and `python3 -m unittest discover -s tests/ -t .`.
+**Tech stack:** Python 3 (Nuke embedded), PySide2/PySide6 (Qt guard for headless), ruff for linting (zero violations), GitHub Actions for CI/CD. No external runtime dependencies.
+
+**Architecture:** Source files now under `anchors` namespace. Two-layer prefs system: effective vars (what plugin uses) and shadow vars (what user set; diverge when site config is active). Site config loaded from `ANCHORS_SITE_CONFIG` env var at import. `api.py` is a thin delegation layer over `anchor.py` with no logic duplication; `__all__` declares stable public surface.
+
+**TDD infrastructure:** `tests/stubs.py` (StubNode/StubKnob/make_stub_nuke_module), `tests/conftest.py` (shared stub installation for pytest flat discovery), `tests/__init__.py` (idempotent stub installation for unittest discover). Tests pass under both `pytest tests/` and `python3 -m unittest discover -s tests/ -t .`.
 
 ## Constraints
 
@@ -119,17 +124,15 @@ TDD infrastructure: `tests/stubs.py` (StubNode/StubKnob/make_stub_nuke_module), 
 | Explicit 10-file cp manifest in CI ZIP step (not wildcard) | Prevents stubs/__init__.py and dev artifacts from entering release artifact | ✓ Good |
 | FROZEN annotation pattern on serialized knob constants | Documents that renaming these would break existing artist .nk files; zero-cost guardrail | ✓ Good |
 | paste_hidden() / copy_hidden() C901 complexity deferred with noqa | Structural refactoring too risky immediately after BUG-01/BUG-02 fixes; accept technical debt | ⚠️ Revisit |
-
-## Current Milestone: v1.3 Foundations
-
-**Goal:** Rename the project to `anchors`, expose a public API for external templating systems, add configurable regex-based anchor naming with site-level config override, and fix anchor creation reliability bugs.
-
-**Target features:**
-- Project-wide rename `paste_hidden` → `anchors` (source, tests, CI, GitHub repo)
-- Configurable regex on file knob + template string for default anchor name suggestions
-- Site-level config (`ANCHORS_SITE_CONFIG`) that can lock user prefs with per-field override checkbox
-- Bug fixes: anchor creation dialog name applied reliably; "a" on Dot creates NoOp anchor
-- Public API module: create anchors, wire nodes to anchors, fully documented
+| Migration path (OLD_PREFS_PATH) in constants.py for test patching | Tests can patch the constant before reimport; avoids hardcoded path in prefs.py | ✓ Good |
+| BUG-03 fix: ColorPaletteDialog.accept() override + remove scattered chosen_name assignments | Dialog name was overwritten by post-accept code; single accept() override is canonical | ✓ Good |
+| BUG-04 fix: remove Dot elif branch from anchor_shortcut() | Dot nodes fall through to elif selected: → create_anchor(), consistent NoOp-based creation | ✓ Good |
+| Working-copy naming pattern: seed _local_naming_* in __init__, flush on _on_accept | Consistent with existing PrefsDialog working-copy pattern; cancel leaves prefs unchanged | ✓ Good |
+| Collapsible Advanced section via QPushButton + QWidget.setVisible() | Flat button with triangle arrows; no custom widget needed; compatible with lock/unlock UI | ✓ Good |
+| Two-layer prefs system: effective vars + _user_naming_* shadow vars | Separates what site config locked from what the user set; both layers preserved correctly | ✓ Good |
+| path-priority chain: env var > last_publish_path > '/' for dialog pre-fill | Respects explicit env var config while remembering last used path for convenience | ✓ Good |
+| api.py as thin delegation layer over anchor.py with sys.modules guard | No logic duplication; guard raises RuntimeError early in non-Nuke sessions without try/import | ✓ Good |
+| __all__ at module bottom declares stable public surface of api.py | Explicit exports prevent internal symbols leaking into callers' namespaces | ✓ Good |
 
 ---
-*Last updated: 2026-03-15 after v1.3 milestone start*
+*Last updated: 2026-03-18 after v1.3 milestone*
