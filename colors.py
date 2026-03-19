@@ -125,32 +125,8 @@ else:
                 self._name_edit = QtWidgets.QLineEdit(initial_name)
                 outer_layout.addWidget(self._name_edit)
 
-            # Optional "Default Colour" section — shown when default_color is provided
-            if self._default_color is not None:
-                default_section_label = QtWidgets.QLabel("Default Colour")
-                default_section_label.setFocusPolicy(Qt.NoFocus)
-                outer_layout.addWidget(default_section_label)
-
-                default_button = QtWidgets.QPushButton()
-                default_button.setFixedSize(24, 24)
-                default_button.setFocusPolicy(Qt.NoFocus)
-                default_button.setAutoDefault(False)
-
-                default_red, default_green, default_blue = _color_int_to_rgb(self._default_color)
-                default_button.setStyleSheet(
-                    f"background-color: rgb({default_red},{default_green},{default_blue}); "
-                    "border: 1px solid #555; "
-                    "border-radius: 2px;"
-                )
-
-                default_color_to_capture = self._default_color
-                default_button.clicked.connect(
-                    lambda checked=False, c=default_color_to_capture: self._on_swatch_clicked(c)
-                )
-                outer_layout.addWidget(default_button)
-                self._default_color_button = default_button
-
-            # Swatch grid
+            # Swatch grid — all colour sections (including Default Colour) live here
+            # so they share the same margins and spacing.
             grid_widget = QtWidgets.QWidget()
             self._grid_layout = QtWidgets.QGridLayout()
             self._grid_layout.setSpacing(2)
@@ -180,6 +156,41 @@ else:
             # This ensures hint-mode row letters always start at 'a' for the first
             # swatch row regardless of how many label rows appear above it.
             logical_row = 0
+
+            # Optional "Default Colour" section — placed at the top of the grid so
+            # margins and spacing are identical to the other colour sections.
+            # The swatch is added to _swatch_cells and _cell_map so hint-mode navigation
+            # includes it.
+            self._default_color_button = None
+            if self._default_color is not None:
+                default_section_label = QtWidgets.QLabel("Default Colour")
+                default_section_label.setFocusPolicy(Qt.NoFocus)
+                self._grid_layout.addWidget(default_section_label, grid_row, 0, 1, _SWATCHES_PER_ROW)
+                grid_row += 1
+
+                default_button = QtWidgets.QPushButton()
+                default_button.setFixedSize(24, 24)
+                default_button.setFocusPolicy(Qt.NoFocus)
+                default_button.setAutoDefault(False)
+                default_red, default_green, default_blue = _color_int_to_rgb(self._default_color)
+                default_button.setStyleSheet(
+                    f"background-color: rgb({default_red},{default_green},{default_blue}); "
+                    "border: 1px solid #555; "
+                    "border-radius: 2px;"
+                )
+                default_color_to_capture = self._default_color
+                default_button.clicked.connect(
+                    lambda checked=False, c=default_color_to_capture: self._on_swatch_clicked(c)
+                )
+                self._grid_layout.addWidget(default_button, grid_row, 0)
+                self._swatch_cells.append((0, logical_row, self._default_color, default_button))
+                self._cell_map[(0, logical_row)] = (self._default_color, default_button)
+                self._default_color_button = default_button
+
+                # One swatch placed (group_col advanced to 1 — partial row) → same
+                # gap logic as the per-group loop: advance grid_row and logical_row.
+                grid_row += 1
+                logical_row += 1
 
             # Initialise the custom colors next-slot tracker.  If
             # user_palette_colors is non-empty, it will be the first group in
@@ -328,21 +339,6 @@ else:
                         "border-radius: 2px;"
                     )
 
-            # Update default color button border if it exists
-            if getattr(self, '_default_color_button', None) is not None:
-                default_red, default_green, default_blue = _color_int_to_rgb(self._default_color)
-                if self._selected_color is not None and self._default_color == self._selected_color:
-                    self._default_color_button.setStyleSheet(
-                        f"background-color: rgb({default_red},{default_green},{default_blue}); "
-                        f"border: 2px solid {highlight_color}; "
-                        "border-radius: 2px;"
-                    )
-                else:
-                    self._default_color_button.setStyleSheet(
-                        f"background-color: rgb({default_red},{default_green},{default_blue}); "
-                        "border: 1px solid #555; "
-                        "border-radius: 2px;"
-                    )
 
         def _on_custom_color_clicked(self):
             result = nuke.getColor()

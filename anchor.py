@@ -368,14 +368,31 @@ def create_anchor():
             create_anchor_named(name, input_node)
         return
 
-    pre_color = find_anchor_color(input_node) if input_node is not None else ANCHOR_DEFAULT_COLOR
+    # Derive the auto-computed colour for the prospective anchor.  We cannot call
+    # find_anchor_color() here because that function expects the anchor to already
+    # exist and calls anchor.input(0) — passing input_node would instead examine
+    # what is upstream *of* input_node.  Mirror the same priority logic directly:
+    #   1. Backdrop colour — only when input_node is a Read
+    #   2. Input node's own colour (tile_color with Preferences fallback)
+    #   3. Hard-coded default purple
+    if input_node is not None:
+        if input_node.Class() == 'Read':
+            containing_backdrop = find_smallest_containing_backdrop(input_node)
+            if containing_backdrop is not None and containing_backdrop['tile_color'].value() != 0:
+                pre_color = int(containing_backdrop['tile_color'].value())
+            else:
+                pre_color = int(find_node_color(input_node))
+        else:
+            pre_color = int(find_node_color(input_node))
+    else:
+        pre_color = ANCHOR_DEFAULT_COLOR
 
     dialog = ColorPaletteDialog(
-        initial_color=int(pre_color),
+        initial_color=pre_color,
         show_name_field=True,
         initial_name=suggested,
         custom_colors=prefs.custom_colors,
-        default_color=int(pre_color),
+        default_color=pre_color,
     )
     if dialog.exec_() != QtWidgets.QDialog.Accepted:
         return

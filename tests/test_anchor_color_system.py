@@ -983,50 +983,54 @@ class TestColorPaletteDialogDefaultColorSwatch(unittest.TestCase):
         self.assertIn("_default_color_button", source_text,
                       "colors.py must store the default color button as self._default_color_button")
 
-    def test_refresh_swatch_borders_updates_default_color_button(self):
-        """_refresh_swatch_borders must update the default_color_button border when it exists.
+    def test_refresh_swatch_borders_highlights_default_swatch_via_swatch_cells(self):
+        """_refresh_swatch_borders must highlight the default swatch when it matches _selected_color.
 
-        Extracts _refresh_swatch_borders from source and runs it on a harness
-        that has a _default_color_button and _default_color set. Asserts that
-        setStyleSheet is called on the button when it matches _selected_color.
+        The default swatch is added to _swatch_cells during _build_ui, so
+        _refresh_swatch_borders handles it through the main loop rather than
+        a separate code path.
         """
         refresh_swatch_borders = _extract_method_from_source('_refresh_swatch_borders')
         if refresh_swatch_borders is None:
             self.fail("_refresh_swatch_borders not found in ColorPaletteDialog in colors.py")
 
         default_color = 0x6f3399ff
+        default_button = MagicMock()
 
         dialog = _PickerTestHarness(initial_color=default_color)
         dialog._default_color = default_color
-        dialog._default_color_button = MagicMock()
+        dialog._default_color_button = default_button
+        dialog._swatch_cells.append((0, 0, default_color, default_button))
 
         refresh_swatch_borders(dialog)
 
-        dialog._default_color_button.setStyleSheet.assert_called()
-        stylesheet_arg = dialog._default_color_button.setStyleSheet.call_args[0][0]
+        default_button.setStyleSheet.assert_called()
+        stylesheet_arg = default_button.setStyleSheet.call_args[0][0]
         expected_highlight = _PickerTestHarness.HARNESS_HIGHLIGHT_COLOR
         self.assertIn(f"border: 2px solid {expected_highlight}", stylesheet_arg,
-                      "Default color button must get highlight border when it matches _selected_color")
+                      "Default color swatch must get highlight border when it matches _selected_color")
 
-    def test_refresh_swatch_borders_default_button_not_highlighted_when_different_color_selected(self):
-        """_refresh_swatch_borders gives default button a non-selected border when a different color is selected."""
+    def test_refresh_swatch_borders_default_swatch_not_highlighted_when_different_color_selected(self):
+        """_refresh_swatch_borders gives default swatch a standard border when a different color is selected."""
         refresh_swatch_borders = _extract_method_from_source('_refresh_swatch_borders')
         if refresh_swatch_borders is None:
             self.fail("_refresh_swatch_borders not found in ColorPaletteDialog in colors.py")
 
         default_color = 0x6f3399ff
         other_color = 0xFF0000FF
+        default_button = MagicMock()
 
         dialog = _PickerTestHarness(initial_color=other_color)
         dialog._default_color = default_color
-        dialog._default_color_button = MagicMock()
+        dialog._default_color_button = default_button
+        dialog._swatch_cells.append((0, 0, default_color, default_button))
 
         refresh_swatch_borders(dialog)
 
-        dialog._default_color_button.setStyleSheet.assert_called()
-        stylesheet_arg = dialog._default_color_button.setStyleSheet.call_args[0][0]
+        default_button.setStyleSheet.assert_called()
+        stylesheet_arg = default_button.setStyleSheet.call_args[0][0]
         self.assertIn("border: 1px solid #555", stylesheet_arg,
-                      "Default color button must have standard border when a different color is selected")
+                      "Default color swatch must have standard border when a different color is selected")
 
     def test_refresh_swatch_borders_no_default_button_does_not_crash(self):
         """_refresh_swatch_borders must not crash when no default_color_button is present."""
