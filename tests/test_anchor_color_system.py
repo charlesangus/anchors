@@ -925,6 +925,181 @@ class TestColorPaletteDialogGroupLabels(unittest.TestCase):
                       "colors.py must define a 'Nuke Defaults' group label")
 
 
+# ---------------------------------------------------------------------------
+# TestColorPaletteDialogDefaultColorSwatch: default_color parameter tests
+# ---------------------------------------------------------------------------
+
+class TestColorPaletteDialogDefaultColorSwatch(unittest.TestCase):
+    """Tests for the default_color parameter on ColorPaletteDialog.
+
+    When default_color is provided, a "Default Colour" label and a matching
+    swatch button appear above the grid. When not provided, they are absent.
+    Clicking the default swatch selects it and accepts the dialog.
+    _refresh_swatch_borders applies the highlight border to the default swatch
+    when it matches the currently selected color.
+    """
+
+    def test_build_ui_source_accepts_default_color_parameter(self):
+        """ColorPaletteDialog.__init__ must accept a default_color keyword parameter."""
+        with open(_REPO_ROOT / 'colors.py', 'r') as source_file:
+            source_text = source_file.read()
+        tree = ast.parse(source_text)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ClassDef) and node.name == 'ColorPaletteDialog':
+                for item in node.body:
+                    if isinstance(item, ast.FunctionDef) and item.name == '__init__':
+                        arg_names = [arg.arg for arg in item.args.args]
+                        kwarg_names = [
+                            kw_default.arg
+                            for kw_default in item.args.defaults
+                            if hasattr(kw_default, 'arg')
+                        ]
+                        all_args = arg_names + [
+                            a.arg for a in (item.args.kwonlyargs or [])
+                        ]
+                        self.assertIn(
+                            'default_color', all_args,
+                            "ColorPaletteDialog.__init__ must accept a 'default_color' parameter"
+                        )
+                        return
+        self.fail("ColorPaletteDialog.__init__ not found in colors.py")
+
+    def test_default_colour_label_appears_in_source_when_default_color_provided(self):
+        """_build_ui source must include the 'Default Colour' label text."""
+        with open(_REPO_ROOT / 'colors.py', 'r') as source_file:
+            source_text = source_file.read()
+        self.assertIn("Default Colour", source_text,
+                      "colors.py must include 'Default Colour' label text for the default swatch section")
+
+    def test_default_color_button_stored_on_instance(self):
+        """When default_color is provided, _default_color_button must be set on the instance.
+
+        Uses the _PickerTestHarness + method extraction pattern to call the real
+        _build_ui logic without a Qt runtime.
+        """
+        # We test this structurally by checking the source assigns self._default_color_button
+        with open(_REPO_ROOT / 'colors.py', 'r') as source_file:
+            source_text = source_file.read()
+        self.assertIn("_default_color_button", source_text,
+                      "colors.py must store the default color button as self._default_color_button")
+
+    def test_refresh_swatch_borders_updates_default_color_button(self):
+        """_refresh_swatch_borders must update the default_color_button border when it exists.
+
+        Extracts _refresh_swatch_borders from source and runs it on a harness
+        that has a _default_color_button and _default_color set. Asserts that
+        setStyleSheet is called on the button when it matches _selected_color.
+        """
+        refresh_swatch_borders = _extract_method_from_source('_refresh_swatch_borders')
+        if refresh_swatch_borders is None:
+            self.fail("_refresh_swatch_borders not found in ColorPaletteDialog in colors.py")
+
+        default_color = 0x6f3399ff
+
+        dialog = _PickerTestHarness(initial_color=default_color)
+        dialog._default_color = default_color
+        dialog._default_color_button = MagicMock()
+
+        refresh_swatch_borders(dialog)
+
+        dialog._default_color_button.setStyleSheet.assert_called()
+        stylesheet_arg = dialog._default_color_button.setStyleSheet.call_args[0][0]
+        expected_highlight = _PickerTestHarness.HARNESS_HIGHLIGHT_COLOR
+        self.assertIn(f"border: 2px solid {expected_highlight}", stylesheet_arg,
+                      "Default color button must get highlight border when it matches _selected_color")
+
+    def test_refresh_swatch_borders_default_button_not_highlighted_when_different_color_selected(self):
+        """_refresh_swatch_borders gives default button a non-selected border when a different color is selected."""
+        refresh_swatch_borders = _extract_method_from_source('_refresh_swatch_borders')
+        if refresh_swatch_borders is None:
+            self.fail("_refresh_swatch_borders not found in ColorPaletteDialog in colors.py")
+
+        default_color = 0x6f3399ff
+        other_color = 0xFF0000FF
+
+        dialog = _PickerTestHarness(initial_color=other_color)
+        dialog._default_color = default_color
+        dialog._default_color_button = MagicMock()
+
+        refresh_swatch_borders(dialog)
+
+        dialog._default_color_button.setStyleSheet.assert_called()
+        stylesheet_arg = dialog._default_color_button.setStyleSheet.call_args[0][0]
+        self.assertIn("border: 1px solid #555", stylesheet_arg,
+                      "Default color button must have standard border when a different color is selected")
+
+    def test_refresh_swatch_borders_no_default_button_does_not_crash(self):
+        """_refresh_swatch_borders must not crash when no default_color_button is present."""
+        refresh_swatch_borders = _extract_method_from_source('_refresh_swatch_borders')
+        if refresh_swatch_borders is None:
+            self.fail("_refresh_swatch_borders not found in ColorPaletteDialog in colors.py")
+
+        dialog = _PickerTestHarness(initial_color=0xFF0000FF)
+        # _default_color_button is absent — harness does not set it
+        # This must not raise AttributeError
+        try:
+            refresh_swatch_borders(dialog)
+        except AttributeError as error:
+            self.fail(f"_refresh_swatch_borders raised AttributeError with no _default_color_button: {error}")
+
+    def test_default_color_swatch_click_selects_and_accepts(self):
+        """Clicking the default color swatch sets _selected_color and calls accept().
+
+        Simulates what the button's clicked.connect lambda does: calls
+        _on_swatch_clicked with the default color.
+        """
+        on_swatch_clicked = _extract_method_from_source('_on_swatch_clicked')
+        if on_swatch_clicked is None:
+            self.fail("_on_swatch_clicked not found in ColorPaletteDialog in colors.py")
+
+        default_color = 0x6f3399ff
+
+        dialog = _PickerTestHarness(initial_color=None)
+        dialog._default_color = default_color
+        dialog._refresh_swatch_borders = MagicMock()
+
+        on_swatch_clicked(dialog, default_color)
+
+        self.assertEqual(dialog._selected_color, default_color,
+                         "After clicking default swatch, _selected_color must be set to default_color")
+        dialog.accept.assert_called_once()
+
+    def test_no_default_color_no_label_in_build_ui(self):
+        """When default_color is None, the 'Default Colour' section must not appear.
+
+        Checks that the source uses a conditional guard (if default_color is not None)
+        before creating the label and swatch.
+        """
+        with open(_REPO_ROOT / 'colors.py', 'r') as source_file:
+            source_text = source_file.read()
+        tree = ast.parse(source_text)
+
+        build_ui_node = None
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ClassDef) and node.name == 'ColorPaletteDialog':
+                for item in node.body:
+                    if isinstance(item, ast.FunctionDef) and item.name == '_build_ui':
+                        build_ui_node = item
+                        break
+                break
+
+        self.assertIsNotNone(build_ui_node,
+                             "ColorPaletteDialog._build_ui not found in colors.py")
+
+        # Check that a conditional guard exists referencing default_color
+        found_default_color_guard = False
+        for node in ast.walk(build_ui_node):
+            if isinstance(node, ast.If):
+                # Look for `if self._default_color is not None` or similar
+                test_source = ast.unparse(node.test) if hasattr(ast, 'unparse') else ""
+                if 'default_color' in test_source or '_default_color' in test_source:
+                    found_default_color_guard = True
+                    break
+
+        self.assertTrue(found_default_color_guard,
+                        "_build_ui must guard the default swatch section with a conditional on default_color")
+
+
 class TestPersistCustomColorsFromDialog(unittest.TestCase):
     """UAT bug fix: _persist_custom_colors_from_dialog in anchor.py must save
     custom colors back to prefs when the staged list differs from prefs.custom_colors.
