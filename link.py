@@ -13,6 +13,7 @@ from constants import (
     ANCHOR_DEFAULT_COLOR,
     ANCHOR_PREFIX,
     DOT_ANCHOR_KNOB_NAME,
+    DOT_ANCHOR_MIN_FONT_SIZE,
     DOT_LINK_LABEL_FONT_SIZE,
     DOT_TYPE_KNOB_NAME,
     KNOB_NAME,
@@ -111,6 +112,12 @@ def is_anchor(node):
         if node.name().startswith(ANCHOR_PREFIX):
             return True
         if node.Class() == 'Dot':
+            # Font size gate: Dots must have a sufficiently large label to qualify as anchors.
+            # Dots with note_font_size below DOT_ANCHOR_MIN_FONT_SIZE are organisational notes
+            # and must never appear in anchor navigation.
+            note_font_size = node['note_font_size'].value()
+            if note_font_size < DOT_ANCHOR_MIN_FONT_SIZE:
+                return False
             # Explicit anchor knob (set by mark_dot_as_anchor)
             if DOT_ANCHOR_KNOB_NAME in node.knobs():
                 return True

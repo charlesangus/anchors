@@ -4,8 +4,10 @@ import nuke
 
 import prefs
 from constants import (
+    DOT_ANCHOR_MIN_FONT_SIZE,
     DOT_LABEL_FONT_SIZE_LARGE,
     DOT_LABEL_FONT_SIZE_MEDIUM,
+    DOT_LABEL_FONT_SIZE_SMALL,
     DOT_LINK_LABEL_FONT_SIZE,
     KNOB_NAME,
     NODE_LABEL_FONT_SIZE_LARGE,
@@ -41,8 +43,9 @@ def _apply_label(node, text, dot_font_size=None, node_font_size=None):
     if node.Class() == 'Dot':
         if dot_font_size is not None:
             node['note_font_size'].setValue(dot_font_size)
-        mark_dot_as_anchor(node)
-        _update_dot_link_labels(node, text)
+        if dot_font_size is not None and dot_font_size >= DOT_ANCHOR_MIN_FONT_SIZE:
+            mark_dot_as_anchor(node)
+            _update_dot_link_labels(node, text)
     else:
         if node_font_size is not None:
             node['note_font_size'].setValue(node_font_size)
