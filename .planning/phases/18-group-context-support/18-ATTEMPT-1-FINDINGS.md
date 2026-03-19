@@ -51,31 +51,41 @@ Added `tests/test_group_context.py` with 11 test classes, 210 tests total passin
 
 The approach used `nuke.thisGroup()`. This is the wrong API for this use case.
 
-**`nuke.thisGroup()`** — Returns the Group node that the *currently-executing script* belongs to. This is relevant when a callback or knob script is literally running inside a Group's scope. In our menu callbacks, which are registered at the root level, `nuke.thisGroup()` returns `nuke.root()`, i.e. the root DAG — not the Group the user is visually inside.
+**`nuke.thisGroup()`** — Returns the Group node that the *currently-executing script* belongs to. For root-level menu callbacks this is always `nuke.root()`. Confirmed: does not work.
 
-**`nuke.lastHitGroup()`** — Returns the last Group node the user *clicked in* the node graph. This is what the goal statement referenced. This is the correct mechanism to detect "what Group context is the user currently operating in?" at the moment a menu item fires.
+**`nuke.lastHitGroup()`** — Confirmed by UAT:
+- ✓ Works in **Group View** (floating panel: user opened Group internals in a separate panel while main DAG stays at root)
+- ✗ Does NOT work **inside a Group** (main DAG navigated into the Group) — returns root node in that case
 
-The original roadmap goal statement explicitly said "respecting `nuke.lastHitGroup()`". The planner chose `nuke.thisGroup()` because it appeared in the Nuke Python docs as the standard "current group context" API — but that's only correct for code running *inside* a Group as a panel/script, not for root-level menu callbacks responding to user interaction.
+So there are **two distinct contexts** we need to handle, and no single API covers both:
+
+| Context | Description | `nuke.lastHitGroup()` | `nuke.thisGroup()` |
+|---------|-------------|----------------------|-------------------|
+| Root DAG | User is at top-level script | root | root |
+| Group View (floating) | Group panel open alongside root DAG | ✓ returns the Group | root |
+| Inside a Group (navigated) | Main DAG view shows Group contents | root | root |
 
 ---
 
-## What to Try Next
+## Open Questions for Attempt 2
 
-1. **Use `nuke.lastHitGroup()`** as the context source instead of `nuke.thisGroup()`.
-   - `nuke.lastHitGroup()` returns `None` when user is at root, and returns the Group node when user last clicked inside one.
-   - Helper should be: `current_group = nuke.lastHitGroup() or nuke.root()`
+The fundamental problem: **there is no confirmed Nuke Python API that reliably returns "the Group whose DAG is currently displayed in the main panel."**
 
-2. **Navigation (select_anchor_and_navigate)** may need to call `nuke.show(group_node)` or use `group_node.begin()` / `group_node.end()` context managers to actually switch the DAG view to the Group before calling the navigate logic.
+Candidates to investigate:
 
-3. **The link-creation issue** may be separate — needs investigation of which specific call path fails and what error (if any) occurs. Possibly `nuke.lastHitGroup()` alone doesn't fix it; the link creation code may need to set `nuke.thisGroup()` context via `group.begin()` before running.
+1. **`nuke.selectedNodes()`** — When inside a Group, selected nodes belong to that Group. `nuke.selectedNodes()[0].parent()` might give the current Group. But fails if nothing is selected.
 
-4. **Test the `nuke.lastHitGroup()` hypothesis first** in a scratch script before writing a full plan:
-   ```python
-   import nuke
-   grp = nuke.lastHitGroup()
-   print("lastHitGroup:", grp)
-   print("allNodes in context:", nuke.allNodes(group=grp) if grp else nuke.allNodes())
-   ```
+2. **`nuke.activeViewer().node().dependencies()`** — The viewer is inside the current DAG; traversing its graph might identify the Group container. Fragile.
+
+3. **TCL bridge** — `nuke.tcl('nuke currentGroup')` or similar. Nuke's TCL layer may expose the current DAG context that Python doesn't surface directly.
+
+4. **`nuke.zoom()` / `nuke.center()` context** — These operate on the current DAG view; they may have a companion API to identify which group that view belongs to.
+
+5. **Combining both APIs** — Use `nuke.lastHitGroup()` for Group View cases (where it works), and a fallback for the navigated-inside case.
+
+6. **Node creation as a probe** — Create a temporary node, check its `.parent()`, delete it. Hacky but definitive.
+
+**Before writing Attempt 2:** Investigate these in a live Nuke session to find what actually returns the correct Group in the "navigated inside" case.
 
 ---
 
