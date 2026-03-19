@@ -79,6 +79,20 @@ def create_medium_label():
     _apply_label(node, text, DOT_LABEL_FONT_SIZE_MEDIUM, None)
 
 
+def create_small_label():
+    """Prompt for a label and apply it; Dot nodes get small font size (33), others unchanged."""
+    if not prefs.plugin_enabled:
+        return
+    selected_nodes = nuke.selectedNodes()
+    if not selected_nodes:
+        return
+    node = selected_nodes[0]
+    text = nuke.getInput("Label:", node['label'].getText())
+    if text is None:
+        return
+    _apply_label(node, text, DOT_LABEL_FONT_SIZE_SMALL, None)
+
+
 def append_to_label():
     """Prompt for a suffix and append it to the node's existing label."""
     if not prefs.plugin_enabled:
