@@ -34,6 +34,7 @@ from constants import (
     NODE_LABEL_FONT_SIZE_LARGE,
 )
 from link import (
+    all_nodes_in_context,
     find_node_color,
     find_smallest_containing_backdrop,
     get_fully_qualified_node_name,
@@ -166,7 +167,7 @@ def anchor_display_name(node):
 
 
 def all_anchors():
-    anchors = [n for n in nuke.allNodes() if is_anchor(n)]
+    anchors = [n for n in all_nodes_in_context() if is_anchor(n)]
     anchors.sort(key=lambda n: anchor_display_name(n).lower())
     return anchors
 
@@ -182,7 +183,7 @@ def find_anchor_by_name(display_name):
 def get_links_for_anchor(anchor_node):
     """Return all link nodes in the current script that reference *anchor_node*."""
     fqnn = get_fully_qualified_node_name(anchor_node)
-    return [node for node in nuke.allNodes() if is_link(node) and node[KNOB_NAME].getText() == fqnn]
+    return [node for node in all_nodes_in_context() if is_link(node) and node[KNOB_NAME].getText() == fqnn]
 
 
 # Compiled once at module level — covers %d, %04d, ####, %V, %v frame token styles
@@ -259,7 +260,7 @@ def rename_anchor_to(anchor_node, name, color=None):
         anchor_node['label'].setValue(new_label)
         new_fqnn = get_fully_qualified_node_name(anchor_node)
 
-        for node in nuke.allNodes():
+        for node in all_nodes_in_context():
             if is_link(node) and node[KNOB_NAME].getText() == old_fqnn:
                 node[KNOB_NAME].setValue(new_fqnn)
                 node['label'].setValue(f"Link: {new_label}")
@@ -274,7 +275,7 @@ def rename_anchor_to(anchor_node, name, color=None):
         new_fqn = get_fully_qualified_node_name(anchor_node)
 
         new_label = anchor_node['label'].getText() or anchor_node.name()
-        for node in nuke.allNodes():
+        for node in all_nodes_in_context():
             if is_link(node) and node[KNOB_NAME].getText() == old_fqn:
                 node[KNOB_NAME].setValue(new_fqn)
                 node['label'].setValue(f"Link: {new_label}")
@@ -340,13 +341,13 @@ def reconnect_anchor_node(anchor_node):
     # Bug fix: filter by exact FQNN match so only this anchor's links reconnect,
     # not all links in the script (the old substring check was commented out).
     fqnn = get_fully_qualified_node_name(anchor_node)
-    for node in nuke.allNodes():
+    for node in all_nodes_in_context():
         if is_link(node) and node[KNOB_NAME].getText() == fqnn:
             reconnect_link_node(node)
 
 
 def reconnect_all_links():
-    for node in nuke.allNodes():
+    for node in all_nodes_in_context():
         if is_link(node):
             reconnect_link_node(node)
 
@@ -650,7 +651,7 @@ class AnchorNavigatePlugin(_tabtabtab.TabTabTabPlugin):
             }
             for anchor_node in all_anchors()
         ]
-        for backdrop_node in nuke.allNodes('BackdropNode'):
+        for backdrop_node in all_nodes_in_context('BackdropNode'):
             label = backdrop_node['label'].value().strip()
             if label:
                 items.append({
@@ -694,7 +695,7 @@ def select_anchor_and_navigate():
     if QtWidgets is None:
         return
     labelled_backdrops = [
-        bd for bd in nuke.allNodes('BackdropNode')
+        bd for bd in all_nodes_in_context('BackdropNode')
         if bd['label'].value().strip()
     ]
     if not all_anchors() and not labelled_backdrops:
