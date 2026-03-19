@@ -395,5 +395,95 @@ class TestPickerLaunchGuard(unittest.TestCase):
             mock_widget_cls.assert_not_called()
 
 
+# ---------------------------------------------------------------------------
+# DOT-FONT-GATE: TestDotFontSizeAnchorGate
+# ---------------------------------------------------------------------------
+
+class TestDotFontSizeAnchorGate(unittest.TestCase):
+    """Tests for font size gating of Dot anchor detection in is_anchor().
+
+    A Dot with label font size < 33 must NOT be treated as an anchor.
+    A Dot with label font size >= 33 and a non-empty label MUST be an anchor.
+    NoOp anchors prefixed with ANCHOR_PREFIX are completely unaffected.
+    """
+
+    def setUp(self):
+        _ensure_qt_stubs_support_mock_attributes()
+        importlib.reload(anchor)
+        import link as link_module
+        importlib.reload(link_module)
+
+    def _make_dot_node(self, label_value, note_font_size, extra_knobs=None):
+        """Return a StubNode acting as a Dot with the given label and note_font_size."""
+        import nuke as nuke_stub
+        from constants import DOT_ANCHOR_KNOB_NAME
+        knobs = {
+            'label': nuke_stub.StubKnob(label_value),
+            'note_font_size': nuke_stub.StubKnob(note_font_size),
+            'hide_input': nuke_stub.StubKnob(False),
+        }
+        if extra_knobs:
+            knobs.update(extra_knobs)
+        return nuke_stub.StubNode(name='Dot1', node_class='Dot', knobs_dict=knobs)
+
+    def test_dot_with_small_font_is_not_anchor(self):
+        """Dot with label and note_font_size=11 (default/small) is NOT an anchor."""
+        from link import is_anchor
+        dot_node = self._make_dot_node('Foo', 11)
+        self.assertFalse(is_anchor(dot_node))
+
+    def test_dot_with_font_size_33_is_anchor(self):
+        """Dot with label and note_font_size=33 IS an anchor."""
+        from link import is_anchor
+        dot_node = self._make_dot_node('Foo', 33)
+        self.assertTrue(is_anchor(dot_node))
+
+    def test_dot_with_font_size_66_is_anchor(self):
+        """Dot with label and note_font_size=66 IS an anchor."""
+        from link import is_anchor
+        dot_node = self._make_dot_node('Foo', 66)
+        self.assertTrue(is_anchor(dot_node))
+
+    def test_dot_with_font_size_111_is_anchor(self):
+        """Dot with label and note_font_size=111 IS an anchor."""
+        from link import is_anchor
+        dot_node = self._make_dot_node('Foo', 111)
+        self.assertTrue(is_anchor(dot_node))
+
+    def test_dot_with_anchor_knob_and_small_font_is_not_anchor(self):
+        """Dot with DOT_ANCHOR_KNOB_NAME knob but note_font_size=11 is NOT an anchor."""
+        from link import is_anchor
+        from constants import DOT_ANCHOR_KNOB_NAME
+        import nuke as nuke_stub
+        anchor_knob = nuke_stub.StubKnob(True, knob_name=DOT_ANCHOR_KNOB_NAME)
+        dot_node = self._make_dot_node('Foo', 11, extra_knobs={DOT_ANCHOR_KNOB_NAME: anchor_knob})
+        self.assertFalse(is_anchor(dot_node))
+
+    def test_dot_with_anchor_knob_and_qualifying_font_is_anchor(self):
+        """Dot with DOT_ANCHOR_KNOB_NAME knob and note_font_size=33 IS an anchor."""
+        from link import is_anchor
+        from constants import DOT_ANCHOR_KNOB_NAME
+        import nuke as nuke_stub
+        anchor_knob = nuke_stub.StubKnob(True, knob_name=DOT_ANCHOR_KNOB_NAME)
+        dot_node = self._make_dot_node('Foo', 33, extra_knobs={DOT_ANCHOR_KNOB_NAME: anchor_knob})
+        self.assertTrue(is_anchor(dot_node))
+
+    def test_dot_with_qualifying_font_and_empty_label_is_not_anchor(self):
+        """Dot with note_font_size=33 but empty label is NOT an anchor."""
+        from link import is_anchor
+        dot_node = self._make_dot_node('', 33)
+        self.assertFalse(is_anchor(dot_node))
+
+    def test_noop_anchor_prefix_unaffected_by_font_gate(self):
+        """NoOp node named Anchor_Foo is still an anchor regardless of font gating."""
+        import nuke as nuke_stub
+        from anchor import is_anchor as anchor_is_anchor
+        knobs = {
+            'label': nuke_stub.StubKnob('Foo'),
+        }
+        noop_node = nuke_stub.StubNode(name='Anchor_Foo', node_class='NoOp', knobs_dict=knobs)
+        self.assertTrue(anchor_is_anchor(noop_node))
+
+
 if __name__ == '__main__':
     unittest.main()
