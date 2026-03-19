@@ -92,7 +92,8 @@ else:
         """
 
         def __init__(self, initial_color=None, show_name_field=False,
-                     initial_name="", custom_colors=None, parent=None):
+                     initial_name="", custom_colors=None, parent=None,
+                     default_color=None):
             super().__init__(parent)
 
             self._selected_color = initial_color
@@ -105,6 +106,8 @@ else:
             # On accept, callers read this via chosen_custom_colors().
             # On reject, staged colors are discarded (never written to prefs).
             self._staged_custom_colors = list(self._custom_colors)
+            self._default_color = default_color
+            self._default_color_button = None  # set in _build_ui when default_color is not None
 
             # Map from (col_index, row_index) to button for hint navigation
             self._cell_map = {}
@@ -121,6 +124,31 @@ else:
             if show_name_field:
                 self._name_edit = QtWidgets.QLineEdit(initial_name)
                 outer_layout.addWidget(self._name_edit)
+
+            # Optional "Default Colour" section — shown when default_color is provided
+            if self._default_color is not None:
+                default_section_label = QtWidgets.QLabel("Default Colour")
+                default_section_label.setFocusPolicy(Qt.NoFocus)
+                outer_layout.addWidget(default_section_label)
+
+                default_button = QtWidgets.QPushButton()
+                default_button.setFixedSize(24, 24)
+                default_button.setFocusPolicy(Qt.NoFocus)
+                default_button.setAutoDefault(False)
+
+                default_red, default_green, default_blue = _color_int_to_rgb(self._default_color)
+                default_button.setStyleSheet(
+                    f"background-color: rgb({default_red},{default_green},{default_blue}); "
+                    "border: 1px solid #555; "
+                    "border-radius: 2px;"
+                )
+
+                default_color_to_capture = self._default_color
+                default_button.clicked.connect(
+                    lambda checked=False, c=default_color_to_capture: self._on_swatch_clicked(c)
+                )
+                outer_layout.addWidget(default_button)
+                self._default_color_button = default_button
 
             # Swatch grid
             grid_widget = QtWidgets.QWidget()
@@ -281,6 +309,8 @@ else:
             Uses `is not None` comparison for the selected color so that color
             int 0 (black) is recognised correctly — `if not self._selected_color`
             would incorrectly treat 0 as unselected.
+
+            Also updates the default color button border when one is present.
             """
             highlight_color = self._highlight_color_name()
             for _group_col, _logical_row, color_int, button in self._swatch_cells:
@@ -294,6 +324,22 @@ else:
                 else:
                     button.setStyleSheet(
                         f"background-color: rgb({red},{green},{blue}); "
+                        "border: 1px solid #555; "
+                        "border-radius: 2px;"
+                    )
+
+            # Update default color button border if it exists
+            if getattr(self, '_default_color_button', None) is not None:
+                default_red, default_green, default_blue = _color_int_to_rgb(self._default_color)
+                if self._selected_color is not None and self._default_color == self._selected_color:
+                    self._default_color_button.setStyleSheet(
+                        f"background-color: rgb({default_red},{default_green},{default_blue}); "
+                        f"border: 2px solid {highlight_color}; "
+                        "border-radius: 2px;"
+                    )
+                else:
+                    self._default_color_button.setStyleSheet(
+                        f"background-color: rgb({default_red},{default_green},{default_blue}); "
                         "border: 1px solid #555; "
                         "border-radius: 2px;"
                     )
