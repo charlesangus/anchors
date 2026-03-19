@@ -73,8 +73,11 @@ Copy and paste must reconnect predictably — anchors provide stable, navigable 
 
 ### Active
 
-- [ ] Plugin fully functional inside Group nodes (copy/paste, anchor creation, link creation, navigation, popups)
 - [ ] Quick Start guide in `docs/` covering anchor creation, Alt+A navigation, and copy/paste semantics
+
+### Validated
+
+- ✓ Plugin fully functional inside Group nodes (copy/paste, anchor creation, link creation, navigation, popups) — Validated in Phase 18: Group Context Support
 
 ### Out of Scope
 
@@ -161,4 +164,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-19 after v1.4 milestone start*
+*Last updated: 2026-03-19 after Phase 18 Group Context Support complete*
