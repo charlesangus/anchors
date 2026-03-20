@@ -707,14 +707,23 @@ class AnchorNavigatePlugin(_tabtabtab.TabTabTabPlugin):
 
     def invoke(self, thing):
         node = thing['menuobj']
-        with self._hit_group:
-            if not nuke.exists(node.name()):
-                return
-            _save_dag_position()
-            if node.Class() == 'BackdropNode':
-                navigate_to_backdrop(node)
-                return
-            navigate_to_anchor(node)
+        hit_group = self._hit_group or nuke.root()
+
+        def _deferred_navigate():
+            with hit_group:
+                if not nuke.exists(node.name()):
+                    return
+                _save_dag_position()
+                if node.Class() == 'BackdropNode':
+                    navigate_to_backdrop(node)
+                    return
+                navigate_to_anchor(node)
+
+        # Defer navigation until after the picker widget closes and Qt
+        # restores focus to the DAG panel.  nuke.zoom() targets whichever
+        # panel has Qt focus, so calling it while the picker is still open
+        # would zoom the wrong panel (or do nothing).
+        QtCore.QTimer.singleShot(0, _deferred_navigate)
 
     def get_icon(self, menuobj):
         return None
