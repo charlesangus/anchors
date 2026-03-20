@@ -14,10 +14,10 @@
 
 ### Documentation
 
-- [ ] **DOCS-01**: `docs/` folder contains a Quick Start guide (Markdown) covering plugin installation and basic orientation
-- [ ] **DOCS-02**: Quick Start guide covers creating anchors — the `a` shortcut, naming dialog, and color picker — with PNG screenshot placeholders
-- [ ] **DOCS-03**: Quick Start guide covers anchor navigation — Alt+A picker, jumping to anchors — with PNG screenshot placeholders
-- [ ] **DOCS-04**: Quick Start guide covers copy/paste semantics — how Ctrl+C/V behaves with anchors and links — with PNG screenshot placeholders
+- [x] **DOCS-01**: `docs/` folder contains a Quick Start guide (Markdown) covering plugin installation and basic orientation
+- [x] **DOCS-02**: Quick Start guide covers creating anchors — the `a` shortcut, naming dialog, and color picker — with PNG screenshot placeholders
+- [x] **DOCS-03**: Quick Start guide covers anchor navigation — Alt+A picker, jumping to anchors — with PNG screenshot placeholders
+- [x] **DOCS-04**: Quick Start guide covers copy/paste semantics — how Ctrl+C/V behaves with anchors and links — with PNG screenshot placeholders
 
 ## Future Requirements
 
@@ -57,10 +57,10 @@
 | GROUP-02 | Phase 18 | Complete |
 | GROUP-03 | Phase 18 | Complete |
 | GROUP-04 | Phase 18 | Complete |
-| DOCS-01 | Phase 19 | Pending |
-| DOCS-02 | Phase 19 | Pending |
-| DOCS-03 | Phase 19 | Pending |
-| DOCS-04 | Phase 19 | Pending |
+| DOCS-01 | Phase 19 | Complete |
+| DOCS-02 | Phase 19 | Complete |
+| DOCS-03 | Phase 19 | Complete |
+| DOCS-04 | Phase 19 | Complete |
 
 **Coverage:**
 - v1.4 requirements: 8 total

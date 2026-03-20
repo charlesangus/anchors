@@ -64,7 +64,7 @@ Full archive: `.planning/milestones/v1.3-ROADMAP.md`
 ### v1.4 Group Support
 
 - [x] **Phase 18: Group Context Support** - All plugin operations work correctly inside Group nested DAGs (UAT gap closure in progress) (completed 2026-03-20)
-- [ ] **Phase 19: Quick Start Documentation** - docs/ guide covering anchor creation, navigation, and copy/paste semantics
+- [x] **Phase 19: Quick Start Documentation** - docs/ guide covering anchor creation, navigation, and copy/paste semantics (completed 2026-03-20)
 
 ## Phase Details
 
@@ -94,7 +94,7 @@ Plans:
   3. Reader can follow the anchor navigation section (Alt+A picker, jumping to anchor location) and know what to expect
   4. Reader can follow the copy/paste semantics section and understand how Ctrl+C/V behaves differently with anchors and links
   5. Each workflow section contains PNG screenshot placeholder markers so screenshots can be added later without restructuring the doc
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
 - [ ] 19-01-PLAN.md — Create Quick Start guide with all three workflow sections and screenshot placeholders
 
@@ -122,4 +122,4 @@ Plans:
 | 16.1. Publish Always Available with File Save Dialog | v1.3 | 1/1 | Complete | 2026-03-17 |
 | 17. Public API | v1.3 | 2/2 | Complete | 2026-03-18 |
 | 18. Group Context Support | v1.4 | 4/4 | Complete | 2026-03-20 |
-| 19. Quick Start Documentation | v1.4 | 0/1 | Not started | - |
+| 19. Quick Start Documentation | 1/1 | Complete   | 2026-03-20 | - |

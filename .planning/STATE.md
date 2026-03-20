@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Group Support
 status: completed
-last_updated: "2026-03-20T10:05:54.093Z"
+last_updated: "2026-03-20T12:27:56.661Z"
 last_activity: 2026-03-20
 progress:
   total_phases: 2
-  completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
+  completed_phases: 2
+  total_plans: 5
+  completed_plans: 5
 ---
 
 # Session State
@@ -19,19 +19,19 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-19 after v1.4 milestone start)
 
 **Core value:** Copy and paste must reconnect predictably — anchors provide stable, navigable references; hidden inputs reconnect to their source without ceremony.
-**Current focus:** Phase 18 — Group Context Support
+**Current focus:** Phase 19 — quick-start-documentation
 
 ## Position
 
-Phase: 18 — Group Context Support
-Plan: 04 complete
-Status: 18-04-PLAN.md complete — Phase 18 all plans done
+Phase: 19 — Quick Start Documentation
+Plan: 01 complete
+Status: 19-01-PLAN.md complete — Phase 19 all plans done
 Last activity: 2026-03-20
 
 ## Progress Bar
 
 ```
-v1.4: [██████████] 100%  1/2 phases  4/4 plans
+v1.4: [██████████] 100%  2/2 phases  5/5 plans
 ```
 
 ## Decisions
@@ -43,6 +43,7 @@ v1.4: [██████████] 100%  1/2 phases  4/4 plans
 - [Phase 18]: Pre-capture pattern: capture lastHitGroup() once at entry point before any with-block, pass down call chain, set on plugin before show() so get_items() uses correct Group context
 - [Phase 18]: AnchorPlugin/AnchorNavigatePlugin get_items() reads _hit_group (set externally) instead of overwriting it — prevents stale root context from being captured after Qt event loop runs
 - [Phase 18]: QTimer.singleShot(0, _deferred_navigate) defers nuke.zoom() until after picker widget closes and Qt restores DAG panel focus — eliminates the zoom-wrong-panel bug inside Group nodes
+- [Phase 19]: Keyboard Reference table included at end of guide covering only 5 shortcuts in this guide, with pointer to README.md for full list
 
 ## Session Log
 
@@ -58,4 +59,4 @@ v1.4: [██████████] 100%  1/2 phases  4/4 plans
 | 260318-r7o | add Default Colour swatch to ColorPaletteDialog create/rename flows | 2026-03-19 | e654c3f | Verified | [260318-r7o-in-the-anchor-create-rename-popup-add-a-](./quick/260318-r7o-in-the-anchor-create-rename-popup-add-a-/) |
 | 260318-uf4 | gate Dot anchor detection on font size < 33, add Label (Small) command | 2026-03-19 | 605a4a3 | Verified | [260318-uf4-dots-should-not-be-considered-for-naviga](./quick/260318-uf4-dots-should-not-be-considered-for-naviga/) |
 
-Last activity: 2026-03-20 - Completed 18-04-PLAN.md (deferred AnchorNavigatePlugin.invoke() navigation via QTimer.singleShot — fixes Alt+A zoom-wrong-panel bug inside Group nodes)
+Last activity: 2026-03-20 - Completed 19-01-PLAN.md (Quick Start guide — docs/quick-start.md with anchor creation, navigation, and copy/paste workflows plus 7 PNG screenshot placeholders)
