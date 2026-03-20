@@ -119,5 +119,5 @@ Plans:
 | 16. Site Config | v1.3 | 3/3 | Complete | 2026-03-17 |
 | 16.1. Publish Always Available with File Save Dialog | v1.3 | 1/1 | Complete | 2026-03-17 |
 | 17. Public API | v1.3 | 2/2 | Complete | 2026-03-18 |
-| 18. Group Context Support | 4/4 | Complete   | 2026-03-20 | - |
+| 18. Group Context Support | 4/4 | Complete    | 2026-03-20 | - |
 | 19. Quick Start Documentation | v1.4 | 0/? | Not started | - |
