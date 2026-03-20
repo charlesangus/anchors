@@ -354,7 +354,11 @@ def reconnect_all_links():
 def create_anchor():
     if not prefs.plugin_enabled:
         return
-    selected = nuke.selectedNodes()
+    # Capture the group context before any Qt event loop runs so we can restore
+    # it when calling create_anchor_named() (which calls nuke.createNode()).
+    hit_group = nuke.lastHitGroup()
+    with hit_group:
+        selected = nuke.selectedNodes()
     input_node = selected[0] if len(selected) == 1 else None
 
     suggested = suggest_anchor_name(input_node) if input_node is not None else ""
@@ -364,8 +368,9 @@ def create_anchor():
         name = nuke.getInput("Anchor name:", suggested)
         if not name or not name.strip():
             return
-        with contextlib.suppress(ValueError):
-            create_anchor_named(name, input_node)
+        with hit_group:
+            with contextlib.suppress(ValueError):
+                create_anchor_named(name, input_node)
         return
 
     # Derive the auto-computed colour for the prospective anchor.  We cannot call
@@ -401,8 +406,9 @@ def create_anchor():
     if not chosen_name or not chosen_name.strip():
         return
     chosen_color = dialog.selected_color_int()
-    with contextlib.suppress(ValueError):
-        create_anchor_named(chosen_name, input_node, color=chosen_color)
+    with hit_group:
+        with contextlib.suppress(ValueError):
+            create_anchor_named(chosen_name, input_node, color=chosen_color)
 
 
 def create_from_anchor(anchor_node):
@@ -495,22 +501,35 @@ def try_create_link_for_anchor_named(display_name):
 class AnchorPlugin(_tabtabtab.TabTabTabPlugin):
     """tabtabtab plugin that lists all anchor nodes for link creation."""
 
+    def __init__(self):
+        self._hit_group = None
+
     def get_items(self):
-        return [
-            {
-                'menuobj': anchor,
-                'menupath': 'Anchors/' + anchor_display_name(anchor),
-            }
-            for anchor in all_anchors()
-        ]
+        # Capture the group context while we are still in the Nuke menu-callback
+        # scope.  invoke() fires later from a Qt signal where nuke.thisGroup()
+        # has already reset to root, so we preserve it here and restore it with
+        # `with self._hit_group:` in invoke().
+        # The with-block is also needed here: nuke.thisGroup() may already be
+        # root by the time show() calls get_items(), even though lastHitGroup()
+        # still returns the correct group.
+        self._hit_group = nuke.lastHitGroup()
+        with self._hit_group:
+            return [
+                {
+                    'menuobj': anchor,
+                    'menupath': 'Anchors/' + anchor_display_name(anchor),
+                }
+                for anchor in all_anchors()
+            ]
 
     def get_weights_file(self):
         return os.path.expanduser('~/.nuke/anchors_anchor_weights.json')
 
     def invoke(self, thing):
         anchor = thing['menuobj']
-        if nuke.exists(anchor.name()):
-            create_from_anchor(anchor)
+        with self._hit_group:
+            if nuke.exists(anchor.name()):
+                create_from_anchor(anchor)
 
     def get_icon(self, menuobj):
         return None
@@ -550,7 +569,8 @@ def anchor_shortcut():
     """If a node is selected, create an anchor from it. Otherwise, pick an anchor to create from."""
     if not prefs.plugin_enabled:
         return
-    selected = nuke.selectedNodes()
+    with nuke.lastHitGroup():
+        selected = nuke.selectedNodes()
     if len(selected) == 1 and is_anchor(selected[0]):
         rename_anchor(selected[0])
     elif selected:
@@ -567,8 +587,9 @@ def select_anchor_and_create():
         return
     if QtWidgets is None:
         return
-    if not all_anchors():
-        return
+    with nuke.lastHitGroup():
+        if not all_anchors():
+            return
     global _anchor_picker_widget
     if _anchor_picker_widget is not None:
         try:
@@ -616,17 +637,25 @@ def navigate_back():
 def navigate_to_backdrop(backdrop_node):
     """Zoom the DAG to fit *backdrop_node*.
 
-    Selects the backdrop and calls nuke.zoomToFitSelected().
-    Implemented in Plan 04-02 — stub present here for invoke() dispatch.
+    Uses nuke.zoom() rather than nuke.zoomToFitSelected() so that the
+    currently focused DAG panel (which may be a Group's internal panel)
+    is targeted instead of always zooming the root DAG.
     """
     nukescripts.clear_selection_recursive()
     backdrop_node['selected'].setValue(True)
-    nuke.zoomToFitSelected()
+    center_x = backdrop_node.xpos() + backdrop_node.screenWidth() // 2
+    center_y = backdrop_node.ypos() + backdrop_node.screenHeight() // 2
+    nuke.zoom(1.0, [center_x, center_y])
     nukescripts.clear_selection_recursive()
 
 
 def navigate_to_anchor(anchor_node):
-    """Zoom the DAG to fit *anchor_node* and its visible-path upstream nodes."""
+    """Zoom the DAG to fit *anchor_node* and its visible-path upstream nodes.
+
+    Uses nuke.zoom() rather than nuke.zoomToFitSelected() so that the
+    currently focused DAG panel (which may be a Group's internal panel)
+    is targeted instead of always zooming the root DAG.
+    """
     from util import upstream_ignoring_hidden
     upstream_nodes = upstream_ignoring_hidden(anchor_node) or set()
     nodes_to_fit = upstream_nodes | {anchor_node}
@@ -635,28 +664,42 @@ def navigate_to_anchor(anchor_node):
     for node in nodes_to_fit:
         node["selected"].setValue(True)
 
-    nuke.zoomToFitSelected()
+    center_x = sum(n.xpos() + n.screenWidth() // 2 for n in nodes_to_fit) / len(nodes_to_fit)
+    center_y = sum(n.ypos() + n.screenHeight() // 2 for n in nodes_to_fit) / len(nodes_to_fit)
+    nuke.zoom(1.0, [center_x, center_y])
     nukescripts.clear_selection_recursive()
 
 
 class AnchorNavigatePlugin(_tabtabtab.TabTabTabPlugin):
     """tabtabtab plugin that lists all anchor nodes for DAG navigation."""
 
+    def __init__(self):
+        self._hit_group = None
+
     def get_items(self):
-        items = [
-            {
-                'menuobj': anchor_node,
-                'menupath': 'Anchors/' + anchor_display_name(anchor_node),
-            }
-            for anchor_node in all_anchors()
-        ]
-        for backdrop_node in nuke.allNodes('BackdropNode'):
-            label = backdrop_node['label'].value().strip()
-            if label:
-                items.append({
-                    'menuobj': backdrop_node,
-                    'menupath': 'Backdrops/' + label,
-                })
+        # Capture the group context while we are still in the Nuke menu-callback
+        # scope.  invoke() fires later from a Qt signal where nuke.thisGroup()
+        # has already reset to root, so we preserve it here and restore it with
+        # `with self._hit_group:` in invoke().
+        # The with-block is also needed here: nuke.thisGroup() may already be
+        # root by the time show() calls get_items(), even though lastHitGroup()
+        # still returns the correct group.
+        self._hit_group = nuke.lastHitGroup()
+        with self._hit_group:
+            items = [
+                {
+                    'menuobj': anchor_node,
+                    'menupath': 'Anchors/' + anchor_display_name(anchor_node),
+                }
+                for anchor_node in all_anchors()
+            ]
+            for backdrop_node in nuke.allNodes('BackdropNode'):
+                label = backdrop_node['label'].value().strip()
+                if label:
+                    items.append({
+                        'menuobj': backdrop_node,
+                        'menupath': 'Backdrops/' + label,
+                    })
         return items
 
     def get_weights_file(self):
@@ -664,13 +707,14 @@ class AnchorNavigatePlugin(_tabtabtab.TabTabTabPlugin):
 
     def invoke(self, thing):
         node = thing['menuobj']
-        if not nuke.exists(node.name()):
-            return
-        _save_dag_position()
-        if node.Class() == 'BackdropNode':
-            navigate_to_backdrop(node)
-            return
-        navigate_to_anchor(node)
+        with self._hit_group:
+            if not nuke.exists(node.name()):
+                return
+            _save_dag_position()
+            if node.Class() == 'BackdropNode':
+                navigate_to_backdrop(node)
+                return
+            navigate_to_anchor(node)
 
     def get_icon(self, menuobj):
         return None
@@ -693,12 +737,13 @@ def select_anchor_and_navigate():
         return
     if QtWidgets is None:
         return
-    labelled_backdrops = [
-        bd for bd in nuke.allNodes('BackdropNode')
-        if bd['label'].value().strip()
-    ]
-    if not all_anchors() and not labelled_backdrops:
-        return
+    with nuke.lastHitGroup():
+        labelled_backdrops = [
+            bd for bd in nuke.allNodes('BackdropNode')
+            if bd['label'].value().strip()
+        ]
+        if not all_anchors() and not labelled_backdrops:
+            return
     global _anchor_navigate_widget
     if _anchor_navigate_widget is not None:
         try:

@@ -3,8 +3,6 @@ import nuke
 import anchor
 import labels
 import anchors
-import diagnostic
-diagnostic.register_menu()
 import prefs
 
 menu = nuke.menu("Nuke")
