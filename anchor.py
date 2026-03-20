@@ -505,15 +505,12 @@ class AnchorPlugin(_tabtabtab.TabTabTabPlugin):
         self._hit_group = None
 
     def get_items(self):
-        # Capture the group context while we are still in the Nuke menu-callback
-        # scope.  invoke() fires later from a Qt signal where nuke.thisGroup()
-        # has already reset to root, so we preserve it here and restore it with
-        # `with self._hit_group:` in invoke().
-        # The with-block is also needed here: nuke.thisGroup() may already be
-        # root by the time show() calls get_items(), even though lastHitGroup()
-        # still returns the correct group.
-        self._hit_group = nuke.lastHitGroup()
-        with self._hit_group:
+        # _hit_group is set externally by select_anchor_and_create() BEFORE
+        # show() calls get_items().  We must NOT capture lastHitGroup() here
+        # because show() runs after the original menu-callback context has
+        # exited, so lastHitGroup() would return root.
+        hit_group = self._hit_group or nuke.root()
+        with hit_group:
             return [
                 {
                     'menuobj': anchor,
@@ -569,38 +566,44 @@ def anchor_shortcut():
     """If a node is selected, create an anchor from it. Otherwise, pick an anchor to create from."""
     if not prefs.plugin_enabled:
         return
-    with nuke.lastHitGroup():
+    hit_group = nuke.lastHitGroup()
+    with hit_group:
         selected = nuke.selectedNodes()
     if len(selected) == 1 and is_anchor(selected[0]):
         rename_anchor(selected[0])
     elif selected:
         create_anchor()
     else:
-        select_anchor_and_create()
+        select_anchor_and_create(hit_group)
 
 
 _anchor_picker_widget = None
 
 
-def select_anchor_and_create():
+def select_anchor_and_create(hit_group=None):
     if not prefs.plugin_enabled:
         return
     if QtWidgets is None:
         return
-    with nuke.lastHitGroup():
+    if hit_group is None:
+        hit_group = nuke.lastHitGroup()
+    with hit_group:
         if not all_anchors():
             return
     global _anchor_picker_widget
     if _anchor_picker_widget is not None:
         try:
+            _anchor_picker_widget.plugin._hit_group = hit_group
             _anchor_picker_widget.under_cursor()
             _anchor_picker_widget.show()
             _anchor_picker_widget.raise_()
             return
         except RuntimeError:
             _anchor_picker_widget = None
+    plugin = AnchorPlugin()
+    plugin._hit_group = hit_group
     _anchor_picker_widget = _tabtabtab.TabTabTabWidget(
-        AnchorPlugin(), winflags=Qt.FramelessWindowHint
+        plugin, winflags=Qt.FramelessWindowHint
     )
     _anchor_picker_widget.under_cursor()
     _anchor_picker_widget.show()
@@ -677,15 +680,12 @@ class AnchorNavigatePlugin(_tabtabtab.TabTabTabPlugin):
         self._hit_group = None
 
     def get_items(self):
-        # Capture the group context while we are still in the Nuke menu-callback
-        # scope.  invoke() fires later from a Qt signal where nuke.thisGroup()
-        # has already reset to root, so we preserve it here and restore it with
-        # `with self._hit_group:` in invoke().
-        # The with-block is also needed here: nuke.thisGroup() may already be
-        # root by the time show() calls get_items(), even though lastHitGroup()
-        # still returns the correct group.
-        self._hit_group = nuke.lastHitGroup()
-        with self._hit_group:
+        # _hit_group is set externally by select_anchor_and_navigate() BEFORE
+        # show() calls get_items().  We must NOT capture lastHitGroup() here
+        # because show() runs after the original menu-callback context has
+        # exited, so lastHitGroup() would return root.
+        hit_group = self._hit_group or nuke.root()
+        with hit_group:
             items = [
                 {
                     'menuobj': anchor_node,
@@ -737,7 +737,8 @@ def select_anchor_and_navigate():
         return
     if QtWidgets is None:
         return
-    with nuke.lastHitGroup():
+    hit_group = nuke.lastHitGroup()
+    with hit_group:
         labelled_backdrops = [
             bd for bd in nuke.allNodes('BackdropNode')
             if bd['label'].value().strip()
@@ -747,14 +748,17 @@ def select_anchor_and_navigate():
     global _anchor_navigate_widget
     if _anchor_navigate_widget is not None:
         try:
+            _anchor_navigate_widget.plugin._hit_group = hit_group
             _anchor_navigate_widget.under_cursor()
             _anchor_navigate_widget.show()
             _anchor_navigate_widget.raise_()
             return
         except RuntimeError:
             _anchor_navigate_widget = None
+    plugin = AnchorNavigatePlugin()
+    plugin._hit_group = hit_group
     _anchor_navigate_widget = _tabtabtab.TabTabTabWidget(
-        AnchorNavigatePlugin(), winflags=Qt.FramelessWindowHint
+        plugin, winflags=Qt.FramelessWindowHint
     )
     _anchor_navigate_widget.under_cursor()
     _anchor_navigate_widget.show()
