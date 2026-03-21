@@ -24,6 +24,10 @@ If the parent node is not in the same script, re-piping cannot occur. Nuke canno
 
 I am a firm believer that the ONLY nodes that should ever have hidden inputs are PostageStamps/NoOps/Dots. These nodes have exactly one input, and serve as "placeholders" for the input that has been hidden, providing a visual reference of the connection's existence. Without this visual reference of the hidden input, the script becomes immediately confusing.
 
+# Quick-start
+
+See docs/quick-start.md for an artist-friendly introduction to the basic functionality.
+
 # How
 
 There are no callbacks. Everything is handled by over-riding the builtin copy-paste functions. Hidden knobs are added to relevant nodes as copying is conducted, and the magic happens at paste time. If you re-pipe nodes yourself, labels etc. will not update as nothing is live.

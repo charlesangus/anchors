@@ -2,10 +2,21 @@
 
 An anchor is a named reference node that sits below an input in your DAG. A link points to it — drop one anywhere to re-pipe to the same source without copy-pasting the original. `Ctrl+C`/`Ctrl+V` are context-aware replacements for Nuke's built-in clipboard that handle hidden inputs automatically.
 
-## Creating Anchors
+_Anchors_ differentiates between three "tiers" of anchors:
+
+- Anchors - the most "official" anchor; created with "Create Anchor" or by pressing "A" with a node selected
+  - semantically, these are intended for re-use throughout the script, e.g. the plate, the camera; the use of an Anchor implies "this is important"
+- Dot anchors - Dots with labels >33 point font; created by selecting a dot and using Shift-B, Shift-N, or Shift-M to apply a small/medium/large label.
+  - these are "places in the comp"; e.g. it's best to put a large-label dot at the bottom of a module, medium at the bottom of a submodule, etc.
+  - largely for script navigation, but also modules often need to refer to each other, and this is a handy way to do it
+- Local anchors - hidden-input dots used just to clean up the layout
+  - implies there's no larger picture to this connection, it's just for clarity/script layout
+  - does not reconnect by name across scripts (unlike Link nodes pointing to  Anchors and Dot Anchors, which when pasted into a new script will try to reconnect to the "same" anchor)
+
+## Creating and Editing Anchors
 
 1. Select any node and press `A` — the anchor creation dialog opens, pre-filled with a name derived from the node's file path and the smallest enclosing backdrop label.
-2. Edit the name if needed, pick a color in the dialog, and press OK. An anchor node appears below your selection, wired to it.
+2. Edit the name if needed. Optionally, choose a colour or create a custom colour. An anchor node appears below your selection, wired to it.
 
 ![Anchor naming dialog with name pre-filled from the input node](img/anchor-create-dialog.png)
 
@@ -23,20 +34,21 @@ An anchor is a named reference node that sits below an input in your DAG. A link
 
 **Unanchored Dot selected — promoting to a Dot anchor:**
 
-5. Select a plain Dot node and press `A` — a size picker appears first (Medium / Large label).
-6. Choose a size, then enter a label. The Dot is promoted to a Dot anchor in place.
+5. Select a plain Dot node and press "Shift-B", "Shift-N", or "Shift-M".
+6. Enter a label. The Dot is promoted to a Dot anchor in place.
 
 ![Dot size picker for anchor promotion](img/dot-size-picker.png)
 
 **Color picker:**
 
 7. The color picker is available in the creation dialog and the rename dialog. Click the color swatch to open it and choose a color. The color is applied to the anchor and all its link nodes.
+8. Hit "Tab" to display a shortcut over each swatch. Press the two keys of the shortcut sequentially to select that colour and close the dialog. E.g. to select the first option, press Tab-A-1 one at a time.
 
 ![Color picker in anchor dialog](img/anchor-color-picker.png)
 
 ## Navigating to Anchors
 
-1. Press `Alt+A` — a fuzzy-search picker opens listing all anchors in the script with their colors.
+1. Press `Alt+A` — a fuzzy-search picker opens listing all anchors and backdrops in the script with their colors.
 
 ![Anchor navigation picker](img/anchor-navigate-picker.png)
 
@@ -47,12 +59,10 @@ An anchor is a named reference node that sits below an input in your DAG. A link
 
 1. Select nodes and press `Ctrl+C` — input nodes (Read, Camera, etc.) are automatically converted to hidden-input proxies in the clipboard.
 2. Press `Ctrl+V` to paste — proxies are re-piped to their original input nodes if those nodes exist in the same script at the same level.
+3. To paste without the Link nodes (raw paste), use Ctrl-Shift-D.
+4. This setting can be disabled in the "Anchor Preferences..." in Edit>Anchors.
 
 ![Before and after paste showing hidden-input reconnection](img/copy-paste-reconnection.png)
-
-3. This behavior can be disabled via Preferences.
-
-See `README.md` for edge cases: cross-script paste, old-style paste, and LINK_CLASSES passthrough mode.
 
 ## Keyboard Reference
 
@@ -63,5 +73,7 @@ See `README.md` for edge cases: cross-script paste, old-style paste, and LINK_CL
 | `Alt+Z` | Return to previous DAG position |
 | `Ctrl+C` | Copy with hidden-input conversion |
 | `Ctrl+V` | Paste with smart hidden-input reconnection |
+| `Shift-B` | Small dot label (becomes an Anchor Dot) |
+| `Shift-N` | Medium dot label (becomes an Anchor Dot) |
+| `Shift-M` | Large  dot label (becomes an Anchor Dot) |
 
-See `README.md` for the full shortcut list.
