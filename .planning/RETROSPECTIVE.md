@@ -183,6 +183,49 @@
 
 ---
 
+## Milestone: v1.4 — Group Support
+
+**Shipped:** 2026-03-23
+**Phases:** 2 (18, 19) | **Plans:** 5
+
+### What Was Built
+- `all_nodes_in_context()` helper in `link.py` — single Group-context-aware `nuke.allNodes()` wrapper; all bare calls replaced across link.py, anchor.py (8 sites), and labels.py
+- Pre-capture `lastHitGroup()` pattern: capture once at entry point (`anchor_shortcut()`), pass down call chain, set on plugin before `show()` — fixes A-key link creation inside Group nodes (GROUP-02)
+- `QTimer.singleShot(0, _deferred_navigate)` in `AnchorNavigatePlugin.invoke()` — defers `nuke.zoom()` until Qt restores DAG panel focus after picker closes (GROUP-04)
+- Quick Start guide at `docs/quick-start.md`: concept intro, anchor creation (5 sub-workflows), Alt+A navigation (picker, zoom, Alt+Z back), copy/paste semantics; 7 PNG screenshot placeholders
+
+### What Worked
+- **`all_nodes_in_context()` single helper pattern** was the right call — one change in `link.py`, propagated cleanly through imports in `anchor.py` and `labels.py`. Avoided 8 scattered context-passing decisions.
+- **Pre-capture pattern for Group context** (capture at entry point, pass explicitly) was clean and traceable through the call chain. Debugging was straightforward because the group context flows visibly through function signatures.
+- **Symmetrical fix applied to both plugins**: applying the same pre-capture fix to both `AnchorPlugin` and `AnchorNavigatePlugin` in plan 18-03 was correct — the verification grep caught the second instance before it would have shown up in UAT.
+- **QTimer deferred navigation** was simple and correct — zero-delay timer fires on the next event loop tick, which is sufficient for Qt to restore DAG panel focus. No custom signal plumbing needed.
+- **Phase 19 (documentation) completed in ~1 min** — small, focused scope with clear success criteria. Documentation phases don't need TDD overhead.
+
+### What Was Inefficient
+- **UAT found 2 gaps after plan 18-02** (A-key Group context + Alt+A navigation zoom), requiring 2 additional gap-closure plans (18-03, 18-04). The root causes were predictable — `get_items()` was called before Qt restored context, and `invoke()` fired `nuke.zoom()` while picker still had focus. A more thorough initial analysis of Qt event loop timing would have caught these.
+- **No milestone audit run** — proceeded without `v1.4-MILESTONE-AUDIT.md`. All 8/8 requirements were checked off and the milestone was small, but the audit would have verified that Group context is tested E2E across all entry points.
+- **ROADMAP.md plan checkboxes 18-03 and 18-04** were `[ ]` even though they completed — same checkbox discipline failure as v1.0–v1.3. Five milestones in a row. The ROADMAP.md plan list is effectively decorative.
+
+### Patterns Established
+- **Group-context helper pattern**: `all_nodes_in_context(node_class=None)` wrapping `nuke.allNodes()` with `group=nuke.thisGroup()` — one import, replaces all bare call sites.
+- **Pre-capture pattern for Group context**: `hit_group = nuke.lastHitGroup()` at entry point, before any `with`-blocks or Qt event loop calls; pass explicitly down call chain; set `plugin._hit_group = hit_group` before widget `show()`.
+- **Plugin reads context, never writes it in get_items()**: `get_items()` reads `self._hit_group` (pre-set externally), never calls `nuke.lastHitGroup()` inside — the capture belongs at the entry point.
+- **Deferred Qt operation pattern**: `QTimer.singleShot(0, closure)` for operations that need correct Qt focus state after a widget closes — zero-delay is sufficient for post-event-loop restoration.
+- **Screenshot placeholder format**: `![Descriptive alt text of what screenshot should show](img/filename.png)` — lightweight, restruct-free; add real screenshots by replacing the file without editing the Markdown.
+
+### Key Lessons
+1. **Qt event loop timing for Group context**: any operation that relies on `nuke.lastHitGroup()` or `nuke.zoom()` after a widget interaction must account for the event loop restoring focus. Pre-capture before `show()` and post-defer after `close()` are the two patterns.
+2. **Symmetrical fixes**: when fixing a bug pattern in one class, grep for the same pattern in sibling classes before closing the plan. Caught the `AnchorNavigatePlugin` case before UAT would have found it.
+3. **Documentation phases are fast**: with clear success criteria and no runtime logic, a documentation phase completes in 1–2 min. No need to plan for TDD or infrastructure overhead.
+4. **ROADMAP.md plan checkboxes: accept as decorative.** Five milestones without fixing this is signal — the SUMMARY.md is the authoritative completion record, not the ROADMAP.md plan list. Stop tracking it as an issue.
+
+### Cost Observations
+- Model: claude-sonnet-4-6 (100%)
+- Sessions: multiple (separated by phase)
+- Notable: Phase 18 required 4 plans instead of the planned 2 due to UAT gap closure. Plans 18-03 and 18-04 were each ~5 min — root causes were isolated by the time they were planned. Phase 19 (docs) was ~1 min.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -193,6 +236,7 @@
 | v1.1 | 2 | 8 | Prefs system, UI dialogs, UAT-driven bug fix cycle; constructor injection prevents circular import |
 | v1.2 | 5 | 9 | Infrastructure hardening — test centralization, bug fixes with regression tests, CI/CD, stub alignment |
 | v1.3 | 7 | 17 | Project rename, configurable naming, site config, public API; decimal phase insertions × 2 |
+| v1.4 | 2 | 5 | Group context support via helper pattern + pre-capture; QTimer deferred navigation; Quick Start docs |
 
 ### Cumulative Quality
 
@@ -202,6 +246,7 @@
 | v1.1 | 100+ | 0 (no new external deps) |
 | v1.2 | 132 | 0 (ruff dev-only; no runtime deps) |
 | v1.3 | 150+ | 0 (no new external deps) |
+| v1.4 | 210+ | 0 (no new external deps) |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -212,3 +257,4 @@
 5. Explicit file manifests beat wildcards for release artifacts — prevents accidental inclusion of dev artifacts
 6. Run the milestone audit before archiving — even with all requirements checked, cross-phase integration gaps may exist
 7. Decimal phase insertions (15.1, 16.1) work cleanly — use them for mid-stream scope additions without disrupting numbering
+8. Qt event loop timing matters for Group context: pre-capture `lastHitGroup()` at entry point before any `with`-blocks; defer `nuke.zoom()` via `QTimer.singleShot(0, ...)` after widget closes

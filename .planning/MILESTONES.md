@@ -1,5 +1,25 @@
 # Milestones
 
+## v1.4 Group Support (Shipped: 2026-03-23)
+
+**Phases completed:** 2 phases (Phases 18-19), 5 plans
+
+**Timeline:** 2026-03-19 → 2026-03-21 (2 days)
+**Git range:** `03a3632 feat(18-01)` → `f568ccc update quick-start.md`
+
+**Key accomplishments:**
+
+- `all_nodes_in_context()` helper added to `link.py` — all bare `nuke.allNodes()` calls in link.py, anchor.py, and labels.py replaced with Group-context-aware version (GROUP-01, GROUP-03)
+- Pre-capture `lastHitGroup()` pattern fixes A-key link creation inside Group nodes — captures context at entry point, sets on plugin before `show()` (GROUP-02)
+- `QTimer.singleShot(0, _deferred_navigate)` defers Alt+A navigation zoom to correct Group DAG panel (GROUP-04)
+- Quick Start guide at `docs/quick-start.md` covering anchor creation (5 sub-workflows), Alt+A navigation, and Ctrl+C/V smart reconnection (DOCS-01–04)
+
+**Requirements:** 8/8 v1.4 requirements satisfied
+
+**Archive:** `.planning/milestones/v1.4-ROADMAP.md`, `.planning/milestones/v1.4-REQUIREMENTS.md`
+
+---
+
 ## v1.3 Foundations (Shipped: 2026-03-18)
 
 **Phases completed:** 7 phases (Phases 13–17 incl. 15.1, 16.1), 17 plans
@@ -9,6 +29,7 @@
 **Git range:** `e80ab07` → `4865e6e`
 
 **Key accomplishments:**
+
 - Renamed project from `paste_hidden` to `anchors` across all source, tests, CI, and GitHub repo with migration path for old prefs (REN-01, REN-02)
 - Fixed anchor creation dialog name reliability (BUG-03) and Dot→NoOp anchor dispatch (BUG-04) with regression coverage
 - Configurable regex + template anchor naming with live validity indicator in PrefsDialog (NAME-01–03)
@@ -32,6 +53,7 @@
 **Git range:** `feat(08-01)` → `feat(12-01)`
 
 **Key accomplishments:**
+
 - Centralized test stub library (`tests/stubs.py` + `conftest.py`) — eliminated Qt stub ordering conflicts; 132 tests green under flat discovery (TEST-03)
 - Fixed BUG-01 (cross-script NoOp link receives anchor's `tile_color`, not default purple) and BUG-02 (anchor stays anchor when pasted cross-script) with regression test coverage (BUG-01, BUG-02)
 - Zero ruff violations across all 10 source files; FROZEN annotations on all 8 serialized knob constants; C901 complexity deferred appropriately (QUAL-01)
@@ -54,6 +76,7 @@
 **Git range:** `408443f feat(06-01)` → `7495ce9 chore(07)`
 
 **Key accomplishments:**
+
 - JSON-backed prefs singleton (`prefs.py`) with `plugin_enabled`, `link_classes_paste_mode`, `custom_colors` — persists across Nuke sessions
 - One-way migration from legacy `paste_hidden_user_palette.json` into new prefs file on first run
 - Plugin-enabled gating on all clipboard, anchor, and label entry points; LINK_CLASSES passthrough mode
@@ -76,6 +99,7 @@
 **Git range:** `d13aebf feat(01-01)` → `588dc04 feat(04-02)`
 
 **Key accomplishments:**
+
 - canSetInput stream-type probe — Camera anchors produce NoOp links; Read produces PostageStamp (LINK-03 fix)
 - Cross-script paste reconnection — Link nodes reconnect by anchor name in destination scripts (XSCRIPT-01)
 - Anchor color system — ColorPaletteDialog wired into creation/rename dialogs and anchor node; propagates to all linked nodes (COLOR-01–05)
@@ -88,4 +112,3 @@
 **Archive:** `.planning/milestones/v1.0-ROADMAP.md`, `.planning/milestones/v1.0-REQUIREMENTS.md`
 
 ---
-

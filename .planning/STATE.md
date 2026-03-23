@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Group Support
 status: completed
-last_updated: "2026-03-20T12:27:56.661Z"
+last_updated: "2026-03-23T06:25:32.323Z"
 last_activity: 2026-03-20
 progress:
   total_phases: 2
@@ -16,17 +16,16 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-19 after v1.4 milestone start)
+See: .planning/PROJECT.md (updated 2026-03-23 after v1.4 milestone complete)
 
 **Core value:** Copy and paste must reconnect predictably — anchors provide stable, navigable references; hidden inputs reconnect to their source without ceremony.
-**Current focus:** Phase 19 — quick-start-documentation
+**Current focus:** Planning next milestone — run `/gsd:new-milestone`
 
 ## Position
 
-Phase: 19 — Quick Start Documentation
-Plan: 01 complete
-Status: 19-01-PLAN.md complete — Phase 19 all plans done
-Last activity: 2026-03-20
+Milestone v1.4 Group Support — COMPLETE (2026-03-23)
+All phases and plans archived. Ready for next milestone.
+Last activity: 2026-03-23
 
 ## Progress Bar
 
@@ -59,4 +58,4 @@ v1.4: [██████████] 100%  2/2 phases  5/5 plans
 | 260318-r7o | add Default Colour swatch to ColorPaletteDialog create/rename flows | 2026-03-19 | e654c3f | Verified | [260318-r7o-in-the-anchor-create-rename-popup-add-a-](./quick/260318-r7o-in-the-anchor-create-rename-popup-add-a-/) |
 | 260318-uf4 | gate Dot anchor detection on font size < 33, add Label (Small) command | 2026-03-19 | 605a4a3 | Verified | [260318-uf4-dots-should-not-be-considered-for-naviga](./quick/260318-uf4-dots-should-not-be-considered-for-naviga/) |
 
-Last activity: 2026-03-20 - Completed 19-01-PLAN.md (Quick Start guide — docs/quick-start.md with anchor creation, navigation, and copy/paste workflows plus 7 PNG screenshot placeholders)
+Last activity: 2026-03-23 - v1.4 Group Support milestone archived (ROADMAP.md, REQUIREMENTS.md, MILESTONES.md, PROJECT.md, RETROSPECTIVE.md updated; git tag v1.4 created)

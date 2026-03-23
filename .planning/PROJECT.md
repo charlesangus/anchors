@@ -12,17 +12,11 @@
 
 **v1.3 shipped:** Project renamed to `anchors`. Configurable regex+template anchor naming with live preview. Site-level config (`ANCHORS_SITE_CONFIG`) with per-field lock/override. Anchor creation bug fixes (dialog name reliability, Dot→NoOp dispatch). Public `api.py` module for external script integration. PrefsDialog Anchor Naming fully polished with collapsible Advanced section, undoable Reset, and always-available Publish button with file save dialog.
 
+**v1.4 shipped:** All plugin operations work correctly inside Nuke Group nodes via `all_nodes_in_context()` helper and `lastHitGroup()` pre-capture pattern. Alt+A navigation inside Groups deferred via `QTimer.singleShot(0, ...)` to zoom the correct DAG panel. Quick Start guide at `docs/quick-start.md` covering anchor creation, navigation, and copy/paste workflows with screenshot placeholders.
+
 ## Core Value
 
 Copy and paste must reconnect predictably — anchors provide stable, navigable references; hidden inputs reconnect to their source without ceremony.
-
-## Current Milestone: v1.4 Group Support
-
-**Goal:** Full plugin functionality inside Nuke Group nodes, plus a Quick Start guide for new users.
-
-**Target features:**
-- All plugin operations (copy/paste, anchor creation, link creation, navigation, popups) work correctly inside Group nodes by respecting `nuke.lastHitGroup()`
-- `docs/` Quick Start guide covering anchor creation, Alt+A navigation, and copy/paste semantics
 
 ## Requirements
 
@@ -70,14 +64,14 @@ Copy and paste must reconnect predictably — anchors provide stable, navigable 
 - ✓ Site-level config via `ANCHORS_SITE_CONFIG` env var: two-layer prefs system with per-field lock/override checkbox — v1.3
 - ✓ Always-enabled Publish button with file save dialog; `last_publish_path` persists across sessions — v1.3
 - ✓ Public `api.py` module: `create_anchor()`, `find_anchor_by_name()` with NumPy docstrings and `__all__` stable surface — v1.3
+- ✓ All plugin operations (copy/paste, anchor creation, link creation, navigation) work correctly inside Group nodes via `all_nodes_in_context()` helper — v1.4
+- ✓ A-key link creation inside Group nodes uses pre-captured `lastHitGroup()` context — v1.4
+- ✓ Alt+A navigation inside Group nodes pans/zooms the correct Group DAG panel via `QTimer.singleShot(0, ...)` — v1.4
+- ✓ Quick Start guide at `docs/quick-start.md` covering anchor creation, navigation, and copy/paste with screenshot placeholders — v1.4
 
 ### Active
 
-- [ ] Quick Start guide in `docs/` covering anchor creation, Alt+A navigation, and copy/paste semantics
-
-### Validated
-
-- ✓ Plugin fully functional inside Group nodes (copy/paste, anchor creation, link creation, navigation, popups) — Validated in Phase 18: Group Context Support
+(None — v1.4 complete. Next milestone requirements TBD via `/gsd:new-milestone`.)
 
 ### Out of Scope
 
@@ -89,7 +83,7 @@ Copy and paste must reconnect predictably — anchors provide stable, navigable 
 
 ## Context
 
-**v1.3 shipped 2026-03-18.** Codebase: ~10,212 LOC Python total (source + tests), across 83 files modified in v1.3 alone.
+**v1.4 shipped 2026-03-23.** Codebase: ~10,800 LOC Python total (source + tests). v1.4 touched 52 files (32 commits over 2 days). `docs/quick-start.md` added as first end-user documentation.
 
 **Source files:** `anchors.py`, `anchor.py`, `api.py`, `colors.py`, `constants.py`, `menu.py`, `prefs.py` (7 source files). `api.py` added in v1.3 as stable public surface.
 
@@ -145,6 +139,10 @@ Copy and paste must reconnect predictably — anchors provide stable, navigable 
 | path-priority chain: env var > last_publish_path > '/' for dialog pre-fill | Respects explicit env var config while remembering last used path for convenience | ✓ Good |
 | api.py as thin delegation layer over anchor.py with sys.modules guard | No logic duplication; guard raises RuntimeError early in non-Nuke sessions without try/import | ✓ Good |
 | __all__ at module bottom declares stable public surface of api.py | Explicit exports prevent internal symbols leaking into callers' namespaces | ✓ Good |
+| Single `all_nodes_in_context()` helper in link.py replaces all bare `nuke.allNodes()` calls | Consistent, testable, single point of truth for Group-context node scanning across link.py, anchor.py, labels.py | ✓ Good |
+| Pre-capture `lastHitGroup()` once at entry point (`anchor_shortcut()`), pass down call chain, set on plugin before `show()` | Prevents context drift when Qt event loop runs between callback and `get_items()`; stale root context was root cause of A-key failure | ✓ Good |
+| `AnchorPlugin/AnchorNavigatePlugin.get_items()` reads `self._hit_group` (set externally), never overwrites it | Plugin reads context set before show(); overwriting inside get_items() was the original bug | ✓ Good |
+| `QTimer.singleShot(0, _deferred_navigate)` defers `nuke.zoom()` until after picker closes and Qt restores DAG panel focus | Synchronous zoom fired while picker had focus, targeting the root DAG instead of the Group DAG panel | ✓ Good |
 
 ## Evolution
 
@@ -164,4 +162,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-20 after Phase 18 Group Context Support complete (UAT approved — A-key Group fix + Alt+A deferred zoom fix)*
+*Last updated: 2026-03-23 after v1.4 Group Support milestone complete*
