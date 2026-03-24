@@ -36,7 +36,7 @@ sys.modules['PySide6.QtWidgets'] = _pyside6.QtWidgets
 # ---------------------------------------------------------------------------
 
 _tabtabtab = types.ModuleType('tabtabtab')
-_tabtabtab.TabTabTabPlugin = MagicMock
+_tabtabtab.TabTabTabPlugin = type('TabTabTabPlugin', (), {})
 _tabtabtab.TabTabTabWidget = MagicMock
 sys.modules['tabtabtab'] = _tabtabtab
 

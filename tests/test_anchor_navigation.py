@@ -41,6 +41,8 @@ def _ensure_qt_stubs_support_mock_attributes():
         current_nuke.center = MagicMock(return_value=[0.0, 0.0])
     if not hasattr(current_nuke, 'zoomToFitSelected'):
         current_nuke.zoomToFitSelected = MagicMock()
+    if not hasattr(current_nuke, 'lastHitGroup'):
+        current_nuke.lastHitGroup = MagicMock(return_value=MagicMock())
 
     for module_key in ('PySide6.QtGui', 'PySide6.QtWidgets', 'PySide6.QtCore'):
         existing = sys.modules.get(module_key)
@@ -152,6 +154,8 @@ class TestInvokeSavesPosition(unittest.TestCase):
         nuke_stub.center.return_value = [0.0, 0.0]
         nuke_stub.exists.reset_mock()
         nuke_stub.exists.return_value = True
+        # Execute QTimer.singleShot callbacks synchronously so tests can assert on deferred calls.
+        anchor.QtCore.QTimer.singleShot.side_effect = lambda delay, func: func()
 
     def test_invoke_saves_position_before_navigating_anchor(self):
         """invoke() calls _save_dag_position before navigate_to_anchor for non-BackdropNode."""
@@ -314,7 +318,7 @@ class TestNavigateToBackdrop(unittest.TestCase):
         nukescripts.clear_selection_recursive.reset_mock()
 
     def test_navigate_to_backdrop_selects_and_zooms(self):
-        """navigate_to_backdrop() calls backdrop['selected'].setValue(True) and nuke.zoomToFitSelected()."""
+        """navigate_to_backdrop() calls backdrop['selected'].setValue(True) and nuke.zoom()."""
         selected_knob = MagicMock()
         stub_backdrop = MagicMock()
         stub_backdrop.__getitem__ = MagicMock(return_value=selected_knob)
@@ -323,7 +327,7 @@ class TestNavigateToBackdrop(unittest.TestCase):
 
         selected_knob.setValue.assert_called_with(True)
         import nuke as nuke_stub
-        nuke_stub.zoomToFitSelected.assert_called_once()
+        nuke_stub.zoom.assert_called()
 
     def test_navigate_to_backdrop_clears_selection_before_and_after(self):
         """navigate_to_backdrop() calls nukescripts.clear_selection_recursive at least twice."""

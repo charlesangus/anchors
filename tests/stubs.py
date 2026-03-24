@@ -149,6 +149,7 @@ def make_stub_nuke_module():
     stub.zoom = MagicMock(return_value=1.0)
     stub.center = MagicMock(return_value=[0.0, 0.0])
     stub.zoomToFitSelected = MagicMock()
+    stub.lastHitGroup = MagicMock(return_value=root_obj)
     stub.getColor = MagicMock(return_value=0)
 
     return stub

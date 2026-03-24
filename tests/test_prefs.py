@@ -74,9 +74,16 @@ class TestPrefsFirstRunCreatesFile(unittest.TestCase):
             import constants
             original_prefs_path = constants.PREFS_PATH
             original_palette_path = constants.USER_PALETTE_PATH
+            original_old_prefs_path = constants.OLD_PREFS_PATH
             try:
                 constants.PREFS_PATH = temp_prefs_path
                 constants.USER_PALETTE_PATH = temp_palette_path
+                constants.OLD_PREFS_PATH = os.path.join(temp_dir, 'nonexistent_old_prefs.json')
+                # The first import block above may have created temp_prefs_path via
+                # _migrate_from_old_prefs_file() if OLD_PREFS_PATH existed on disk.
+                # Remove it so this import starts from a truly empty state.
+                if os.path.exists(temp_prefs_path):
+                    os.unlink(temp_prefs_path)
                 if 'prefs' in sys.modules:
                     del sys.modules['prefs']
                 import prefs
@@ -96,6 +103,7 @@ class TestPrefsFirstRunCreatesFile(unittest.TestCase):
             finally:
                 constants.PREFS_PATH = original_prefs_path
                 constants.USER_PALETTE_PATH = original_palette_path
+                constants.OLD_PREFS_PATH = original_old_prefs_path
                 if 'prefs' in sys.modules:
                     del sys.modules['prefs']
 
