@@ -57,5 +57,6 @@ v1.4: [██████████] 100%  2/2 phases  5/5 plans
 | 260317-nnh | fix failing tests | 2026-03-18 | 1deabad | | [260317-nnh-fix-failing-tests](./quick/260317-nnh-fix-failing-tests/) |
 | 260318-r7o | add Default Colour swatch to ColorPaletteDialog create/rename flows | 2026-03-19 | e654c3f | Verified | [260318-r7o-in-the-anchor-create-rename-popup-add-a-](./quick/260318-r7o-in-the-anchor-create-rename-popup-add-a-/) |
 | 260318-uf4 | gate Dot anchor detection on font size < 33, add Label (Small) command | 2026-03-19 | 605a4a3 | Verified | [260318-uf4-dots-should-not-be-considered-for-naviga](./quick/260318-uf4-dots-should-not-be-considered-for-naviga/) |
+| 260327-d2z | fix cross-script anchor FQNN not updated after paste (GitHub issue #5) | 2026-03-27 | 98de072 | Complete | [260327-d2z-fix-open-issue](./quick/260327-d2z-fix-open-issue/) |
 
-Last activity: 2026-03-23 - v1.4 Group Support milestone archived (ROADMAP.md, REQUIREMENTS.md, MILESTONES.md, PROJECT.md, RETROSPECTIVE.md updated; git tag v1.4 created)
+Last activity: 2026-03-27 - quick task 260327-d2z: fixed GitHub issue #5 — anchor FQNN rewritten to destination script stem on cross-script paste; 202 tests pass
