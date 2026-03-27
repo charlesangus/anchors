@@ -172,6 +172,16 @@ def paste_anchors():  # noqa: C901 — complexity is inherent: anchor/link/dot p
                     # BUG-02 fix: anchor pasted cross-script stays an anchor.
                     # Do not attempt replacement regardless of whether a same-named anchor
                     # exists in the destination. Leave the placeholder in place.
+                    # GitHub #5 fix: rewrite the stored FQNN so it references the
+                    # destination script stem.  Without this, subsequent copy-paste of
+                    # Link Dots pointing to this anchor in the destination script would
+                    # detect a "cross-script" mismatch (stem still says the source script)
+                    # and fail to reconnect.  We recompute using the current script stem
+                    # and the node's current fullName() so auto-renames (Nuke appends a
+                    # digit when a name collides) are also reflected.
+                    if is_anchor(node):
+                        destination_stem = nuke.root().name().split('.')[0]
+                        node[KNOB_NAME].setValue(f"{destination_stem}.{node.fullName()}")
                     continue
                 nukescripts.clear_selection_recursive()
                 node["selected"].setValue(True)

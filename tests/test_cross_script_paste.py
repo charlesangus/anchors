@@ -425,14 +425,21 @@ class TestCrossScriptFqnnUpdate(unittest.TestCase):
 
     def test_dot_anchor_fqnn_updated_after_cross_script_paste(self):
         """When a Dot anchor is pasted cross-script, its stored FQNN must be
-        rewritten to use the destination script stem (GitHub issue #5)."""
+        rewritten to use the destination script stem (GitHub issue #5).
+
+        In real Nuke, a Dot named 'Anchor_CamMain' inside Group1 would have
+        fullName() == 'Group1.Anchor_CamMain'.  The stub simulates this by
+        setting the node name to 'Group1.Anchor_CamMain'.
+        """
         import nuke as _nuke
         from constants import KNOB_NAME
 
-        # Dot anchor stored FQNN includes a group path
+        # Dot anchor inside a Group: fullName() returns the path including the Group prefix
         pasted_dot_anchor_node = self._make_dot_anchor_node(
             stored_fqnn='sourceScript.Group1.Anchor_CamMain',
         )
+        # Override _name so fullName() returns the full Group-qualified name
+        pasted_dot_anchor_node._name = 'Group1.Anchor_CamMain'
 
         with patch('anchors.nuke') as mock_nuke, \
              patch('anchors.nukescripts') as mock_nukescripts, \
