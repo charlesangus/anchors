@@ -380,7 +380,7 @@ class TestPickerLaunchGuard(unittest.TestCase):
         anchor._anchor_navigate_widget = None
 
         widget_mock = MagicMock()
-        with patch.object(sys.modules['tabtabtab'], 'TabTabTabWidget', return_value=widget_mock) as mock_widget_cls:
+        with patch.object(sys.modules['tabtabtab_anchors'], 'TabTabTabWidget', return_value=widget_mock) as mock_widget_cls:
             anchor.select_anchor_and_navigate()
             mock_widget_cls.assert_called_once()
 
@@ -394,7 +394,7 @@ class TestPickerLaunchGuard(unittest.TestCase):
 
         anchor._anchor_navigate_widget = None
 
-        with patch.object(sys.modules['tabtabtab'], 'TabTabTabWidget') as mock_widget_cls:
+        with patch.object(sys.modules['tabtabtab_anchors'], 'TabTabTabWidget') as mock_widget_cls:
             anchor.select_anchor_and_navigate()
             mock_widget_cls.assert_not_called()
 

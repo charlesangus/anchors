@@ -20,7 +20,7 @@ except ImportError:
     QtCore = None
 
 import prefs
-import tabtabtab as _tabtabtab
+import tabtabtab_anchors as _tabtabtab
 from colors import ColorPaletteDialog
 from constants import (
     ANCHOR_DEFAULT_COLOR,

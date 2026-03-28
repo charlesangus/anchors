@@ -1,7 +1,7 @@
 """Pytest configuration: install all module stubs before any test file is collected.
 
 This module-level code runs once at the start of a pytest session, before
-any test file is imported. It ensures that PySide6, tabtabtab, nuke, and
+any test file is imported. It ensures that PySide6, tabtabtab_anchors, nuke, and
 nukescripts are all stubbed out in sys.modules so that test file imports
 never race each other for sys.modules ownership.
 
@@ -35,10 +35,10 @@ sys.modules['PySide6.QtWidgets'] = _pyside6.QtWidgets
 # tabtabtab stub
 # ---------------------------------------------------------------------------
 
-_tabtabtab = types.ModuleType('tabtabtab')
+_tabtabtab = types.ModuleType('tabtabtab_anchors')
 _tabtabtab.TabTabTabPlugin = type('TabTabTabPlugin', (), {})
 _tabtabtab.TabTabTabWidget = MagicMock
-sys.modules['tabtabtab'] = _tabtabtab
+sys.modules['tabtabtab_anchors'] = _tabtabtab
 
 # ---------------------------------------------------------------------------
 # nuke and nukescripts stubs

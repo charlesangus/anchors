@@ -2,7 +2,7 @@
 
 This module-level code runs once when the tests package is first imported,
 which happens before any test module is loaded during `python3 -m unittest
-discover`. It ensures that PySide6, tabtabtab, nuke, and nukescripts are
+discover`. It ensures that PySide6, tabtabtab_anchors, nuke, and nukescripts are
 all stubbed out in sys.modules so that test file imports never race each
 other for sys.modules ownership.
 
@@ -36,10 +36,10 @@ if 'nuke' not in sys.modules:
     # tabtabtab stub
     # -------------------------------------------------------------------------
 
-    _tabtabtab = types.ModuleType('tabtabtab')
+    _tabtabtab = types.ModuleType('tabtabtab_anchors')
     _tabtabtab.TabTabTabPlugin = MagicMock
     _tabtabtab.TabTabTabWidget = MagicMock
-    sys.modules['tabtabtab'] = _tabtabtab
+    sys.modules['tabtabtab_anchors'] = _tabtabtab
 
     # -------------------------------------------------------------------------
     # nuke and nukescripts stubs
