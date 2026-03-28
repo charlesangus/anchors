@@ -637,6 +637,27 @@ def navigate_back():
     nukescripts.clear_selection_recursive()
 
 
+def jump_to_selected_anchor():
+    """Navigate directly to the selected anchor's upstream tree without a picker popup.
+
+    Saves the current DAG viewport first so Alt+Z (navigate_back) can return.
+    Silent no-op when:
+    - The plugin is disabled (prefs.plugin_enabled is False)
+    - No nodes are currently selected
+    - The first selected node is not an anchor
+    """
+    if not prefs.plugin_enabled:
+        return
+    selected_nodes = nuke.selectedNodes()
+    if not selected_nodes:
+        return
+    first_selected_node = selected_nodes[0]
+    if not is_anchor(first_selected_node):
+        return
+    _save_dag_position()
+    navigate_to_anchor(first_selected_node)
+
+
 def navigate_to_backdrop(backdrop_node):
     """Zoom the DAG to fit *backdrop_node*.
 
