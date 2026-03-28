@@ -609,7 +609,7 @@ class TestNavigateToAnchorZoom(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 class TestJumpToSelectedAnchor(unittest.TestCase):
-    """Tests for jump_to_selected_anchor() — navigates to selected anchor without popup."""
+    """Tests for jump_to_selected_anchor() — select a link, jump to its source anchor's tree."""
 
     def setUp(self):
         _ensure_qt_stubs_support_mock_attributes()
@@ -625,14 +625,26 @@ class TestJumpToSelectedAnchor(unittest.TestCase):
         import prefs as prefs_module
         prefs_module.plugin_enabled = True
 
+    def _make_link_node(self):
+        """Return a StubNode that acts as a link (has KNOB_NAME in knobs)."""
+        import nuke as nuke_stub
+        from constants import KNOB_NAME
+        knobs = {
+            'selected': nuke_stub.StubKnob(True),
+            KNOB_NAME: nuke_stub.StubKnob('root.ANCHOR_TestAnchor'),
+        }
+        return nuke_stub.StubNode(
+            name='Link1',
+            node_class='Dot',
+            knobs_dict=knobs,
+        )
+
     def _make_anchor_node(self):
-        """Return a MagicMock that acts as a selected anchor node."""
+        """Return a StubNode that acts as the source anchor."""
         import nuke as nuke_stub
         from constants import ANCHOR_PREFIX
         knobs = {
-            'selected': nuke_stub.StubKnob(True),
-            'label': nuke_stub.StubKnob('TestAnchor'),
-            'anchor': nuke_stub.StubKnob('anchor'),
+            'selected': nuke_stub.StubKnob(False),
         }
         return nuke_stub.StubNode(
             name=ANCHOR_PREFIX + 'TestAnchor',
@@ -640,8 +652,8 @@ class TestJumpToSelectedAnchor(unittest.TestCase):
             knobs_dict=knobs,
         )
 
-    def _make_non_anchor_node(self):
-        """Return a MagicMock acting as a selected non-anchor node (e.g. Merge)."""
+    def _make_non_link_node(self):
+        """Return a StubNode that is not a link (e.g. a Merge)."""
         import nuke as nuke_stub
         knobs = {
             'selected': nuke_stub.StubKnob(True),
@@ -652,22 +664,24 @@ class TestJumpToSelectedAnchor(unittest.TestCase):
             knobs_dict=knobs,
         )
 
-    def test_saves_position_then_navigates_when_anchor_selected(self):
-        """jump_to_selected_anchor calls _save_dag_position then navigate_to_anchor for selected anchor."""
+    def test_saves_position_then_navigates_to_source_anchor(self):
+        """jump_to_selected_anchor finds source anchor from link and navigates to it."""
         import nuke as nuke_stub
-        anchor_node = self._make_anchor_node()
-        nuke_stub.selectedNodes.return_value = [anchor_node]
+        link_node = self._make_link_node()
+        source_anchor = self._make_anchor_node()
+        nuke_stub.selectedNodes.return_value = [link_node]
 
         call_order = []
 
         with patch.object(anchor, '_save_dag_position', side_effect=lambda: call_order.append('save')), \
              patch.object(anchor, 'navigate_to_anchor', side_effect=lambda node: call_order.append('navigate')) as mock_navigate, \
-             patch('anchor.is_anchor', return_value=True):
+             patch('anchor.is_link', return_value=True), \
+             patch('anchor.find_anchor_node', return_value=source_anchor):
             anchor.jump_to_selected_anchor()
 
         self.assertEqual(call_order, ['save', 'navigate'],
                          "_save_dag_position must be called before navigate_to_anchor")
-        mock_navigate.assert_called_once_with(anchor_node)
+        mock_navigate.assert_called_once_with(source_anchor)
 
     def test_noop_when_no_nodes_selected(self):
         """jump_to_selected_anchor is a silent no-op when selectedNodes returns empty list."""
@@ -681,15 +695,30 @@ class TestJumpToSelectedAnchor(unittest.TestCase):
         mock_save.assert_not_called()
         mock_navigate.assert_not_called()
 
-    def test_noop_when_selected_node_is_not_anchor(self):
-        """jump_to_selected_anchor is a silent no-op when selected node is not an anchor."""
+    def test_noop_when_selected_node_is_not_link(self):
+        """jump_to_selected_anchor is a silent no-op when selected node is not a link."""
         import nuke as nuke_stub
-        non_anchor_node = self._make_non_anchor_node()
-        nuke_stub.selectedNodes.return_value = [non_anchor_node]
+        non_link_node = self._make_non_link_node()
+        nuke_stub.selectedNodes.return_value = [non_link_node]
 
         with patch.object(anchor, '_save_dag_position') as mock_save, \
              patch.object(anchor, 'navigate_to_anchor') as mock_navigate, \
-             patch('anchor.is_anchor', return_value=False):
+             patch('anchor.is_link', return_value=False):
+            anchor.jump_to_selected_anchor()
+
+        mock_save.assert_not_called()
+        mock_navigate.assert_not_called()
+
+    def test_noop_when_anchor_not_found(self):
+        """jump_to_selected_anchor is a silent no-op when find_anchor_node returns None."""
+        import nuke as nuke_stub
+        link_node = self._make_link_node()
+        nuke_stub.selectedNodes.return_value = [link_node]
+
+        with patch.object(anchor, '_save_dag_position') as mock_save, \
+             patch.object(anchor, 'navigate_to_anchor') as mock_navigate, \
+             patch('anchor.is_link', return_value=True), \
+             patch('anchor.find_anchor_node', return_value=None):
             anchor.jump_to_selected_anchor()
 
         mock_save.assert_not_called()
@@ -699,8 +728,8 @@ class TestJumpToSelectedAnchor(unittest.TestCase):
         """jump_to_selected_anchor is a silent no-op when prefs.plugin_enabled is False."""
         import nuke as nuke_stub
         import prefs as prefs_module
-        anchor_node = self._make_anchor_node()
-        nuke_stub.selectedNodes.return_value = [anchor_node]
+        link_node = self._make_link_node()
+        nuke_stub.selectedNodes.return_value = [link_node]
         prefs_module.plugin_enabled = False
 
         with patch.object(anchor, '_save_dag_position') as mock_save, \
@@ -711,20 +740,20 @@ class TestJumpToSelectedAnchor(unittest.TestCase):
         mock_navigate.assert_not_called()
 
     def test_navigate_back_restores_position_after_jump(self):
-        """After jump_to_selected_anchor, navigate_back restores the saved position (integration)."""
+        """After jump_to_selected_anchor, navigate_back restores the saved position."""
         import nuke as nuke_stub
-        anchor_node = self._make_anchor_node()
-        nuke_stub.selectedNodes.return_value = [anchor_node]
+        link_node = self._make_link_node()
+        source_anchor = self._make_anchor_node()
+        nuke_stub.selectedNodes.return_value = [link_node]
 
-        # Set up viewport state before jump
         nuke_stub.zoom.return_value = 3.5
         nuke_stub.center.return_value = [100.0, 200.0]
 
         with patch.object(anchor, 'navigate_to_anchor'), \
-             patch('anchor.is_anchor', return_value=True):
+             patch('anchor.is_link', return_value=True), \
+             patch('anchor.find_anchor_node', return_value=source_anchor):
             anchor.jump_to_selected_anchor()
 
-        # navigate_back should restore the pre-jump position
         saved_position = anchor._back_position
         self.assertIsNotNone(saved_position,
                              "_back_position must be set by jump_to_selected_anchor")

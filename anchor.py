@@ -34,6 +34,7 @@ from constants import (
     NODE_LABEL_FONT_SIZE_LARGE,
 )
 from link import (
+    find_anchor_node,
     find_node_color,
     find_smallest_containing_backdrop,
     get_fully_qualified_node_name,
@@ -638,13 +639,14 @@ def navigate_back():
 
 
 def jump_to_selected_anchor():
-    """Navigate directly to the selected anchor's upstream tree without a picker popup.
+    """Navigate to the source anchor's upstream tree for the selected link node.
 
     Saves the current DAG viewport first so Alt+Z (navigate_back) can return.
     Silent no-op when:
     - The plugin is disabled (prefs.plugin_enabled is False)
     - No nodes are currently selected
-    - The first selected node is not an anchor
+    - The first selected node is not a link
+    - The link's source anchor cannot be found
     """
     if not prefs.plugin_enabled:
         return
@@ -652,10 +654,13 @@ def jump_to_selected_anchor():
     if not selected_nodes:
         return
     first_selected_node = selected_nodes[0]
-    if not is_anchor(first_selected_node):
+    if not is_link(first_selected_node):
+        return
+    anchor_node = find_anchor_node(first_selected_node)
+    if anchor_node is None:
         return
     _save_dag_position()
-    navigate_to_anchor(first_selected_node)
+    navigate_to_anchor(anchor_node)
 
 
 def navigate_to_backdrop(backdrop_node):
