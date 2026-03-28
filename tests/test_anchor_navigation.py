@@ -848,8 +848,8 @@ class TestCycleNextLink(unittest.TestCase):
 
         self.assertEqual(anchor._cycle_link_index, 1)
 
-    def test_wraps_around_after_last_link(self):
-        """After visiting the last link, wraps back to the first."""
+    def test_returns_to_anchor_after_last_link(self):
+        """After visiting the last link, navigates back to the anchor and resets cycle."""
         import nuke as nuke_stub
         anchor_node = self._make_anchor_node()
         link_a = self._make_link_node(name='LinkA')
@@ -857,11 +857,14 @@ class TestCycleNextLink(unittest.TestCase):
         nuke_stub.selectedNodes.return_value = [anchor_node]
 
         with patch('anchor.is_anchor', return_value=True), \
-             patch('anchor.get_links_for_anchor', return_value=[link_a, link_b]):
+             patch('anchor.get_links_for_anchor', return_value=[link_a, link_b]), \
+             patch.object(anchor, 'navigate_back') as mock_back:
             anchor.cycle_next_link()  # index 0: LinkA
             anchor.cycle_next_link()  # index 1: LinkB
-            anchor.cycle_next_link()  # wraps to 0: LinkA
+            anchor.cycle_next_link()  # past end: navigate back
 
+        mock_back.assert_called_once()
+        self.assertIsNone(anchor._cycle_anchor_name)
         self.assertEqual(anchor._cycle_link_index, 0)
 
     def test_switching_anchor_resets_cycle(self):

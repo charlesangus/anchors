@@ -674,8 +674,8 @@ def cycle_next_link():
 
     On first invocation (or when the selected anchor changes), saves the DAG
     position, collects all links for the anchor sorted by name, and zooms to
-    the first one.  Each subsequent invocation advances to the next link,
-    wrapping around after the last.
+    the first one.  Each subsequent invocation advances to the next link.
+    After the last link, navigates back to the anchor and resets the cycle.
 
     Silent no-op when:
     - The plugin is disabled
@@ -705,7 +705,14 @@ def cycle_next_link():
         _cycle_link_index = 0
         _save_dag_position()
     else:
-        _cycle_link_index = (_cycle_link_index + 1) % len(_cycle_links)
+        _cycle_link_index += 1
+
+    if _cycle_link_index >= len(_cycle_links):
+        _cycle_anchor_name = None
+        _cycle_links = []
+        _cycle_link_index = 0
+        navigate_back()
+        return
 
     target_link = _cycle_links[_cycle_link_index]
     saved_selection = nuke.selectedNodes()
