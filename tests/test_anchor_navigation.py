@@ -489,5 +489,162 @@ class TestDotFontSizeAnchorGate(unittest.TestCase):
         self.assertTrue(anchor_is_anchor(noop_node))
 
 
+# ---------------------------------------------------------------------------
+# NAV-ZOOM-FIX: TestNavigateToAnchorZoom
+# ---------------------------------------------------------------------------
+
+class TestNavigateToAnchorZoom(unittest.TestCase):
+    """Tests for bounding-box-aware zoom in navigate_to_anchor().
+
+    navigate_to_anchor() must compute a zoom level that fits the entire
+    upstream tree bounding box rather than hardcoding zoom=1.0.
+
+    StubNode.screenWidth() == 100, StubNode.screenHeight() == 50.
+    """
+
+    def setUp(self):
+        _ensure_qt_stubs_support_mock_attributes()
+        importlib.reload(anchor)
+        import nuke as nuke_stub
+        nuke_stub.zoom.reset_mock()
+        nuke_stub.zoom.return_value = 1.0
+        import nukescripts
+        nukescripts.clear_selection_recursive.reset_mock()
+
+    def _make_anchor_node(self, xpos=0, ypos=0):
+        """Return a StubNode acting as an anchor with a 'selected' knob."""
+        import nuke as nuke_stub
+        from constants import ANCHOR_PREFIX
+        knobs = {
+            'selected': nuke_stub.StubKnob(False),
+            'label': nuke_stub.StubKnob('TestAnchor'),
+            'anchor': nuke_stub.StubKnob('anchor'),
+        }
+        return nuke_stub.StubNode(
+            name=ANCHOR_PREFIX + 'TestAnchor',
+            node_class='NoOp',
+            xpos=xpos,
+            ypos=ypos,
+            knobs_dict=knobs,
+        )
+
+    def _make_upstream_node(self, xpos=0, ypos=0):
+        """Return a StubNode acting as an upstream node with a 'selected' knob."""
+        import nuke as nuke_stub
+        knobs = {
+            'selected': nuke_stub.StubKnob(False),
+        }
+        return nuke_stub.StubNode(
+            name='UpstreamNode',
+            node_class='NoOp',
+            xpos=xpos,
+            ypos=ypos,
+            knobs_dict=knobs,
+        )
+
+    def _get_zoom_call_args(self):
+        """Return (zoom_level, center) from the last nuke.zoom() call."""
+        import nuke as nuke_stub
+        self.assertTrue(nuke_stub.zoom.called, "nuke.zoom was never called")
+        # nuke.zoom is called multiple times (once per test); get the last call.
+        call_args = nuke_stub.zoom.call_args
+        return call_args[0][0], call_args[0][1]
+
+    def test_single_node_no_upstream_zoom_is_1(self):
+        """Single anchor node with empty upstream set — zoom should be 1.0 (tree fits)."""
+        anchor_node = self._make_anchor_node(xpos=0, ypos=0)
+
+        with patch('util.upstream_ignoring_hidden', return_value=set()):
+            anchor.navigate_to_anchor(anchor_node)
+
+        zoom_level, _center = self._get_zoom_call_args()
+        self.assertAlmostEqual(zoom_level, 1.0, places=5,
+                               msg="Single node: zoom must be 1.0 (no over-zoom)")
+
+    def test_wide_upstream_tree_zoom_is_less_than_1(self):
+        """Anchor with upstream nodes spread 3000+ DAG units wide — zoom < 1.0."""
+        anchor_node = self._make_anchor_node(xpos=0, ypos=0)
+        left_node = self._make_upstream_node(xpos=-1500, ypos=0)
+        right_node = self._make_upstream_node(xpos=1500, ypos=0)
+        upstream_set = {left_node, right_node}
+
+        with patch('util.upstream_ignoring_hidden', return_value=upstream_set):
+            anchor.navigate_to_anchor(anchor_node)
+
+        zoom_level, _center = self._get_zoom_call_args()
+        self.assertLess(zoom_level, 1.0,
+                        msg="Wide tree (3100 DAG units): zoom must be < 1.0")
+
+    def test_tall_upstream_tree_zoom_is_less_than_1(self):
+        """Anchor with upstream nodes spread 2000+ DAG units tall — zoom < 1.0."""
+        anchor_node = self._make_anchor_node(xpos=0, ypos=0)
+        top_node = self._make_upstream_node(xpos=0, ypos=-1000)
+        bottom_node = self._make_upstream_node(xpos=0, ypos=1000)
+        upstream_set = {top_node, bottom_node}
+
+        with patch('util.upstream_ignoring_hidden', return_value=upstream_set):
+            anchor.navigate_to_anchor(anchor_node)
+
+        zoom_level, _center = self._get_zoom_call_args()
+        self.assertLess(zoom_level, 1.0,
+                        msg="Tall tree (2050 DAG units): zoom must be < 1.0")
+
+    def test_tight_cluster_zoom_capped_at_1(self):
+        """Anchor with upstream nodes in a tight cluster — zoom capped at 1.0 (no over-zoom)."""
+        anchor_node = self._make_anchor_node(xpos=0, ypos=0)
+        near_node = self._make_upstream_node(xpos=50, ypos=0)
+        nearby_node = self._make_upstream_node(xpos=100, ypos=0)
+        upstream_set = {near_node, nearby_node}
+
+        with patch('util.upstream_ignoring_hidden', return_value=upstream_set):
+            anchor.navigate_to_anchor(anchor_node)
+
+        zoom_level, _center = self._get_zoom_call_args()
+        self.assertAlmostEqual(zoom_level, 1.0, places=5,
+                               msg="Tight cluster (small bbox): zoom must be capped at 1.0")
+
+    def test_zoom_proportional_to_bounding_box_wider_spread_lower_zoom(self):
+        """Wider bounding box produces lower zoom level than narrower bounding box."""
+        anchor_node_narrow = self._make_anchor_node(xpos=0, ypos=0)
+        narrow_upstream = self._make_upstream_node(xpos=200, ypos=0)
+
+        anchor_node_wide = self._make_anchor_node(xpos=0, ypos=0)
+        wide_upstream_left = self._make_upstream_node(xpos=-1500, ypos=0)
+        wide_upstream_right = self._make_upstream_node(xpos=1500, ypos=0)
+
+        import nuke as nuke_stub
+
+        with patch('util.upstream_ignoring_hidden', return_value={narrow_upstream}):
+            anchor.navigate_to_anchor(anchor_node_narrow)
+        narrow_zoom = nuke_stub.zoom.call_args[0][0]
+
+        nuke_stub.zoom.reset_mock()
+
+        with patch('util.upstream_ignoring_hidden', return_value={wide_upstream_left, wide_upstream_right}):
+            anchor.navigate_to_anchor(anchor_node_wide)
+        wide_zoom = nuke_stub.zoom.call_args[0][0]
+
+        self.assertLess(wide_zoom, narrow_zoom,
+                        msg="Wider bounding box must produce lower zoom than narrower bounding box")
+
+    def test_center_is_centroid_of_all_nodes_to_fit(self):
+        """Center passed to nuke.zoom is the centroid of all nodes_to_fit (unchanged behavior)."""
+        # anchor at (0, 0), upstream at (200, 100)
+        # screenWidth=100, screenHeight=50
+        # centroid_x = ((0 + 50) + (200 + 50)) / 2 = 150.0
+        # centroid_y = ((0 + 25) + (100 + 25)) / 2 = 75.0
+        anchor_node = self._make_anchor_node(xpos=0, ypos=0)
+        upstream_node = self._make_upstream_node(xpos=200, ypos=100)
+
+        with patch('util.upstream_ignoring_hidden', return_value={upstream_node}):
+            anchor.navigate_to_anchor(anchor_node)
+
+        _zoom_level, center = self._get_zoom_call_args()
+        self.assertAlmostEqual(center[0], 150.0, places=4,
+                               msg="Centroid x must be (50 + 250) / 2 = 150.0")
+        self.assertAlmostEqual(center[1], 75.0, places=4,
+                               msg="Centroid y must be (25 + 125) / 2 = 75.0")
+
+
 if __name__ == '__main__':
     unittest.main()
