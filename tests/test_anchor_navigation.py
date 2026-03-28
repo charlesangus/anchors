@@ -762,5 +762,185 @@ class TestJumpToSelectedAnchor(unittest.TestCase):
         self.assertEqual(saved_center, [100.0, 200.0])
 
 
+# ---------------------------------------------------------------------------
+# CYCLE-LINKS: cycle_next_link()
+# ---------------------------------------------------------------------------
+
+class TestCycleNextLink(unittest.TestCase):
+    """Tests for cycle_next_link() — cycle through link nodes referencing an anchor."""
+
+    def setUp(self):
+        _ensure_qt_stubs_support_mock_attributes()
+        importlib.reload(anchor)
+        anchor._back_position = None
+        anchor._cycle_anchor_name = None
+        anchor._cycle_links = []
+        anchor._cycle_link_index = 0
+        import nuke as nuke_stub
+        nuke_stub.zoom.reset_mock()
+        nuke_stub.zoom.return_value = 1.0
+        nuke_stub.center.reset_mock()
+        nuke_stub.center.return_value = [0.0, 0.0]
+        nuke_stub.selectedNodes.reset_mock()
+        nuke_stub.selectedNodes.return_value = []
+        nuke_stub.zoomToFitSelected.reset_mock()
+        import prefs as prefs_module
+        prefs_module.plugin_enabled = True
+
+    def _make_anchor_node(self, name='ANCHOR_TestAnchor'):
+        import nuke as nuke_stub
+        from constants import ANCHOR_PREFIX
+        knobs = {
+            'selected': nuke_stub.StubKnob(True),
+            'label': nuke_stub.StubKnob('TestAnchor'),
+            'anchor': nuke_stub.StubKnob('anchor'),
+        }
+        return nuke_stub.StubNode(
+            name=name,
+            node_class='NoOp',
+            knobs_dict=knobs,
+        )
+
+    def _make_link_node(self, name='Link1'):
+        import nuke as nuke_stub
+        from constants import KNOB_NAME
+        knobs = {
+            'selected': nuke_stub.StubKnob(False),
+            KNOB_NAME: nuke_stub.StubKnob('root.ANCHOR_TestAnchor'),
+        }
+        return nuke_stub.StubNode(
+            name=name,
+            node_class='Dot',
+            knobs_dict=knobs,
+        )
+
+    def test_first_invocation_saves_position_and_zooms_to_first_link(self):
+        """First call saves DAG position and zooms to first link."""
+        import nuke as nuke_stub
+        anchor_node = self._make_anchor_node()
+        link_a = self._make_link_node(name='LinkA')
+        link_b = self._make_link_node(name='LinkB')
+        nuke_stub.selectedNodes.return_value = [anchor_node]
+        nuke_stub.zoom.return_value = 2.0
+        nuke_stub.center.return_value = [50.0, 50.0]
+
+        with patch('anchor.is_anchor', return_value=True), \
+             patch('anchor.get_links_for_anchor', return_value=[link_b, link_a]):
+            anchor.cycle_next_link()
+
+        self.assertIsNotNone(anchor._back_position)
+        nuke_stub.zoomToFitSelected.assert_called_once()
+        # Should zoom to first link alphabetically (LinkA)
+        self.assertTrue(link_a['selected'].value())
+
+    def test_subsequent_invocation_advances_to_next_link(self):
+        """Second call zooms to the second link."""
+        import nuke as nuke_stub
+        anchor_node = self._make_anchor_node()
+        link_a = self._make_link_node(name='LinkA')
+        link_b = self._make_link_node(name='LinkB')
+        nuke_stub.selectedNodes.return_value = [anchor_node]
+
+        with patch('anchor.is_anchor', return_value=True), \
+             patch('anchor.get_links_for_anchor', return_value=[link_b, link_a]):
+            anchor.cycle_next_link()  # first: LinkA
+            anchor.cycle_next_link()  # second: LinkB
+
+        self.assertEqual(anchor._cycle_link_index, 1)
+
+    def test_wraps_around_after_last_link(self):
+        """After visiting the last link, wraps back to the first."""
+        import nuke as nuke_stub
+        anchor_node = self._make_anchor_node()
+        link_a = self._make_link_node(name='LinkA')
+        link_b = self._make_link_node(name='LinkB')
+        nuke_stub.selectedNodes.return_value = [anchor_node]
+
+        with patch('anchor.is_anchor', return_value=True), \
+             patch('anchor.get_links_for_anchor', return_value=[link_a, link_b]):
+            anchor.cycle_next_link()  # index 0: LinkA
+            anchor.cycle_next_link()  # index 1: LinkB
+            anchor.cycle_next_link()  # wraps to 0: LinkA
+
+        self.assertEqual(anchor._cycle_link_index, 0)
+
+    def test_switching_anchor_resets_cycle(self):
+        """Selecting a different anchor resets the cycle and saves position again."""
+        import nuke as nuke_stub
+        anchor_a = self._make_anchor_node(name='ANCHOR_A')
+        anchor_b = self._make_anchor_node(name='ANCHOR_B')
+        link_a = self._make_link_node(name='LinkA')
+        link_b = self._make_link_node(name='LinkB')
+
+        nuke_stub.selectedNodes.return_value = [anchor_a]
+        with patch('anchor.is_anchor', return_value=True), \
+             patch('anchor.get_links_for_anchor', return_value=[link_a]):
+            anchor.cycle_next_link()
+
+        self.assertEqual(anchor._cycle_anchor_name, 'ANCHOR_A')
+
+        nuke_stub.selectedNodes.return_value = [anchor_b]
+        with patch('anchor.is_anchor', return_value=True), \
+             patch('anchor.get_links_for_anchor', return_value=[link_b]):
+            anchor.cycle_next_link()
+
+        self.assertEqual(anchor._cycle_anchor_name, 'ANCHOR_B')
+        self.assertEqual(anchor._cycle_link_index, 0)
+
+    def test_noop_when_no_links_exist(self):
+        """No-op when anchor has no link nodes."""
+        import nuke as nuke_stub
+        anchor_node = self._make_anchor_node()
+        nuke_stub.selectedNodes.return_value = [anchor_node]
+
+        with patch('anchor.is_anchor', return_value=True), \
+             patch('anchor.get_links_for_anchor', return_value=[]):
+            anchor.cycle_next_link()
+
+        nuke_stub.zoomToFitSelected.assert_not_called()
+
+    def test_noop_when_not_anchor(self):
+        """No-op when selected node is not an anchor."""
+        import nuke as nuke_stub
+        non_anchor = self._make_link_node(name='SomeLink')
+        nuke_stub.selectedNodes.return_value = [non_anchor]
+
+        with patch('anchor.is_anchor', return_value=False):
+            anchor.cycle_next_link()
+
+        nuke_stub.zoomToFitSelected.assert_not_called()
+
+    def test_noop_when_plugin_disabled(self):
+        """No-op when plugin is disabled."""
+        import nuke as nuke_stub
+        import prefs as prefs_module
+        prefs_module.plugin_enabled = False
+        anchor_node = self._make_anchor_node()
+        nuke_stub.selectedNodes.return_value = [anchor_node]
+
+        anchor.cycle_next_link()
+
+        nuke_stub.zoomToFitSelected.assert_not_called()
+
+    def test_saves_position_only_on_first_invocation(self):
+        """DAG position is saved only when starting a new cycle, not on subsequent calls."""
+        import nuke as nuke_stub
+        anchor_node = self._make_anchor_node()
+        link_a = self._make_link_node(name='LinkA')
+        link_b = self._make_link_node(name='LinkB')
+        nuke_stub.selectedNodes.return_value = [anchor_node]
+
+        save_call_count = []
+
+        with patch('anchor.is_anchor', return_value=True), \
+             patch('anchor.get_links_for_anchor', return_value=[link_a, link_b]), \
+             patch.object(anchor, '_save_dag_position', side_effect=lambda: save_call_count.append(1)):
+            anchor.cycle_next_link()  # first: saves
+            anchor.cycle_next_link()  # second: does not save
+
+        self.assertEqual(len(save_call_count), 1,
+                         "_save_dag_position should only be called once per cycle start")
+
+
 if __name__ == '__main__':
     unittest.main()

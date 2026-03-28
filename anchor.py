@@ -663,6 +663,60 @@ def jump_to_selected_anchor():
     navigate_to_anchor(anchor_node)
 
 
+# --- Cycle-through-links state ---
+_cycle_anchor_name = None
+_cycle_links = []
+_cycle_link_index = 0
+
+
+def cycle_next_link():
+    """Navigate to the next link node referencing the selected anchor.
+
+    On first invocation (or when the selected anchor changes), saves the DAG
+    position, collects all links for the anchor sorted by name, and zooms to
+    the first one.  Each subsequent invocation advances to the next link,
+    wrapping around after the last.
+
+    Silent no-op when:
+    - The plugin is disabled
+    - No nodes are selected
+    - The selected node is not an anchor
+    - The anchor has no link nodes
+    """
+    global _cycle_anchor_name, _cycle_links, _cycle_link_index
+
+    if not prefs.plugin_enabled:
+        return
+    selected_nodes = nuke.selectedNodes()
+    if not selected_nodes:
+        return
+    first_selected_node = selected_nodes[0]
+    if not is_anchor(first_selected_node):
+        return
+
+    anchor_name = first_selected_node.name()
+    links = sorted(get_links_for_anchor(first_selected_node), key=lambda n: n.name())
+    if not links:
+        return
+
+    if anchor_name != _cycle_anchor_name or links != _cycle_links:
+        _cycle_anchor_name = anchor_name
+        _cycle_links = links
+        _cycle_link_index = 0
+        _save_dag_position()
+    else:
+        _cycle_link_index = (_cycle_link_index + 1) % len(_cycle_links)
+
+    target_link = _cycle_links[_cycle_link_index]
+    saved_selection = nuke.selectedNodes()
+    nukescripts.clear_selection_recursive()
+    target_link["selected"].setValue(True)
+    nuke.zoomToFitSelected()
+    nukescripts.clear_selection_recursive()
+    for node in saved_selection:
+        node["selected"].setValue(True)
+
+
 def navigate_to_backdrop(backdrop_node):
     """Zoom the DAG to fit *backdrop_node*.
 

@@ -60,5 +60,6 @@ v1.4: [██████████] 100%  2/2 phases  5/5 plans
 | 260327-d2z | fix cross-script anchor FQNN not updated after paste (GitHub issue #5) | 2026-03-27 | 98de072 | Complete | [260327-d2z-fix-open-issue](./quick/260327-d2z-fix-open-issue/) |
 | 260328-54q | fix navigate_to_anchor zoom to fit upstream tree bounding box | 2026-03-28 | 4bdd320 | Complete | [260328-54q-navigation-is-not-correctly-zooming-to-t](./quick/260328-54q-navigation-is-not-correctly-zooming-to-t/) |
 | 260328-6mn | add jump_to_selected_anchor (Alt+J) for direct anchor navigation | 2026-03-28 | 050e7e3 | Complete | [260328-6mn-add-jump-to-anchor-command-using-selecte](./quick/260328-6mn-add-jump-to-anchor-command-using-selecte/) |
+| 260328-7uv | add cycle_next_link (Alt+L) to visit each link for an anchor one by one | 2026-03-28 | | Complete | [260328-7uv-navigate-to-each-link-node-pointing-to-a](./quick/260328-7uv-navigate-to-each-link-node-pointing-to-a/) |
 
-Last activity: 2026-03-28 - quick task 260328-6mn: jump_to_selected_anchor with Alt+J shortcut; 211 tests pass
+Last activity: 2026-03-28 - quick task 260328-7uv: cycle_next_link with Alt+L shortcut; 220 tests pass

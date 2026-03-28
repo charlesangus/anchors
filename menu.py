@@ -51,6 +51,7 @@ _add_gated_command(anchors_menu, "Anchor",              "anchor.anchor_shortcut(
 _add_gated_command(anchors_menu, "Reconnect All Links", "anchor.reconnect_all_links()")
 _add_gated_command(anchors_menu, "Anchor Find", "anchor.select_anchor_and_navigate()", "alt+A")
 _add_gated_command(anchors_menu, "Anchor Jump", "anchor.jump_to_selected_anchor()", "alt+J")
+_add_gated_command(anchors_menu, "Cycle Links", "anchor.cycle_next_link()", "alt+L")
 _add_gated_command(anchors_menu, "Anchor Back", "anchor.navigate_back()", "alt+Z")
 
 anchors_menu.addSeparator()
