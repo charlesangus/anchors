@@ -652,62 +652,22 @@ def navigate_to_backdrop(backdrop_node):
     nukescripts.clear_selection_recursive()
 
 
-# Reference viewport dimensions (DAG units visible at zoom=1.0).
-# These represent a conservative estimate of a typical Nuke DAG panel size
-# so that the bounding-box zoom calculation scales correctly.
-_DAG_REFERENCE_WIDTH = 1200
-_DAG_REFERENCE_HEIGHT = 800
-
-# Padding factor: usable viewport area is this fraction of the reference size.
-# A value of 0.8 leaves 10% margin on each side so nodes are not flush with
-# the viewport edge after zooming.
-_DAG_FIT_PADDING = 0.8
-
-
 def navigate_to_anchor(anchor_node):
-    """Zoom the DAG to fit *anchor_node* and its visible-path upstream nodes.
-
-    Uses nuke.zoom() rather than nuke.zoomToFitSelected() so that the
-    currently focused DAG panel (which may be a Group's internal panel)
-    is targeted instead of always zooming the root DAG.
-
-    The zoom level is computed from the bounding box of all nodes_to_fit so
-    that the entire upstream tree is visible.  Zoom is capped at 1.0 to
-    prevent over-zooming on small trees.
-    """
+    """Zoom the DAG to frame *anchor_node* and its visible-path upstream nodes."""
     from util import upstream_ignoring_hidden
     upstream_nodes = upstream_ignoring_hidden(anchor_node) or set()
     nodes_to_fit = upstream_nodes | {anchor_node}
 
+    saved_selection = nuke.selectedNodes()
     nukescripts.clear_selection_recursive()
     for node in nodes_to_fit:
         node["selected"].setValue(True)
 
-    # --- Bounding box ---
-    bounding_box_min_x = min(n.xpos() for n in nodes_to_fit)
-    bounding_box_max_x = max(n.xpos() + n.screenWidth() for n in nodes_to_fit)
-    bounding_box_min_y = min(n.ypos() for n in nodes_to_fit)
-    bounding_box_max_y = max(n.ypos() + n.screenHeight() for n in nodes_to_fit)
+    nuke.zoomToFitSelected()
 
-    bounding_box_width = bounding_box_max_x - bounding_box_min_x
-    bounding_box_height = bounding_box_max_y - bounding_box_min_y
-
-    # --- Zoom to fit ---
-    usable_viewport_width = _DAG_REFERENCE_WIDTH * _DAG_FIT_PADDING
-    usable_viewport_height = _DAG_REFERENCE_HEIGHT * _DAG_FIT_PADDING
-
-    zoom_to_fit_width = usable_viewport_width / max(bounding_box_width, 1)
-    zoom_to_fit_height = usable_viewport_height / max(bounding_box_height, 1)
-
-    # Cap at 1.0 so we never over-zoom a small tree.
-    zoom_level = min(1.0, zoom_to_fit_width, zoom_to_fit_height)
-
-    # --- Centroid (unchanged) ---
-    center_x = sum(n.xpos() + n.screenWidth() // 2 for n in nodes_to_fit) / len(nodes_to_fit)
-    center_y = sum(n.ypos() + n.screenHeight() // 2 for n in nodes_to_fit) / len(nodes_to_fit)
-
-    nuke.zoom(zoom_level, [center_x, center_y])
     nukescripts.clear_selection_recursive()
+    for node in saved_selection:
+        node["selected"].setValue(True)
 
 
 class AnchorNavigatePlugin(_tabtabtab.TabTabTabPlugin):
