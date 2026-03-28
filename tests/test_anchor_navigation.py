@@ -899,6 +899,15 @@ class TestCycleNextLink(unittest.TestCase):
 
         nuke_stub.zoomToFitSelected.assert_not_called()
 
+    def test_noop_when_no_selection(self):
+        """No-op when no nodes are selected."""
+        import nuke as nuke_stub
+        nuke_stub.selectedNodes.return_value = []
+
+        anchor.cycle_next_link()
+
+        nuke_stub.zoomToFitSelected.assert_not_called()
+
     def test_noop_when_not_anchor(self):
         """No-op when selected node is not an anchor."""
         import nuke as nuke_stub
