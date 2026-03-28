@@ -31,7 +31,7 @@ jobs:
         run: |
           mkdir anchors
           cp anchor.py anchors.py colors.py constants.py labels.py link.py \
-             menu.py prefs.py tabtabtab.py util.py \
+             menu.py prefs.py tabtabtab_anchors.py util.py \
              README.md LICENSE \
              anchors/
           zip -r "anchors-${GITHUB_REF_NAME}.zip" anchors/
