@@ -58,5 +58,6 @@ v1.4: [██████████] 100%  2/2 phases  5/5 plans
 | 260318-r7o | add Default Colour swatch to ColorPaletteDialog create/rename flows | 2026-03-19 | e654c3f | Verified | [260318-r7o-in-the-anchor-create-rename-popup-add-a-](./quick/260318-r7o-in-the-anchor-create-rename-popup-add-a-/) |
 | 260318-uf4 | gate Dot anchor detection on font size < 33, add Label (Small) command | 2026-03-19 | 605a4a3 | Verified | [260318-uf4-dots-should-not-be-considered-for-naviga](./quick/260318-uf4-dots-should-not-be-considered-for-naviga/) |
 | 260327-d2z | fix cross-script anchor FQNN not updated after paste (GitHub issue #5) | 2026-03-27 | 98de072 | Complete | [260327-d2z-fix-open-issue](./quick/260327-d2z-fix-open-issue/) |
+| 260328-54q | fix navigate_to_anchor zoom to fit upstream tree bounding box | 2026-03-28 | 4bdd320 | Complete | [260328-54q-navigation-is-not-correctly-zooming-to-t](./quick/260328-54q-navigation-is-not-correctly-zooming-to-t/) |
 
-Last activity: 2026-03-27 - quick task 260327-d2z: fixed GitHub issue #5 — anchor FQNN rewritten to destination script stem on cross-script paste; 202 tests pass
+Last activity: 2026-03-28 - quick task 260328-54q: bounding-box-aware zoom in navigate_to_anchor; 208 tests pass
