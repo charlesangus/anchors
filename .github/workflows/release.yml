@@ -34,6 +34,7 @@ jobs:
              menu.py prefs.py tabtabtab_anchors.py util.py \
              README.md LICENSE \
              anchors/
+          touch "anchors/${GITHUB_REF_NAME}"
           zip -r "anchors-${GITHUB_REF_NAME}.zip" anchors/
 
       - name: Publish GitHub Release
