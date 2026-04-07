@@ -71,6 +71,32 @@ Full archive: `.planning/milestones/v1.4-ROADMAP.md`
 
 </details>
 
+## v1.5 Bug Fixes
+
+- [ ] Phase 20: Fix Issue #6 — Alt-J/Alt-L Navigation Reliability
+
+### Phase 20: Fix Issue #6 — Alt-J/Alt-L Navigation Reliability
+
+**Goal:** Make `jump_to_selected_anchor` (Alt+J) and `cycle_next_link` (Alt+L) work reliably in production scripts by applying QTimer deferral (same pattern as Alt+A) and fixing `get_links_for_anchor` to find links inside Group nodes.
+
+**Scope:**
+- Add QTimer deferral to `jump_to_selected_anchor`, the inline zoom in `cycle_next_link`, and `navigate_back` in `anchor.py` — mirrors the fix already applied to `AnchorNavigatePlugin.invoke()`
+- Fix `get_links_for_anchor` in `anchor.py` to use `recurseGroups=True` so Alt+L finds links inside Groups
+- Add/update tests for deferred navigation and recurse-group link discovery
+
+**Out of scope:** Navigating into a Group's internal DAG to show a link (that's a separate feature; for now cycle_next_link will skip links inside Groups or navigate to the enclosing Group node)
+
+**Plans:** 1 plan
+
+Plans:
+- [ ] 20-01-PLAN.md — QTimer deferral for Alt+J/Alt+L/Alt+Z and recurseGroups fix for get_links_for_anchor
+
+**Requirements:**
+- REQ-20-01: `jump_to_selected_anchor` defers DAG viewport operations via `QTimer.singleShot(0, ...)`
+- REQ-20-02: `cycle_next_link` defers DAG viewport operations via `QTimer.singleShot(0, ...)`
+- REQ-20-03: `navigate_back` defers DAG viewport operations via `QTimer.singleShot(0, ...)`
+- REQ-20-04: `get_links_for_anchor` finds link nodes inside Group nodes
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -96,3 +122,4 @@ Full archive: `.planning/milestones/v1.4-ROADMAP.md`
 | 17. Public API | v1.3 | 2/2 | Complete | 2026-03-18 |
 | 18. Group Context Support | v1.4 | 4/4 | Complete | 2026-03-20 |
 | 19. Quick Start Documentation | v1.4 | 1/1 | Complete | 2026-03-20 |
+| 20. Fix Issue #6 — Alt-J/Alt-L Navigation Reliability | v1.5 | 0/1 | Planned | — |
