@@ -178,7 +178,7 @@ def set_anchor_color(anchor_node):
         return
     if anchor_node.Class() == 'Dot':
         return
-    current_color = anchor_node['tile_color'].value()
+    current_color = int(anchor_node['tile_color'].value()) or int(find_anchor_color(anchor_node))
     dialog = ColorPaletteDialog(
         initial_color=current_color,
         show_name_field=False,
