@@ -286,14 +286,7 @@ def rename_anchor_to(anchor_node, name, color=None):
 
 def rename_anchor(anchor_node):
     """Prompt the user for a new name (and optionally a new color) and rename the anchor."""
-    if anchor_node.Class() == 'Dot':
-        suggested = anchor_display_name(anchor_node)
-    else:
-        input_node = anchor_node.input(0)
-        suggested = (
-            suggest_anchor_name(input_node) if input_node is not None
-            else anchor_display_name(anchor_node)
-        )
+    suggested = anchor_display_name(anchor_node)
 
     if ColorPaletteDialog is None:
         # Qt unavailable — fall back to plain text input
