@@ -152,9 +152,15 @@ def paste_anchors():  # noqa: C901 — complexity is inherent: anchor/link/dot p
             return nuke.nodePaste(nukescripts.cut_paste_file())
     with nuke.lastHitGroup():
         last_pasted_node = nuke.nodePaste(nukescripts.cut_paste_file())
-        selected_nodes = nuke.selectedNodes()
+        # Snapshot the pasted nodes before the loop. We must not iterate over the live
+        # list while mutating it — doing so skips every other element (classic Python
+        # off-by-one when remove() shifts indices). GitHub #9.
+        nodes_to_process = list(nuke.selectedNodes())
+        # Build the final selection separately so replacements (link nodes) appear
+        # selected in place of the originals after the loop.
+        final_selection = list(nodes_to_process)
 
-        for node in selected_nodes:
+        for node in nodes_to_process:
             if KNOB_NAME not in node.knobs():
                 # we haven't stored any info on this node, do nothing
                 continue
@@ -188,8 +194,8 @@ def paste_anchors():  # noqa: C901 — complexity is inherent: anchor/link/dot p
                 link_node = nuke.createNode(get_link_class_for_source(input_node))
                 setup_link_node(input_node, link_node)
                 link_node.setXYpos(node.xpos(), node.ypos())
-                selected_nodes.remove(node)
-                selected_nodes.append(link_node)
+                final_selection.remove(node)
+                final_selection.append(link_node)
                 nuke.delete(node)
 
             elif node.Class() in HIDDEN_INPUT_CLASSES:
@@ -249,7 +255,7 @@ def paste_anchors():  # noqa: C901 — complexity is inherent: anchor/link/dot p
 
         # it's possible we changed selection, reset it
         nukescripts.clear_selection_recursive()
-        for node in selected_nodes:
+        for node in final_selection:
             node['selected'].setValue(True)
 
         # same return as nuke.nodePaste()

@@ -501,5 +501,96 @@ class TestCrossScriptFqnnUpdate(unittest.TestCase):
         )
 
 
+# ---------------------------------------------------------------------------
+# Regression test for GitHub issue #9 — only every other Read node replaced on paste
+# ---------------------------------------------------------------------------
+
+class TestMultipleReadNodePaste(unittest.TestCase):
+    """Regression tests for GitHub issue #9.
+
+    When multiple Read nodes (or other LINK_SOURCE_CLASSES nodes) are pasted at
+    once, ALL of them must be replaced by link nodes — not just every other one.
+
+    The bug was caused by iterating `for node in selected_nodes:` while calling
+    `selected_nodes.remove(node)` inside the loop, which shifted list indices and
+    caused the loop to skip every other element.
+    """
+
+    def _make_read_node(self, name, stored_fqnn, xpos=0, ypos=0):
+        """Return a stub Read node with KNOB_NAME set, simulating a copied read node."""
+        import nuke as _nuke
+        from constants import KNOB_NAME
+        return _nuke.StubNode(
+            name=name,
+            node_class='Read',
+            xpos=xpos,
+            ypos=ypos,
+            knobs_dict={
+                KNOB_NAME: _nuke.StubKnob(stored_fqnn),
+                'selected': _nuke.StubKnob(False),
+            },
+        )
+
+    def test_all_three_read_nodes_replaced_when_pasted_together(self):
+        """All three Read nodes must be replaced by link nodes in a single paste.
+
+        Before the fix, only nodes at even indices (0, 2) were processed — the
+        node at index 1 was skipped because remove() shifted the list mid-iteration.
+        """
+        import nuke as _nuke
+        from constants import KNOB_NAME
+
+        script_stem = 'myScript'
+        anchor_node = _nuke.StubNode(name='Anchor_Footage', node_class='NoOp')
+
+        read_nodes = [
+            self._make_read_node('Read1', f'{script_stem}.Anchor_Footage', xpos=0, ypos=0),
+            self._make_read_node('Read2', f'{script_stem}.Anchor_Footage', xpos=100, ypos=0),
+            self._make_read_node('Read3', f'{script_stem}.Anchor_Footage', xpos=200, ypos=0),
+        ]
+
+        created_link_nodes = []
+
+        def fake_create_node(node_class):
+            link_node = _nuke.StubNode(
+                name=f'NoOp_link_{len(created_link_nodes)}',
+                node_class=node_class,
+                knobs_dict={'selected': _nuke.StubKnob(False)},
+            )
+            created_link_nodes.append(link_node)
+            return link_node
+
+        deleted_nodes = []
+
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts') as mock_nukescripts, \
+             patch('anchors.find_anchor_node', return_value=anchor_node), \
+             patch('anchors.is_anchor', return_value=False), \
+             patch('anchors.get_link_class_for_source', return_value='NoOp'), \
+             patch('anchors.setup_link_node'):
+
+            mock_nuke.nodePaste.return_value = None
+            mock_nuke.selectedNodes.return_value = read_nodes
+            mock_nuke.createNode.side_effect = fake_create_node
+            mock_nuke.delete.side_effect = deleted_nodes.append
+            mock_nuke.root.return_value.name.return_value = f'{script_stem}.nk'
+
+            from anchors import paste_anchors
+            paste_anchors()
+
+        self.assertEqual(
+            len(deleted_nodes),
+            3,
+            f"Expected all 3 Read nodes to be deleted (replaced by link nodes) "
+            f"but only {len(deleted_nodes)} were deleted — "
+            f"every-other-node skip bug (GitHub #9) is present",
+        )
+        self.assertEqual(
+            len(created_link_nodes),
+            3,
+            f"Expected 3 link nodes to be created but got {len(created_link_nodes)}",
+        )
+
+
 if __name__ == '__main__':
     unittest.main()
