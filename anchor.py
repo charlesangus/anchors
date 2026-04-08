@@ -50,28 +50,59 @@ def sanitize_anchor_name(name):
     return re.sub(r'[^A-Za-z0-9_]', '_', name.strip())
 
 
+def _find_first_non_dot_input(node):
+    """Traverse input(0) upward through Dot nodes and return the first non-Dot node.
+
+    Returns None if the input chain runs out before a non-Dot node is found.
+    """
+    visited = set()
+    current = node.input(0)
+    while current is not None:
+        node_id = id(current)
+        if node_id in visited:
+            break  # Guard against cycles
+        visited.add(node_id)
+        if current.Class() != 'Dot':
+            return current
+        current = current.input(0)
+    return None
+
+
 def find_anchor_color(anchor):
     """Return the tile color an anchor should display.
 
     Priority:
-      1. Smallest BackdropNode containing the anchor — only when the anchor's
-         input is a Read node.
-      2. The anchor's input node color (with Preferences fallback).
+      1. Smallest BackdropNode containing the anchor — only when the effective
+         input (first non-Dot ancestor) is a Read node.
+      2. The effective input node color (with Preferences fallback).
       3. Hard-coded default purple if neither is available.
+
+    For unlabelled Dot inputs, traverses up to the first non-Dot node so that
+    the color reflects the actual source rather than an intermediate Dot.
     """
-    input_node = anchor.input(0)
+    direct_input = anchor.input(0)
+
+    # Resolve effective input: for unlabelled Dots, walk up to first non-Dot.
+    if direct_input is not None and direct_input.Class() == 'Dot':
+        dot_label = direct_input['label'].getValue().strip() if 'label' in direct_input.knobs() else ''
+        if not dot_label:
+            effective_input = _find_first_non_dot_input(direct_input)
+        else:
+            effective_input = direct_input
+    else:
+        effective_input = direct_input
 
     # --- 1. Backdrop color — only for Read nodes ---
-    if input_node is not None and input_node.Class() == 'Read':
+    if effective_input is not None and effective_input.Class() == 'Read':
         smallest = find_smallest_containing_backdrop(anchor)
         if smallest is not None:
             color = smallest['tile_color'].value()
             if color != 0:
                 return color
 
-    # --- 2. Attached input node color (with Preferences fallback) ---
-    if input_node is not None:
-        return find_node_color(input_node)
+    # --- 2. Effective input node color (with Preferences fallback) ---
+    if effective_input is not None:
+        return find_node_color(effective_input)
 
     # --- 3. Default anchor color ---
     return ANCHOR_DEFAULT_COLOR
@@ -191,8 +222,34 @@ _FRAME_TOKEN_PATTERN = re.compile(r'[._]?(?:%0?\d*d|#{1,}|%[Vv])')
 
 
 def suggest_anchor_name(input_node):
-    """Return a suggested anchor name based on the input node's file knob and backdrop context."""
+    """Return a suggested anchor name based on the input node's type and context.
+
+    Dot nodes are handled specially:
+    - Labelled Dot: the label is used as the name suggestion (plus backdrop prefix).
+    - Unlabelled Dot: delegates to the first non-Dot ancestor via
+      _find_first_non_dot_input(), or returns "" if the chain is empty.
+    All other nodes use the 'file' knob and backdrop context as before.
+    """
     import prefs
+
+    # --- Dot node: label or upstream delegation ---
+    if input_node.Class() == 'Dot':
+        dot_label = input_node['label'].getValue().strip() if 'label' in input_node.knobs() else ''
+        if dot_label:
+            # Labelled Dot: suggest the label, prefixed by containing backdrop if present.
+            smallest = find_smallest_containing_backdrop(input_node)
+            if smallest is not None:
+                backdrop_label = smallest['label'].getValue().strip()
+                if backdrop_label:
+                    return backdrop_label + '_' + dot_label
+            return dot_label
+        else:
+            # Unlabelled Dot: act as if the first non-Dot ancestor was the input.
+            effective_node = _find_first_non_dot_input(input_node)
+            if effective_node is None:
+                return ""
+            return suggest_anchor_name(effective_node)
+
     suggestion = ""
 
     if 'file' in input_node.knobs():
@@ -371,18 +428,30 @@ def create_anchor():
     # find_anchor_color() here because that function expects the anchor to already
     # exist and calls anchor.input(0) — passing input_node would instead examine
     # what is upstream *of* input_node.  Mirror the same priority logic directly:
-    #   1. Backdrop colour — only when input_node is a Read
-    #   2. Input node's own colour (tile_color with Preferences fallback)
+    #   1. Backdrop colour — only when effective input is a Read
+    #   2. Effective input node's own colour (tile_color with Preferences fallback)
     #   3. Hard-coded default purple
+    #
+    # For unlabelled Dot inputs, the effective node is the first non-Dot ancestor,
+    # so color derivation reflects the actual source.
     if input_node is not None:
-        if input_node.Class() == 'Read':
-            containing_backdrop = find_smallest_containing_backdrop(input_node)
+        if input_node.Class() == 'Dot':
+            dot_label = input_node['label'].getValue().strip() if 'label' in input_node.knobs() else ''
+            if not dot_label:
+                color_source_node = _find_first_non_dot_input(input_node) or input_node
+            else:
+                color_source_node = input_node
+        else:
+            color_source_node = input_node
+
+        if color_source_node.Class() == 'Read':
+            containing_backdrop = find_smallest_containing_backdrop(color_source_node)
             if containing_backdrop is not None and containing_backdrop['tile_color'].value() != 0:
                 pre_color = int(containing_backdrop['tile_color'].value())
             else:
-                pre_color = int(find_node_color(input_node))
+                pre_color = int(find_node_color(color_source_node))
         else:
-            pre_color = int(find_node_color(input_node))
+            pre_color = int(find_node_color(color_source_node))
     else:
         pre_color = ANCHOR_DEFAULT_COLOR
 
