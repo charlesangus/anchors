@@ -98,7 +98,7 @@ class TestPrefsFirstRunCreatesFile(unittest.TestCase):
                               "prefs file must contain link_classes_paste_mode key")
                 self.assertIn('custom_colors', data, "prefs file must contain custom_colors key")
                 self.assertEqual(data['plugin_enabled'], True)
-                self.assertEqual(data['link_classes_paste_mode'], 'create_link')
+                self.assertEqual(data['link_classes_paste_mode'], 'passthrough')
                 self.assertEqual(data['custom_colors'], [])
             finally:
                 constants.PREFS_PATH = original_prefs_path

@@ -18,7 +18,7 @@ from constants import OLD_PREFS_PATH, PREFS_PATH, USER_PALETTE_PATH
 # Defaults — overwritten by _load() at module import time
 # ---------------------------------------------------------------------------
 plugin_enabled = True
-link_classes_paste_mode = "create_link"
+link_classes_paste_mode = "passthrough"
 custom_colors = []
 naming_regex = ""
 naming_template = ""
