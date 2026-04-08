@@ -2237,6 +2237,94 @@ class TestColorPaletteDialogChosenNameCapturedOnAccept(unittest.TestCase):
         )
 
 
+# BUG-07 regression: swatch click must capture the user-typed name, not initial_name
+# ---------------------------------------------------------------------------
+# The original bug: _on_swatch_clicked called accept() without first writing
+# chosen_name, so the suggestion (initial_name) was used instead of the typed
+# name.  The fix (BUG-03 / commit 5c3f190) centralised capture in accept().
+# These tests verify the full _on_swatch_clicked → accept() → chosen_name chain.
+# ---------------------------------------------------------------------------
+
+class TestSwatchClickCapturesTypedName(unittest.TestCase):
+    """BUG-07: clicking a colour swatch must record the user-typed name, not the
+    initial suggestion, as the anchor name.
+    """
+
+    def setUp(self):
+        _ensure_qt_stubs_support_mock_attributes()
+        import importlib
+        import colors as colors_module
+        importlib.reload(colors_module)
+        self._swatch_clicked = _extract_method_from_source('_on_swatch_clicked')
+        # Use the super()-aware extractor so super().accept() is a no-op in tests.
+        self._accept = _extract_accept_method_from_source()
+
+    def _make_harness(self, initial_name, typed_name):
+        """Return a harness with real accept() and _name_edit returning typed_name."""
+        dialog = _PickerTestHarness()
+        # Replace mock accept with the real extracted implementation (super()-safe).
+        accept_method = self._accept
+        dialog.accept = lambda: accept_method(dialog)
+        dialog.chosen_name = initial_name
+        dialog._refresh_swatch_borders = MagicMock()
+        name_edit_mock = MagicMock()
+        name_edit_mock.text.return_value = typed_name
+        dialog._name_edit = name_edit_mock
+        return dialog
+
+    def test_swatch_click_captures_typed_name_not_suggestion(self):
+        """After the user types a name and clicks a swatch, chosen_name must equal
+        the typed name, not the original suggestion.
+        """
+        on_swatch_clicked = self._swatch_clicked
+        if on_swatch_clicked is None:
+            self.fail("_on_swatch_clicked not found in ColorPaletteDialog in colors.py")
+        if self._accept is None:
+            self.fail("accept() not found in ColorPaletteDialog in colors.py")
+
+        dialog = self._make_harness(initial_name="PLATES_Read1", typed_name="BG_Plate")
+        on_swatch_clicked(dialog, 0xFF0000FF)
+
+        self.assertEqual(
+            dialog.chosen_name,
+            "BG_Plate",
+            "swatch click must capture the typed name, not the initial suggestion"
+        )
+
+    def test_swatch_click_does_not_leave_initial_name_when_user_typed(self):
+        """chosen_name must not equal initial_name if the user typed something different."""
+        on_swatch_clicked = self._swatch_clicked
+        if on_swatch_clicked is None:
+            self.fail("_on_swatch_clicked not found in ColorPaletteDialog in colors.py")
+
+        dialog = self._make_harness(initial_name="Read1", typed_name="MyAnchor")
+        on_swatch_clicked(dialog, 0x00FF00FF)
+
+        self.assertNotEqual(
+            dialog.chosen_name,
+            "Read1",
+            "chosen_name must not remain as initial_name after swatch click when user typed"
+        )
+
+    def test_swatch_click_preserves_suggestion_when_user_did_not_type(self):
+        """If the user did not modify the name field, chosen_name should equal
+        the suggestion (initial_name), since that is what _name_edit.text() returns.
+        """
+        on_swatch_clicked = self._swatch_clicked
+        if on_swatch_clicked is None:
+            self.fail("_on_swatch_clicked not found in ColorPaletteDialog in colors.py")
+
+        suggestion = "PLATES_Read1"
+        dialog = self._make_harness(initial_name=suggestion, typed_name=suggestion)
+        on_swatch_clicked(dialog, 0x0000FFFF)
+
+        self.assertEqual(
+            dialog.chosen_name,
+            suggestion,
+            "chosen_name should equal the suggestion when user did not change the name field"
+        )
+
+
 class TestGetScriptBackdropColorsReturnsInts(unittest.TestCase):
     """_get_script_backdrop_colors() must return a list of ints, not floats.
 
