@@ -341,7 +341,7 @@ else:
 
 
         def _on_custom_color_clicked(self):
-            result = nuke.getColor()
+            result = nuke.getColor(self._selected_color or 0)
             if result == 0:
                 # nuke.getColor() returns 0 for both cancel and pure black;
                 # treat 0 as cancel (known Nuke API limitation).
