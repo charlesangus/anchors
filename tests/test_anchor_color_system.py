@@ -715,6 +715,31 @@ class TestColorPaletteDialogCustomColorStaging(unittest.TestCase):
 
         self.assertEqual(dialog._selected_color, 0x8800CCFF)
 
+    def test_on_custom_color_clicked_passes_int_to_nuke_get_color(self):
+        """_on_custom_color_clicked passes an int to nuke.getColor() even when _selected_color is a float.
+
+        In real Nuke, tile_color.value() can return a float. Passing that float directly to
+        nuke.getColor() causes it to silently ignore the argument and open at black. The method
+        must cast to int before calling nuke.getColor().
+        """
+        on_custom_color_clicked = self._get_method('_on_custom_color_clicked')
+
+        import nuke as nuke_stub
+        nuke_stub.getColor = MagicMock(return_value=0xFF0000FF)
+
+        # Simulate tile_color.value() returning a float (as real Nuke does)
+        dialog = _PickerTestHarness(initial_color=float(0x6f3399ff))
+        dialog._refresh_swatch_borders = MagicMock()
+        dialog._append_swatch_to_custom_group = MagicMock()
+
+        on_custom_color_clicked(dialog)
+
+        call_arg = nuke_stub.getColor.call_args[0][0]
+        self.assertIsInstance(call_arg, int,
+                              "nuke.getColor() must receive an int, not a float")
+        self.assertEqual(call_arg, 0x6f3399ff,
+                         "nuke.getColor() must be called with the int form of the selected color")
+
     def test_on_custom_color_clicked_returns_early_for_zero_result(self):
         """_on_custom_color_clicked does nothing when nuke.getColor() returns 0."""
         on_custom_color_clicked = self._get_method('_on_custom_color_clicked')
@@ -2210,6 +2235,106 @@ class TestColorPaletteDialogChosenNameCapturedOnAccept(unittest.TestCase):
             original_chosen_name,
             "chosen_name must not change when _name_edit is None"
         )
+
+
+class TestGetScriptBackdropColorsReturnsInts(unittest.TestCase):
+    """_get_script_backdrop_colors() must return a list of ints, not floats.
+
+    In real Nuke, tile_color.value() can return a float.  The list is fed
+    directly into _color_int_to_rgb(), which uses bitshift operators —
+    those raise TypeError on floats.
+    """
+
+    def test_backdrop_colors_are_ints_when_tile_color_returns_float(self):
+        """_get_script_backdrop_colors casts tile_color.value() floats to int."""
+        import nuke as nuke_stub
+
+        float_color = float(0x6f3399ff)  # 1865580031.0
+
+        tile_color_knob = MagicMock()
+        tile_color_knob.value.return_value = float_color
+
+        fake_backdrop = MagicMock()
+        fake_backdrop.__getitem__ = MagicMock(
+            side_effect=lambda key: tile_color_knob if key == 'tile_color' else MagicMock()
+        )
+
+        original_all_nodes = nuke_stub.allNodes
+        nuke_stub.allNodes = MagicMock(return_value=[fake_backdrop])
+        try:
+            result = _real_colors_module._get_script_backdrop_colors()
+        finally:
+            nuke_stub.allNodes = original_all_nodes
+
+        self.assertEqual(len(result), 1)
+        self.assertIsInstance(result[0], int,
+                              "_get_script_backdrop_colors must return ints, not floats")
+        self.assertEqual(result[0], 0x6f3399ff)
+
+
+class TestPrefsDialogEditColorPassesCurrentColorToGetColor(unittest.TestCase):
+    """PrefsDialog._on_edit_color must pre-seed nuke.getColor() with the selected swatch color.
+
+    Calling nuke.getColor() with no argument causes the picker to open at black.
+    The user expects to edit the existing color, so we must pass it as the initial value.
+    Also guards against tile_color.value() returning a float — the arg must be an int.
+    """
+
+    def test_on_edit_color_passes_selected_swatch_color_to_nuke_get_color(self):
+        """_on_edit_color passes the color at _selected_swatch_index to nuke.getColor()."""
+        on_edit_color = _extract_prefs_dialog_method_from_source('_on_edit_color')
+        if on_edit_color is None:
+            self.skipTest("_on_edit_color not found in PrefsDialog in colors.py")
+
+        import nuke as nuke_stub
+        nuke_stub.getColor = MagicMock(return_value=0x0000FFFF)
+
+        class PrefsDialogHarness:
+            def __init__(self):
+                self._local_custom_colors = [0xFF0000FF, 0x00FF00FF]
+                self._selected_swatch_index = 1
+                self._rebuild_swatch_grid = MagicMock()
+                self._recolor_anchors_for_changed_custom_colors = MagicMock()
+                self._on_swatch_selected = MagicMock()
+
+        harness = PrefsDialogHarness()
+        on_edit_color(harness)
+
+        call_arg = nuke_stub.getColor.call_args[0][0]
+        self.assertEqual(call_arg, 0x00FF00FF,
+                         "_on_edit_color must pass the selected swatch color to nuke.getColor()")
+
+    def test_on_edit_color_passes_int_not_float_to_nuke_get_color(self):
+        """_on_edit_color casts the swatch color to int before passing to nuke.getColor().
+
+        In real Nuke, colors stored in custom_colors may originate from tile_color.value()
+        which returns a float.  Passing a float to nuke.getColor() causes it to silently
+        ignore the argument and open at black.
+        """
+        on_edit_color = _extract_prefs_dialog_method_from_source('_on_edit_color')
+        if on_edit_color is None:
+            self.skipTest("_on_edit_color not found in PrefsDialog in colors.py")
+
+        import nuke as nuke_stub
+        nuke_stub.getColor = MagicMock(return_value=0x0000FFFF)
+
+        class PrefsDialogHarness:
+            def __init__(self):
+                # Simulate colors that were loaded from tile_color.value() as floats
+                self._local_custom_colors = [float(0xFF0000FF), float(0x00FF00FF)]
+                self._selected_swatch_index = 1
+                self._rebuild_swatch_grid = MagicMock()
+                self._recolor_anchors_for_changed_custom_colors = MagicMock()
+                self._on_swatch_selected = MagicMock()
+
+        harness = PrefsDialogHarness()
+        on_edit_color(harness)
+
+        call_arg = nuke_stub.getColor.call_args[0][0]
+        self.assertIsInstance(call_arg, int,
+                              "nuke.getColor() must receive an int, not a float")
+        self.assertEqual(call_arg, 0x00FF00FF,
+                         "nuke.getColor() must be called with the int form of the selected color")
 
 
 if __name__ == '__main__':

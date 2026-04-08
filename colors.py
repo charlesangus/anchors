@@ -1,6 +1,7 @@
 """Color palette dialog for the anchor color system."""
 
 import nuke
+from constants import ANCHOR_DEFAULT_COLOR
 
 try:
     if hasattr(nuke, 'NUKE_VERSION_MAJOR') and nuke.NUKE_VERSION_MAJOR >= 16:
@@ -44,7 +45,7 @@ def _get_script_backdrop_colors():
     seen = set()
     colors = []
     for backdrop_node in nuke.allNodes('BackdropNode'):
-        color = backdrop_node['tile_color'].value()
+        color = int(backdrop_node['tile_color'].value())
         if color and color not in seen:
             seen.add(color)
             colors.append(color)
@@ -1042,7 +1043,7 @@ else:
 
         def _on_add_color(self):
             """Open nuke.getColor() and append the result to the custom colors list."""
-            result = nuke.getColor()
+            result = nuke.getColor(ANCHOR_DEFAULT_COLOR)
             if result == 0:
                 return
             self._local_custom_colors.append(result)
@@ -1058,7 +1059,8 @@ else:
             """
             if self._selected_swatch_index is None:
                 return
-            result = nuke.getColor()
+            current_color = int(self._local_custom_colors[self._selected_swatch_index])
+            result = nuke.getColor(current_color)
             if result == 0:
                 return
             # Capture old color before updating so we can recolor matching anchors
