@@ -72,8 +72,7 @@ def find_anchor_color(anchor):
     """Return the tile color an anchor should display.
 
     Priority:
-      1. Smallest BackdropNode containing the anchor — only when the effective
-         input (first non-Dot ancestor) is a Read node.
+      1. Smallest BackdropNode containing the anchor (any input node type).
       2. The effective input node color (with Preferences fallback).
       3. Hard-coded default purple if neither is available.
 
@@ -92,8 +91,8 @@ def find_anchor_color(anchor):
     else:
         effective_input = direct_input
 
-    # --- 1. Backdrop color — only for Read nodes ---
-    if effective_input is not None and effective_input.Class() == 'Read':
+    # --- 1. Backdrop color (any input node type) ---
+    if effective_input is not None:
         smallest = find_smallest_containing_backdrop(anchor)
         if smallest is not None:
             color = smallest['tile_color'].value()
@@ -429,7 +428,7 @@ def create_anchor():
     # find_anchor_color() here because that function expects the anchor to already
     # exist and calls anchor.input(0) — passing input_node would instead examine
     # what is upstream *of* input_node.  Mirror the same priority logic directly:
-    #   1. Backdrop colour — only when effective input is a Read
+    #   1. Backdrop colour (any input node type)
     #   2. Effective input node's own colour (tile_color with Preferences fallback)
     #   3. Hard-coded default purple
     #
@@ -445,12 +444,9 @@ def create_anchor():
         else:
             color_source_node = input_node
 
-        if color_source_node.Class() == 'Read':
-            containing_backdrop = find_smallest_containing_backdrop(color_source_node)
-            if containing_backdrop is not None and containing_backdrop['tile_color'].value() != 0:
-                pre_color = int(containing_backdrop['tile_color'].value())
-            else:
-                pre_color = int(find_node_color(color_source_node))
+        containing_backdrop = find_smallest_containing_backdrop(color_source_node)
+        if containing_backdrop is not None and containing_backdrop['tile_color'].value() != 0:
+            pre_color = int(containing_backdrop['tile_color'].value())
         else:
             pre_color = int(find_node_color(color_source_node))
     else:
