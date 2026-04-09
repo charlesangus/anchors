@@ -7,6 +7,7 @@ selected input node is a Dot:
   TestUnlabelledDotNameSuggestion   — unlabelled Dot delegates to first non-Dot ancestor
   TestDotChainNameSuggestion        — chains of Dots (Dot→Dot→Read) are fully traversed
   TestFindAnchorColorDot            — find_anchor_color() resolves through unlabelled Dots
+  TestFindAnchorColorBackdrop       — find_anchor_color() uses backdrop color for any node type (issue #8)
 """
 
 import sys
@@ -287,6 +288,88 @@ class TestFindAnchorColorDot(unittest.TestCase):
             result = anchor.find_anchor_color(anchor_node)
 
         self.assertEqual(result, ANCHOR_DEFAULT_COLOR)
+
+
+class TestFindAnchorColorBackdrop(unittest.TestCase):
+    """find_anchor_color() uses backdrop color for any input node type (issue #8 regression)."""
+
+    def _make_backdrop(self, color):
+        return StubNode(
+            name='BackdropNode1',
+            node_class='BackdropNode',
+            knobs_dict={'tile_color': StubKnob(color)},
+        )
+
+    def _make_anchor(self, input_node):
+        anchor_node = StubNode(
+            name='Anchor_test',
+            node_class='NoOp',
+            knobs_dict={'tile_color': StubKnob(0)},
+        )
+        anchor_node.setInput(0, input_node)
+        return anchor_node
+
+    def test_non_read_input_inside_backdrop_returns_backdrop_color(self):
+        """Anchor with a non-Read input inside a backdrop must return the backdrop color.
+
+        Regression for issue #8: backdrop color was only applied when input was a Read node.
+        """
+        backdrop_color = 0x336699FF
+        backdrop = self._make_backdrop(backdrop_color)
+
+        noop_input = StubNode(name='Grade1', node_class='Grade', knobs_dict={})
+        noop_node_color = 0xAABBCCFF
+
+        anchor_node = self._make_anchor(noop_input)
+
+        with patch('anchor.find_smallest_containing_backdrop', return_value=backdrop), \
+             patch('anchor.find_node_color', return_value=noop_node_color):
+            result = anchor.find_anchor_color(anchor_node)
+
+        self.assertEqual(result, backdrop_color,
+                         "Backdrop color must be used for non-Read inputs (was broken in issue #8)")
+
+    def test_read_input_inside_backdrop_still_returns_backdrop_color(self):
+        """Anchor with a Read input inside a backdrop must still return the backdrop color."""
+        backdrop_color = 0xFF6600FF
+        backdrop = self._make_backdrop(backdrop_color)
+
+        read_node = _make_read('plate_v001.exr')
+        read_color = 0x112233FF
+        anchor_node = self._make_anchor(read_node)
+
+        with patch('anchor.find_smallest_containing_backdrop', return_value=backdrop), \
+             patch('anchor.find_node_color', return_value=read_color):
+            result = anchor.find_anchor_color(anchor_node)
+
+        self.assertEqual(result, backdrop_color)
+
+    def test_non_read_input_outside_backdrop_returns_node_color(self):
+        """Anchor with a non-Read input and no containing backdrop uses the node's color."""
+        noop_input = StubNode(name='Grade1', node_class='Grade', knobs_dict={})
+        node_color = 0xAABBCCFF
+        anchor_node = self._make_anchor(noop_input)
+
+        with patch('anchor.find_smallest_containing_backdrop', return_value=None), \
+             patch('anchor.find_node_color', return_value=node_color) as mock_find_color:
+            result = anchor.find_anchor_color(anchor_node)
+
+        mock_find_color.assert_called_once_with(noop_input)
+        self.assertEqual(result, node_color)
+
+    def test_zero_backdrop_color_falls_through_to_node_color(self):
+        """Backdrop with tile_color == 0 (unset) must not suppress the node color."""
+        backdrop = self._make_backdrop(0)
+
+        noop_input = StubNode(name='Grade1', node_class='Grade', knobs_dict={})
+        node_color = 0xDEADBEEF
+        anchor_node = self._make_anchor(noop_input)
+
+        with patch('anchor.find_smallest_containing_backdrop', return_value=backdrop), \
+             patch('anchor.find_node_color', return_value=node_color):
+            result = anchor.find_anchor_color(anchor_node)
+
+        self.assertEqual(result, node_color)
 
 
 if __name__ == '__main__':
