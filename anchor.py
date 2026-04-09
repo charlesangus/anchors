@@ -21,7 +21,7 @@ except ImportError:
 
 import prefs
 import tabtabtab_anchors as _tabtabtab
-from colors import ColorPaletteDialog
+from colors import ColorPaletteDialog, adjust_color_for_backdrop_contrast
 from constants import (
     ANCHOR_DEFAULT_COLOR,
     ANCHOR_PREFIX,
@@ -48,6 +48,15 @@ from link import (
 
 def sanitize_anchor_name(name):
     return re.sub(r'[^A-Za-z0-9_]', '_', name.strip())
+
+
+def _strip_html_tags(text):
+    """Remove HTML tags from *text*, handling both closed and unclosed tags.
+
+    Nuke allows unclosed tags in node labels (e.g. ``<b>PLATES``), so this
+    uses a simple regex rather than an HTML parser.
+    """
+    return re.sub(r'<[^>]*>', '', text)
 
 
 def _find_first_non_dot_input(node):
@@ -97,7 +106,7 @@ def find_anchor_color(anchor):
         if smallest is not None:
             color = smallest['tile_color'].value()
             if color != 0:
-                return color
+                return adjust_color_for_backdrop_contrast(color)
 
     # --- 2. Effective input node color (with Preferences fallback) ---
     if effective_input is not None:
@@ -234,12 +243,12 @@ def suggest_anchor_name(input_node):
 
     # --- Dot node: label or upstream delegation ---
     if input_node.Class() == 'Dot':
-        dot_label = input_node['label'].getValue().strip() if 'label' in input_node.knobs() else ''
+        dot_label = _strip_html_tags(input_node['label'].getValue().strip()) if 'label' in input_node.knobs() else ''
         if dot_label:
             # Labelled Dot: suggest the label, prefixed by containing backdrop if present.
             smallest = find_smallest_containing_backdrop(input_node)
             if smallest is not None:
-                backdrop_label = smallest['label'].getValue().strip()
+                backdrop_label = _strip_html_tags(smallest['label'].getValue().strip())
                 if backdrop_label:
                     return backdrop_label + '_' + dot_label
             return dot_label
@@ -281,7 +290,7 @@ def suggest_anchor_name(input_node):
 
     smallest = find_smallest_containing_backdrop(input_node)
     if smallest is not None:
-        label = smallest['label'].getValue().strip()
+        label = _strip_html_tags(smallest['label'].getValue().strip())
         if label:
             suggestion = label + '_' + suggestion
 
@@ -446,7 +455,7 @@ def create_anchor():
 
         containing_backdrop = find_smallest_containing_backdrop(color_source_node)
         if containing_backdrop is not None and containing_backdrop['tile_color'].value() != 0:
-            pre_color = int(containing_backdrop['tile_color'].value())
+            pre_color = adjust_color_for_backdrop_contrast(int(containing_backdrop['tile_color'].value()))
         else:
             pre_color = int(find_node_color(color_source_node))
     else:

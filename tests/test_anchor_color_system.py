@@ -2357,7 +2357,9 @@ class TestGetScriptBackdropColorsReturnsInts(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertIsInstance(result[0], int,
                               "_get_script_backdrop_colors must return ints, not floats")
-        self.assertEqual(result[0], 0x6f3399ff)
+        expected = _real_colors_module.adjust_color_for_backdrop_contrast(0x6f3399ff)
+        self.assertEqual(result[0], expected,
+                         "_get_script_backdrop_colors must return contrast-adjusted colors")
 
 
 class TestPrefsDialogEditColorPassesCurrentColorToGetColor(unittest.TestCase):
@@ -2423,6 +2425,83 @@ class TestPrefsDialogEditColorPassesCurrentColorToGetColor(unittest.TestCase):
                               "nuke.getColor() must receive an int, not a float")
         self.assertEqual(call_arg, 0x00FF00FF,
                          "nuke.getColor() must be called with the int form of the selected color")
+
+
+# ---------------------------------------------------------------------------
+# COLOR-06: adjust_color_for_backdrop_contrast()
+# ---------------------------------------------------------------------------
+
+class TestAdjustColorForBackdropContrast(unittest.TestCase):
+    """COLOR-06: adjust_color_for_backdrop_contrast() produces a visually distinct anchor color."""
+
+    def _adjusted(self, color_int):
+        import colors
+        return colors.adjust_color_for_backdrop_contrast(color_int)
+
+    def _lightness(self, color_int):
+        """Return HLS lightness (0.0–1.0) of a 0xRRGGBBAA color int."""
+        import colorsys
+        red = (color_int >> 24) & 0xFF
+        green = (color_int >> 16) & 0xFF
+        blue = (color_int >> 8) & 0xFF
+        _hue, lightness, _saturation = colorsys.rgb_to_hls(red / 255.0, green / 255.0, blue / 255.0)
+        return lightness
+
+    def test_bright_backdrop_produces_darker_anchor(self):
+        """A bright backdrop (e.g. light pink) should yield a darker anchor color.
+
+        Note: HLS lightness = (max_channel + min_channel) / 2, so saturated primaries
+        like yellow sit at exactly L=0.5.  Use a de-saturated bright color (light pink)
+        whose HLS lightness is unambiguously > 0.5.
+        """
+        # RGB(255, 204, 204) → HLS lightness ≈ 0.90
+        light_pink = 0xFFCCCCFF
+        adjusted = self._adjusted(light_pink)
+        self.assertLess(
+            self._lightness(adjusted),
+            self._lightness(light_pink),
+            "Anchor should be darker than a bright backdrop",
+        )
+
+    def test_dark_backdrop_produces_brighter_anchor(self):
+        """A dark backdrop (e.g. dark blue) should yield a brighter anchor color."""
+        dark_blue = 0x000066FF
+        adjusted = self._adjusted(dark_blue)
+        self.assertGreater(
+            self._lightness(adjusted),
+            self._lightness(dark_blue),
+            "Anchor should be brighter than a dark backdrop",
+        )
+
+    def test_alpha_byte_preserved(self):
+        """The alpha byte must pass through unchanged."""
+        color_with_alpha = 0x3366CCAB  # alpha = 0xAB
+        adjusted = self._adjusted(color_with_alpha)
+        self.assertEqual(adjusted & 0xFF, 0xAB, "Alpha byte must be preserved")
+
+    def test_result_differs_from_input(self):
+        """The adjusted color must not equal the input color."""
+        test_colors = [0xFF8800FF, 0x223344FF, 0x808080FF, 0x6f3399FF]
+        for color in test_colors:
+            adjusted = self._adjusted(color)
+            self.assertNotEqual(adjusted, color, f"Adjusted color must differ from input {color:#010x}")
+
+    def test_pure_white_does_not_raise(self):
+        """Pure white is a valid bright backdrop — must not raise."""
+        result = self._adjusted(0xFFFFFFFF)
+        self.assertIsInstance(result, int)
+
+    def test_pure_black_does_not_raise(self):
+        """Pure black is a valid dark backdrop — must not raise."""
+        result = self._adjusted(0x000000FF)
+        self.assertIsInstance(result, int)
+
+    def test_result_is_valid_color_int(self):
+        """Result must be a 32-bit unsigned integer (fits in 0x00000000–0xFFFFFFFF)."""
+        for color in [0xFF0000FF, 0x00FF00FF, 0x0000FFFF, 0x6f3399FF]:
+            adjusted = self._adjusted(color)
+            self.assertGreaterEqual(adjusted, 0)
+            self.assertLessEqual(adjusted, 0xFFFFFFFF)
 
 
 if __name__ == '__main__':

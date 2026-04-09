@@ -270,5 +270,93 @@ class TestRegexNoMatchFallback(unittest.TestCase):
         self.assertEqual(result, 'plate')
 
 
+class TestHtmlStrippingInBackdropLabel(unittest.TestCase):
+    """HTML tags in backdrop labels are stripped before use as a name prefix.
+
+    Regression tests for issue #10.
+    """
+
+    def setUp(self):
+        self._original_naming_regex = getattr(prefs_module, 'naming_regex', '')
+        self._original_naming_template = getattr(prefs_module, 'naming_template', '')
+        prefs_module.naming_regex = ''
+        prefs_module.naming_template = ''
+
+    def tearDown(self):
+        prefs_module.naming_regex = self._original_naming_regex
+        prefs_module.naming_template = self._original_naming_template
+
+    def _make_backdrop(self, label):
+        label_knob = StubKnob(value=label, knob_name='label')
+        return StubNode(name='BackdropNode1', node_class='BackdropNode', knobs_dict={'label': label_knob})
+
+    def test_fully_wrapped_html_tags_stripped_from_backdrop_label(self):
+        """<center><b><i>PLATES</i></b></center> in backdrop label becomes PLATES prefix."""
+        node = _make_read_node('shot_v001.exr')
+        backdrop = self._make_backdrop('<center><b><i>PLATES</i></b></center>')
+        with patch('anchor.find_smallest_containing_backdrop', return_value=backdrop):
+            result = anchor.suggest_anchor_name(node)
+        self.assertEqual(result, 'PLATES_shot')
+
+    def test_unclosed_html_tag_stripped_from_backdrop_label(self):
+        """<b>PLATES (unclosed tag, valid in Nuke) in backdrop label becomes PLATES prefix."""
+        node = _make_read_node('shot_v001.exr')
+        backdrop = self._make_backdrop('<b>PLATES')
+        with patch('anchor.find_smallest_containing_backdrop', return_value=backdrop):
+            result = anchor.suggest_anchor_name(node)
+        self.assertEqual(result, 'PLATES_shot')
+
+    def test_mixed_html_and_plain_text_stripped(self):
+        """Tags interspersed with text are all removed, leaving only plain text."""
+        node = _make_read_node('shot_v001.exr')
+        backdrop = self._make_backdrop('<b>COMP<i>_WORK</i>')
+        with patch('anchor.find_smallest_containing_backdrop', return_value=backdrop):
+            result = anchor.suggest_anchor_name(node)
+        self.assertEqual(result, 'COMP_WORK_shot')
+
+    def test_plain_backdrop_label_unchanged(self):
+        """Backdrop labels with no HTML pass through unchanged."""
+        node = _make_read_node('shot_v001.exr')
+        backdrop = self._make_backdrop('PLATES')
+        with patch('anchor.find_smallest_containing_backdrop', return_value=backdrop):
+            result = anchor.suggest_anchor_name(node)
+        self.assertEqual(result, 'PLATES_shot')
+
+
+class TestHtmlStrippingInDotLabel(unittest.TestCase):
+    """HTML tags in Dot node labels are stripped before use as a name suggestion.
+
+    Regression tests for issue #10.
+    """
+
+    def setUp(self):
+        self._original_naming_regex = getattr(prefs_module, 'naming_regex', '')
+        self._original_naming_template = getattr(prefs_module, 'naming_template', '')
+        prefs_module.naming_regex = ''
+        prefs_module.naming_template = ''
+
+    def tearDown(self):
+        prefs_module.naming_regex = self._original_naming_regex
+        prefs_module.naming_template = self._original_naming_template
+
+    def _make_labelled_dot(self, label):
+        label_knob = StubKnob(value=label, knob_name='label')
+        return StubNode(name='Dot1', node_class='Dot', knobs_dict={'label': label_knob})
+
+    def test_html_tags_stripped_from_dot_label(self):
+        """<b>PLATES</b> in a Dot label becomes PLATES."""
+        dot = self._make_labelled_dot('<b>PLATES</b>')
+        with patch('anchor.find_smallest_containing_backdrop', return_value=None):
+            result = anchor.suggest_anchor_name(dot)
+        self.assertEqual(result, 'PLATES')
+
+    def test_unclosed_html_tag_stripped_from_dot_label(self):
+        """<b>PLATES (unclosed) in a Dot label becomes PLATES."""
+        dot = self._make_labelled_dot('<b>PLATES')
+        with patch('anchor.find_smallest_containing_backdrop', return_value=None):
+            result = anchor.suggest_anchor_name(dot)
+        self.assertEqual(result, 'PLATES')
+
+
 if __name__ == '__main__':
     unittest.main()
