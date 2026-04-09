@@ -2,17 +2,22 @@ import nuke
 import nukescripts
 
 
-def upstream_ignoring_hidden(node, nodes_so_far=None):
-    inputs = node.dependencies(what=nuke.INPUTS)
-    if len(inputs) == 0:
+def upstream_ignoring_hidden(node, nodes_so_far=None, _visited=None):
+    if _visited is None:
+        _visited = set()
+    if node in _visited:
         return nodes_so_far
+    _visited.add(node)
+
+    inputs = node.dependencies(what=nuke.INPUTS)
+    if not inputs:
+        return nodes_so_far
+    if nodes_so_far is None:
+        nodes_so_far = set(inputs)
     else:
-        if nodes_so_far is None:
-            nodes_so_far = set(inputs)
-        else:
-            nodes_so_far.update(set(inputs))
+        nodes_so_far.update(inputs)
     for input_node in inputs:
-        nodes_so_far.update(upstream_ignoring_hidden(input_node, nodes_so_far))
+        upstream_ignoring_hidden(input_node, nodes_so_far, _visited)
     return nodes_so_far
 
 
