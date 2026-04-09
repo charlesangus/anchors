@@ -49,7 +49,12 @@ def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: 3 node-cl
     with nuke.lastHitGroup():
         selected_nodes = nuke.selectedNodes()
         for node in selected_nodes:
-            if is_link(node):
+            # Skip nodes that are already links (hidden-input Dots, PostageStamps, etc.)
+            # but NOT anchor nodes — an anchor may have KNOB_NAME set from a prior copy
+            # or old paste, yet it is still an independent anchor and must be re-stamped
+            # with its own current FQNN (Path C below) so subsequent pastes link to it
+            # rather than to whatever anchor KNOB_NAME happened to point to previously.
+            if is_link(node) and not is_anchor(node):
                 continue
 
             # Path A — LINK_SOURCE_CLASSES file node: scan for an anchor whose input is this
