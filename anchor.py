@@ -50,6 +50,15 @@ def sanitize_anchor_name(name):
     return re.sub(r'[^A-Za-z0-9_]', '_', name.strip())
 
 
+def _strip_html_tags(text):
+    """Remove HTML tags from *text*, handling both closed and unclosed tags.
+
+    Nuke allows unclosed tags in node labels (e.g. ``<b>PLATES``), so this
+    uses a simple regex rather than an HTML parser.
+    """
+    return re.sub(r'<[^>]*>', '', text)
+
+
 def _find_first_non_dot_input(node):
     """Traverse input(0) upward through Dot nodes and return the first non-Dot node.
 
@@ -234,12 +243,12 @@ def suggest_anchor_name(input_node):
 
     # --- Dot node: label or upstream delegation ---
     if input_node.Class() == 'Dot':
-        dot_label = input_node['label'].getValue().strip() if 'label' in input_node.knobs() else ''
+        dot_label = _strip_html_tags(input_node['label'].getValue().strip()) if 'label' in input_node.knobs() else ''
         if dot_label:
             # Labelled Dot: suggest the label, prefixed by containing backdrop if present.
             smallest = find_smallest_containing_backdrop(input_node)
             if smallest is not None:
-                backdrop_label = smallest['label'].getValue().strip()
+                backdrop_label = _strip_html_tags(smallest['label'].getValue().strip())
                 if backdrop_label:
                     return backdrop_label + '_' + dot_label
             return dot_label
@@ -281,7 +290,7 @@ def suggest_anchor_name(input_node):
 
     smallest = find_smallest_containing_backdrop(input_node)
     if smallest is not None:
-        label = smallest['label'].getValue().strip()
+        label = _strip_html_tags(smallest['label'].getValue().strip())
         if label:
             suggestion = label + '_' + suggestion
 
