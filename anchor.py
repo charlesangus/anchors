@@ -214,7 +214,8 @@ def find_anchor_by_name(display_name):
 def get_links_for_anchor(anchor_node):
     """Return all link nodes in the current script that reference *anchor_node*."""
     fqnn = get_fully_qualified_node_name(anchor_node)
-    return [node for node in nuke.allNodes() if is_link(node) and node[KNOB_NAME].getText() == fqnn]
+    return [node for node in nuke.allNodes()
+            if is_link(node) and not is_anchor(node) and node[KNOB_NAME].getText() == fqnn]
 
 
 # Compiled once at module level — covers %d, %04d, ####, %V, %v frame token styles
@@ -318,7 +319,7 @@ def rename_anchor_to(anchor_node, name, color=None):
         new_fqnn = get_fully_qualified_node_name(anchor_node)
 
         for node in nuke.allNodes():
-            if is_link(node) and node[KNOB_NAME].getText() == old_fqnn:
+            if is_link(node) and not is_anchor(node) and node[KNOB_NAME].getText() == old_fqnn:
                 node[KNOB_NAME].setValue(new_fqnn)
                 node['label'].setValue(f"Link: {new_label}")
     else:
@@ -333,7 +334,7 @@ def rename_anchor_to(anchor_node, name, color=None):
 
         new_label = anchor_node['label'].getText() or anchor_node.name()
         for node in nuke.allNodes():
-            if is_link(node) and node[KNOB_NAME].getText() == old_fqn:
+            if is_link(node) and not is_anchor(node) and node[KNOB_NAME].getText() == old_fqn:
                 node[KNOB_NAME].setValue(new_fqn)
                 node['label'].setValue(f"Link: {new_label}")
 
@@ -392,13 +393,13 @@ def reconnect_anchor_node(anchor_node):
     # not all links in the script (the old substring check was commented out).
     fqnn = get_fully_qualified_node_name(anchor_node)
     for node in nuke.allNodes():
-        if is_link(node) and node[KNOB_NAME].getText() == fqnn:
+        if is_link(node) and not is_anchor(node) and node[KNOB_NAME].getText() == fqnn:
             reconnect_link_node(node)
 
 
 def reconnect_all_links():
     for node in nuke.allNodes():
-        if is_link(node):
+        if is_link(node) and not is_anchor(node):
             reconnect_link_node(node)
 
 
