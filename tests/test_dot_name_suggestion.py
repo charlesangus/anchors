@@ -20,6 +20,7 @@ if 'nuke' not in sys.modules:
     sys.modules['nuke'] = make_stub_nuke_module()
 
 import anchor
+import colors
 import prefs as prefs_module
 
 
@@ -326,11 +327,14 @@ class TestFindAnchorColorBackdrop(unittest.TestCase):
              patch('anchor.find_node_color', return_value=noop_node_color):
             result = anchor.find_anchor_color(anchor_node)
 
-        self.assertEqual(result, backdrop_color,
-                         "Backdrop color must be used for non-Read inputs (was broken in issue #8)")
+        self.assertEqual(
+            result,
+            colors.adjust_color_for_backdrop_contrast(backdrop_color),
+            "Anchor color must be the contrast-adjusted backdrop color for non-Read inputs",
+        )
 
     def test_read_input_inside_backdrop_still_returns_backdrop_color(self):
-        """Anchor with a Read input inside a backdrop must still return the backdrop color."""
+        """Anchor with a Read input inside a backdrop must return the contrast-adjusted backdrop color."""
         backdrop_color = 0xFF6600FF
         backdrop = self._make_backdrop(backdrop_color)
 
@@ -342,7 +346,7 @@ class TestFindAnchorColorBackdrop(unittest.TestCase):
              patch('anchor.find_node_color', return_value=read_color):
             result = anchor.find_anchor_color(anchor_node)
 
-        self.assertEqual(result, backdrop_color)
+        self.assertEqual(result, colors.adjust_color_for_backdrop_contrast(backdrop_color))
 
     def test_non_read_input_outside_backdrop_returns_node_color(self):
         """Anchor with a non-Read input and no containing backdrop uses the node's color."""

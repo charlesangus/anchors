@@ -21,7 +21,7 @@ except ImportError:
 
 import prefs
 import tabtabtab_anchors as _tabtabtab
-from colors import ColorPaletteDialog
+from colors import ColorPaletteDialog, adjust_color_for_backdrop_contrast
 from constants import (
     ANCHOR_DEFAULT_COLOR,
     ANCHOR_PREFIX,
@@ -106,7 +106,7 @@ def find_anchor_color(anchor):
         if smallest is not None:
             color = smallest['tile_color'].value()
             if color != 0:
-                return color
+                return adjust_color_for_backdrop_contrast(color)
 
     # --- 2. Effective input node color (with Preferences fallback) ---
     if effective_input is not None:
@@ -455,7 +455,7 @@ def create_anchor():
 
         containing_backdrop = find_smallest_containing_backdrop(color_source_node)
         if containing_backdrop is not None and containing_backdrop['tile_color'].value() != 0:
-            pre_color = int(containing_backdrop['tile_color'].value())
+            pre_color = adjust_color_for_backdrop_contrast(int(containing_backdrop['tile_color'].value()))
         else:
             pre_color = int(find_node_color(color_source_node))
     else:

@@ -38,18 +38,25 @@ def _get_nuke_pref_colors():
 
 
 def _get_script_backdrop_colors():
-    """Return list of unique backdrop tile_color ints from the current script.
+    """Return list of unique contrast-adjusted backdrop colors from the current script.
+
+    Each raw backdrop tile_color is passed through adjust_color_for_backdrop_contrast()
+    so that the swatches shown in the palette represent the actual color that will be
+    assigned to an anchor placed inside that backdrop — not the backdrop color itself.
 
     Returns an empty list when called outside a Nuke session.
     """
     seen = set()
-    colors = []
+    adjusted_colors = []
     for backdrop_node in nuke.allNodes('BackdropNode'):
-        color = int(backdrop_node['tile_color'].value())
-        if color and color not in seen:
-            seen.add(color)
-            colors.append(color)
-    return colors
+        raw_color = int(backdrop_node['tile_color'].value())
+        if not raw_color:
+            continue
+        adjusted_color = adjust_color_for_backdrop_contrast(raw_color)
+        if adjusted_color not in seen:
+            seen.add(adjusted_color)
+            adjusted_colors.append(adjusted_color)
+    return adjusted_colors
 
 
 # ---------------------------------------------------------------------------
@@ -62,6 +69,63 @@ def _color_int_to_rgb(color_int):
     green = (color_int >> 16) & 0xFF
     blue = (color_int >> 8) & 0xFF
     return red, green, blue
+
+
+def adjust_color_for_backdrop_contrast(backdrop_color_int):
+    """Return an anchor color that contrasts with the given backdrop color.
+
+    Backdrops and anchors default to the same color, making anchors invisible.
+    This function shifts the anchor's lightness (and saturation slightly) so it
+    reads distinctly against its backdrop while remaining clearly related to it.
+
+    The transform is deterministic: bright backdrops (L > 0.5) produce a darker,
+    more-saturated anchor; dark backdrops produce a brighter, less-saturated one.
+    The alpha byte is preserved unchanged.
+
+    Parameters
+    ----------
+    backdrop_color_int : int
+        Backdrop tile_color in 0xRRGGBBAA format.
+
+    Returns
+    -------
+    int
+        Adjusted anchor color in 0xRRGGBBAA format.
+    """
+    import colorsys
+
+    _LIGHTNESS_SHIFT = 0.22
+    _SATURATION_SHIFT = 0.15
+
+    red, green, blue = _color_int_to_rgb(backdrop_color_int)
+    alpha = backdrop_color_int & 0xFF
+
+    red_normalized = red / 255.0
+    green_normalized = green / 255.0
+    blue_normalized = blue / 255.0
+
+    hue, lightness, saturation = colorsys.rgb_to_hls(
+        red_normalized, green_normalized, blue_normalized
+    )
+
+    if lightness > 0.5:
+        # Bright backdrop: make anchor darker and more saturated
+        adjusted_lightness = max(0.0, lightness - _LIGHTNESS_SHIFT)
+        adjusted_saturation = min(1.0, saturation + _SATURATION_SHIFT)
+    else:
+        # Dark backdrop: make anchor brighter and less saturated
+        adjusted_lightness = min(1.0, lightness + _LIGHTNESS_SHIFT)
+        adjusted_saturation = max(0.0, saturation - _SATURATION_SHIFT)
+
+    adjusted_red, adjusted_green, adjusted_blue = colorsys.hls_to_rgb(
+        hue, adjusted_lightness, adjusted_saturation
+    )
+
+    adjusted_red_int = round(adjusted_red * 255)
+    adjusted_green_int = round(adjusted_green * 255)
+    adjusted_blue_int = round(adjusted_blue * 255)
+
+    return (adjusted_red_int << 24) | (adjusted_green_int << 16) | (adjusted_blue_int << 8) | alpha
 
 
 if QtWidgets is None:
