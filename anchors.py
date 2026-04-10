@@ -320,6 +320,54 @@ def migrate_script():
     print(f"anchors.migrate_script(): updated {nodes_updated} node(s), renamed {knobs_renamed} knob(s).")
 
 
+def migrate_to_stemless_names():
+    """Migrate stored anchor references from old format (script stem prefix) to new format.
+
+    Old format: "scriptStem.fullName"       e.g. "myScript.Anchor_Foo"
+    New format: "fullName" only             e.g. "Anchor_Foo" or "Group1.Anchor_Foo"
+
+    Scans every node in the current script (including inside Groups) that has a
+    KNOB_NAME knob.  If the stored value cannot be resolved by nuke.toNode() but
+    CAN be resolved after stripping the first segment, the stored value is rewritten
+    to the shorter form.  References that cannot be resolved either way (orphaned or
+    pointing to a node in a different script) are left unchanged.
+
+    Prints a summary of how many nodes were updated.
+
+    Usage (Python console or Anchors menu):
+        import anchors
+        anchors.migrate_to_stemless_names()
+    """
+    nodes_updated = 0
+
+    for node in nuke.allNodes(recurseGroups=True):
+        if KNOB_NAME not in node.knobs():
+            continue
+
+        stored_name = node[KNOB_NAME].getText()
+        if not stored_name:
+            continue
+
+        name_parts = stored_name.split('.')
+        if len(name_parts) <= 1:
+            # Single segment — already new format, nothing to strip
+            continue
+
+        if nuke.toNode(stored_name) is not None:
+            # Resolves as-is: stored value is already new format (or first segment
+            # happens to be a group name that Nuke resolves correctly)
+            continue
+
+        name_without_stem = '.'.join(name_parts[1:])
+        if nuke.toNode(name_without_stem) is not None:
+            # Old format confirmed: full value failed but stripped value resolves
+            node[KNOB_NAME].setValue(name_without_stem)
+            nodes_updated += 1
+        # else: orphaned or cross-script reference — leave unchanged
+
+    print(f"anchors.migrate_to_stemless_names(): updated {nodes_updated} node(s).")
+
+
 def copy_old():
     nuke.nodeCopy(nukescripts.cut_paste_file())
 

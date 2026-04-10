@@ -585,5 +585,135 @@ class TestMultipleReadNodePaste(unittest.TestCase):
         )
 
 
+# ---------------------------------------------------------------------------
+# Tests for migrate_to_stemless_names()
+# ---------------------------------------------------------------------------
+
+class TestMigrateToStemlessNames(unittest.TestCase):
+    """Tests for anchors.migrate_to_stemless_names() (GitHub issue #28)."""
+
+    def _make_node_with_knob(self, stored_name, node_name='Anchor_Foo', has_knob=True):
+        """Return a stub node with KNOB_NAME set to stored_name."""
+        import nuke as _nuke
+        from constants import KNOB_NAME
+        knobs = {KNOB_NAME: _nuke.StubKnob(stored_name)} if has_knob else {}
+        return _nuke.StubNode(name=node_name, node_class='NoOp', knobs_dict=knobs)
+
+    def _run_migrate(self, all_nodes, to_node_side_effect):
+        """Run migrate_to_stemless_names() with stubbed nuke state."""
+        with patch('anchors.nuke') as mock_nuke:
+            mock_nuke.allNodes.return_value = all_nodes
+            mock_nuke.toNode.side_effect = to_node_side_effect
+            from anchors import migrate_to_stemless_names
+            migrate_to_stemless_names()
+
+    def test_old_format_with_resolvable_node_is_rewritten(self):
+        """Old-format 'stem.Anchor_Foo' must be rewritten to 'Anchor_Foo'
+        when the node resolves after stripping the stem."""
+        import nuke as _nuke
+        from constants import KNOB_NAME
+
+        node = self._make_node_with_knob('myScript.Anchor_Foo')
+        resolved_node = _nuke.StubNode(name='Anchor_Foo', node_class='NoOp')
+
+        def to_node_side_effect(name):
+            if name == 'myScript.Anchor_Foo':
+                return None   # old format: full name doesn't resolve
+            if name == 'Anchor_Foo':
+                return resolved_node  # stripped name resolves
+            return None
+
+        self._run_migrate([node], to_node_side_effect)
+        self.assertEqual(node[KNOB_NAME].getText(), 'Anchor_Foo')
+
+    def test_old_format_group_nested_is_rewritten_preserving_group_path(self):
+        """Old-format 'stem.Group1.Anchor_Foo' must be rewritten to 'Group1.Anchor_Foo'."""
+        import nuke as _nuke
+        from constants import KNOB_NAME
+
+        node = self._make_node_with_knob('myScript.Group1.Anchor_Foo')
+        resolved_node = _nuke.StubNode(name='Anchor_Foo', node_class='NoOp')
+
+        def to_node_side_effect(name):
+            if name == 'myScript.Group1.Anchor_Foo':
+                return None
+            if name == 'Group1.Anchor_Foo':
+                return resolved_node
+            return None
+
+        self._run_migrate([node], to_node_side_effect)
+        self.assertEqual(node[KNOB_NAME].getText(), 'Group1.Anchor_Foo')
+
+    def test_new_format_single_segment_is_unchanged(self):
+        """New-format 'Anchor_Foo' (single segment, no stem) must not be touched."""
+        from constants import KNOB_NAME
+
+        node = self._make_node_with_knob('Anchor_Foo')
+
+        self._run_migrate([node], lambda name: None)
+        self.assertEqual(node[KNOB_NAME].getText(), 'Anchor_Foo')
+
+    def test_new_format_multi_segment_that_resolves_is_unchanged(self):
+        """A multi-segment name that already resolves (e.g. 'Group1.Anchor_Foo' in new
+        format) must not be touched — nuke.toNode() returning a node means it's valid."""
+        import nuke as _nuke
+        from constants import KNOB_NAME
+
+        node = self._make_node_with_knob('Group1.Anchor_Foo')
+        resolved_node = _nuke.StubNode(name='Anchor_Foo', node_class='NoOp')
+
+        self._run_migrate([node], lambda name: resolved_node if name == 'Group1.Anchor_Foo' else None)
+        self.assertEqual(node[KNOB_NAME].getText(), 'Group1.Anchor_Foo')
+
+    def test_orphaned_old_format_that_does_not_resolve_is_unchanged(self):
+        """If neither the full stored name nor the stripped version resolves (e.g. the
+        node was deleted), the stored value must be left unchanged."""
+        from constants import KNOB_NAME
+
+        node = self._make_node_with_knob('myScript.Anchor_Deleted')
+
+        self._run_migrate([node], lambda name: None)
+        self.assertEqual(node[KNOB_NAME].getText(), 'myScript.Anchor_Deleted')
+
+    def test_empty_stored_name_is_skipped(self):
+        """Nodes with an empty KNOB_NAME value must be skipped without error."""
+        from constants import KNOB_NAME
+
+        node = self._make_node_with_knob('')
+        self._run_migrate([node], lambda name: None)
+        self.assertEqual(node[KNOB_NAME].getText(), '')
+
+    def test_node_without_knob_is_skipped(self):
+        """Nodes that do not have KNOB_NAME at all must be skipped without error."""
+        from constants import KNOB_NAME
+
+        node = self._make_node_with_knob('', has_knob=False)
+        # Should complete without raising
+        self._run_migrate([node], lambda name: None)
+
+    def test_only_nodes_with_old_format_are_counted(self):
+        """migrate_to_stemless_names() must update only old-format nodes; new-format
+        and no-knob nodes must be unaffected."""
+        import nuke as _nuke
+        from constants import KNOB_NAME
+
+        old_node = self._make_node_with_knob('myScript.Anchor_Old', node_name='Anchor_Old')
+        new_node = self._make_node_with_knob('Anchor_New', node_name='Anchor_New')
+        resolved_node = _nuke.StubNode(name='Anchor_Old', node_class='NoOp')
+
+        def to_node_side_effect(name):
+            if name == 'myScript.Anchor_Old':
+                return None
+            if name == 'Anchor_Old':
+                return resolved_node
+            if name == 'Anchor_New':
+                return _nuke.StubNode(name='Anchor_New', node_class='NoOp')
+            return None
+
+        self._run_migrate([old_node, new_node], to_node_side_effect)
+        self.assertEqual(old_node[KNOB_NAME].getText(), 'Anchor_Old')
+        self.assertEqual(new_node[KNOB_NAME].getText(), 'Anchor_New')
+
+
 if __name__ == '__main__':
     unittest.main()
