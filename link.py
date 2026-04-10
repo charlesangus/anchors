@@ -23,8 +23,14 @@ from constants import (
 
 
 def get_fully_qualified_node_name(node):
-    """Return <script_stem>.<node.fullName()> so we can detect cross-script refs."""
-    return f"{nuke.root().name().split('.')[0]}.{node.fullName()}"
+    """Return node.fullName() — the group-hierarchy path without script stem.
+
+    Stored on link/anchor knobs to identify anchors across scripts.
+    Group hierarchy (e.g. 'Group1.Anchor_Foo') is preserved; the script name
+    is not included because anchors must remain reconnectable when copied
+    across scripts.
+    """
+    return node.fullName()
 
 
 def find_node_default_color(node):
@@ -192,19 +198,34 @@ def setup_link_node(input_node, link_node):
 
 
 def find_anchor_node(link_node):
-    fully_qualified_name_from_knob = link_node[KNOB_NAME].getText()
-    fqn_from_knob_split = fully_qualified_name_from_knob.split(".")
-
-    # strip off the script name to get Nuke's version of a full name
-    full_name_from_knob = ".".join(fqn_from_knob_split[1:])
-    fully_qualified_name_from_current = get_fully_qualified_node_name(link_node)
-    fqn_from_current_split = fully_qualified_name_from_current.split(".")
-    prefix_from_knob = fqn_from_knob_split[:-1]
-    prefix_from_current = fqn_from_current_split[:-1]
-    if prefix_from_knob != prefix_from_current:
-        # we are in a different script and/or Group, do nothing
+    stored_name = link_node[KNOB_NAME].getText()
+    if not stored_name:
         return None
-    anchor_node = nuke.toNode(full_name_from_knob)
+    stored_name_parts = stored_name.split(".")
+
+    # Resolve the stored name to a live node.  Values written by older versions
+    # of the plugin included a script-stem prefix (e.g. "scriptName.Anchor_Foo"
+    # or "scriptName.Group1.Anchor_Foo").  Try the stored name as-is first; if
+    # that fails and there are multiple segments, strip the first segment as a
+    # backward-compat fallback so those older scripts continue to work.
+    anchor_node = nuke.toNode(stored_name)
+    if anchor_node is None and len(stored_name_parts) > 1:
+        name_without_stem = ".".join(stored_name_parts[1:])
+        candidate = nuke.toNode(name_without_stem)
+        if candidate is not None:
+            anchor_node = candidate
+            stored_name_parts = name_without_stem.split(".")
+
+    if anchor_node is None:
+        return None
+
+    # Verify group context: link node and anchor must share the same group
+    # prefix so that an anchor inside Group1 is not reachable from a
+    # root-level link node (and vice versa).
+    link_name_parts = link_node.fullName().split(".")
+    if stored_name_parts[:-1] != link_name_parts[:-1]:
+        return None
+
     return anchor_node
 
 

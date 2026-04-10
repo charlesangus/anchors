@@ -177,22 +177,16 @@ def paste_anchors():  # noqa: C901 — complexity is inherent: anchor/link/dot p
                 # find_anchor_node() resolves the stored FQNN; None means cross-script or
                 # deleted.
                 if not input_node:
-                    # Cross-script case: find_anchor_node() returned None because the
-                    # stored FQNN belongs to a different script. Dot anchors and file
-                    # nodes are left disconnected as placeholders.
-                    # BUG-02 fix: anchor pasted cross-script stays an anchor.
-                    # Do not attempt replacement regardless of whether a same-named anchor
-                    # exists in the destination. Leave the placeholder in place.
-                    # GitHub #5 fix: rewrite the stored FQNN so it references the
-                    # destination script stem.  Without this, subsequent copy-paste of
-                    # Link Dots pointing to this anchor in the destination script would
-                    # detect a "cross-script" mismatch (stem still says the source script)
-                    # and fail to reconnect.  We recompute using the current script stem
-                    # and the node's current fullName() so auto-renames (Nuke appends a
-                    # digit when a name collides) are also reflected.
+                    # Cross-script (or deleted) case: find_anchor_node() returned None.
+                    # File nodes and Dot anchors are left disconnected as placeholders.
+                    # BUG-02 fix: anchor pasted cross-script stays an anchor — do not
+                    # attempt replacement regardless of whether a same-named anchor exists
+                    # in the destination.
+                    # GitHub #5 fix: rewrite the stored name to reflect any auto-rename
+                    # Nuke may have applied (e.g. appending a digit on name collision),
+                    # so that subsequent Link Dots copied from this anchor reconnect correctly.
                     if is_anchor(node):
-                        destination_stem = nuke.root().name().split('.')[0]
-                        node[KNOB_NAME].setValue(f"{destination_stem}.{node.fullName()}")
+                        node[KNOB_NAME].setValue(node.fullName())
                     continue
                 nukescripts.clear_selection_recursive()
                 node["selected"].setValue(True)
@@ -216,15 +210,7 @@ def paste_anchors():  # noqa: C901 — complexity is inherent: anchor/link/dot p
                     display_name_for_compat = _extract_display_name_from_fqnn(stored_fqnn)
                     dot_type = 'link' if display_name_for_compat is not None else 'local'
 
-                # Detect cross-script: compare stored FQNN script stem against current script stem.
-                # Using FQNN stem comparison (not find_anchor_node() return value) as the cross-script
-                # gate prevents same-stem false positives where find_anchor_node() returns a same-named
-                # node from the destination script for a Local Dot.
-                current_stem = nuke.root().name().split('.')[0]
-                fqnn_stem = stored_fqnn.split('.')[0] if stored_fqnn else ''
-                is_cross_script = bool(fqnn_stem) and (fqnn_stem != current_stem)
-
-                if is_cross_script or not input_node:
+                if not input_node:
                     # Cross-script (or unresolvable FQNN): gate on DOT_TYPE.
                     if dot_type == 'link':
                         # Link Dot: attempt name-based reconnect to same-named anchor in destination.

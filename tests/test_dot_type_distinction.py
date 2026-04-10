@@ -5,7 +5,8 @@ Covers:
 - copy_anchors() Path B: plain-node-backed Dot → dot_type='local', LOCAL_DOT_COLOR, "Local: " label
 - paste_anchors() Path B cross-script: Link Dot reconnects when matching anchor found
 - paste_anchors() Path B cross-script: Link Dot stays disconnected when no anchor found
-- paste_anchors() Path B cross-script: Local Dot never reconnects (including same-stem false positive)
+- paste_anchors() Path B cross-script: Local Dot with unresolvable node leaves Dot disconnected
+- paste_anchors() Path B: Local Dot reconnects when find_anchor_node() resolves a node (GitHub #28)
 - paste_anchors() Path B same-script: Local Dot restores "Local: " label and LOCAL_DOT_COLOR after reconnect
 - paste_anchors() Path B same-script: Link Dot does NOT restore Local appearance
 - add_input_knob() without dot_type: no DOT_TYPE_KNOB_NAME knob added
@@ -459,66 +460,40 @@ class TestPasteHiddenCrossScriptDotTypeBehavior(unittest.TestCase):
             mock_find_by_name.assert_not_called()
             mock_setup_link_node.assert_not_called()
 
-    def test_local_dot_pasted_same_stem_false_positive_does_not_reconnect(self):
-        """Local Dot with same script stem in stored FQNN as current script must NOT reconnect,
-        even if find_anchor_node() returns a non-None node (same-stem false positive Bug 2)."""
-        # stored FQNN stem 'untitled' == current script stem 'untitled' → same-stem
-        # But this is a Local Dot, so cross-script check by FQNN stem will say "same-script",
-        # while find_anchor_node might return a node.
-        # The DOT_TYPE gate must prevent reconnect even here because this is a Local Dot
-        # and we are in a different-stem scenario — BUT actually same-stem means same-script.
-        #
-        # The key test for Bug 2: stored FQNN has 'untitled' stem, current script is 'untitled.nk',
-        # find_anchor_node returns a node (false positive), but DOT_TYPE='local' + FQNN stem matches
-        # → considered same-script → setup_link_node is called (same-script path).
-        # However, the Local restoration should still apply.
-        #
-        # Actual Bug 2 scenario: stored FQNN = 'untitled.Blur1' (local dot from script 'untitled'),
-        # pasted to a different script ALSO named 'untitled' (same stem, different file).
-        # With the FQNN stem comparison approach, this will look like "same-script", which means
-        # setup_link_node will be called — but the reconnect to find_anchor_node()'s result may
-        # be incorrect.
-        #
-        # For the DOT_TYPE gate's purpose, we test that a Local Dot with a truly cross-script
-        # FQNN (different stems) is blocked. The same-stem false positive for Local Dots is
-        # acknowledged as a deferred edge case: when two scripts share the same stem,
-        # the FQNN stem comparison cannot distinguish them, and the same-script path is taken.
-        # This is acceptable behavior per RESEARCH.md Pattern 3.
-        #
-        # This test verifies: stored_fqnn='untitled.Blur1', current='otherScript.nk' → cross-script
-        # find_anchor_node returns a non-None node (same-name node exists in dest) → should NOT reconnect.
-
-        from constants import DOT_TYPE_KNOB_NAME
-        import nuke as _nuke
+    def test_local_dot_reconnects_when_find_anchor_node_resolves_a_node(self):
+        """Local Dot reconnects to whatever node find_anchor_node() resolves in the
+        current script context.  GitHub #28 removed stem-based cross-script detection,
+        so if a same-named node exists in the destination it is used regardless of
+        which script the Dot originated from."""
 
         dot_node = self._make_hidden_dot_node(
-            stored_fqnn='untitled.Blur1',
+            stored_fqnn='Blur1',  # new format: no script stem
             dot_type='local'
         )
 
-        # Simulate same-stem false positive: find_anchor_node returns a node (a Blur in dest)
-        false_positive_node = _make_stub_node(name='Blur1', node_class='Blur')
+        matching_node = _make_stub_node(
+            name='Blur1',
+            node_class='Blur',
+            knobs_dict={'label': _make_knob('')},
+        )
 
         with patch('anchors.nuke') as mock_nuke, \
              patch('anchors.nukescripts') as mock_nukescripts, \
-             patch('anchors.find_anchor_node', return_value=false_positive_node), \
+             patch('anchors.find_anchor_node', return_value=matching_node), \
              patch('anchors.find_anchor_by_name') as mock_find_by_name, \
              patch('anchors.setup_link_node') as mock_setup_link_node, \
+             patch('anchors.add_input_knob'), \
              patch('anchors.is_anchor', return_value=False):
 
-            root_obj = MagicMock()
-            # Different stem: 'otherScript' vs stored 'untitled'
-            root_obj.name.return_value = 'otherScript.nk'
-            mock_nuke.root.return_value = root_obj
             mock_nuke.nodePaste.return_value = None
             mock_nuke.selectedNodes.return_value = [dot_node]
 
             from anchors import paste_anchors
             paste_anchors()
 
-            # Local Dot with cross-script FQNN must not reconnect despite false positive
+            # Local Dot reconnects to the resolved node; name-based anchor search is not used
+            mock_setup_link_node.assert_called_once_with(matching_node, dot_node)
             mock_find_by_name.assert_not_called()
-            mock_setup_link_node.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

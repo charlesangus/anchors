@@ -353,15 +353,12 @@ class TestBugRegressions(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 class TestCrossScriptFqnnUpdate(unittest.TestCase):
-    """Regression tests for GitHub issue #5.
+    """Regression tests for GitHub issue #5 (updated for #28).
 
-    When an anchor node is copy-pasted cross-script, its stored FQNN (in KNOB_NAME)
-    must be updated to use the destination script stem.  Without this fix,
-    subsequent copy-paste of Link Dots referencing the anchor in the destination
-    script would see a cross-script FQNN mismatch and fail to reconnect.
-
-    Both tests FAIL before the fix because paste_anchors() Path A/C just does
-    `continue` without rewriting the FQNN.
+    When an anchor node is copy-pasted cross-script, its stored name (in KNOB_NAME)
+    must be rewritten to reflect any Nuke auto-rename that occurred on paste (e.g.
+    a digit appended on name collision).  Since GitHub #28 removed the script stem,
+    the stored value is now just node.fullName() — no stem prefix.
     """
 
     def _make_noop_anchor_node(self, anchor_name, stored_fqnn, xpos=100, ypos=200):
@@ -391,8 +388,8 @@ class TestCrossScriptFqnnUpdate(unittest.TestCase):
         )
 
     def test_noop_anchor_fqnn_updated_after_cross_script_paste(self):
-        """When a NoOp anchor is pasted cross-script, its stored FQNN must be
-        rewritten to use the destination script stem (GitHub issue #5)."""
+        """When a NoOp anchor is pasted cross-script, its stored name must be
+        rewritten to node.fullName() — no script stem (GitHub issues #5, #28)."""
         import nuke as _nuke
         from constants import KNOB_NAME
 
@@ -410,7 +407,6 @@ class TestCrossScriptFqnnUpdate(unittest.TestCase):
 
             mock_nuke.nodePaste.return_value = None
             mock_nuke.selectedNodes.return_value = [pasted_anchor_node]
-            mock_nuke.root.return_value.name.return_value = 'destScript.nk'
 
             from anchors import paste_anchors
             paste_anchors()
@@ -418,14 +414,15 @@ class TestCrossScriptFqnnUpdate(unittest.TestCase):
         result_fqnn = pasted_anchor_node[KNOB_NAME].getText()
         self.assertEqual(
             result_fqnn,
-            'destScript.Anchor_MyFootage',
-            f"Expected FQNN 'destScript.Anchor_MyFootage' after cross-script paste "
-            f"but got '{result_fqnn}' — FQNN was not updated to destination script stem",
+            'Anchor_MyFootage',
+            f"Expected stored name 'Anchor_MyFootage' (no stem) after cross-script paste "
+            f"but got '{result_fqnn}'",
         )
 
     def test_dot_anchor_fqnn_updated_after_cross_script_paste(self):
-        """When a Dot anchor is pasted cross-script, its stored FQNN must be
-        rewritten to use the destination script stem (GitHub issue #5).
+        """When a Dot anchor is pasted cross-script, its stored name must be
+        rewritten to node.fullName() — group hierarchy preserved, no stem
+        (GitHub issues #5, #28).
 
         In real Nuke, a Dot named 'Anchor_CamMain' inside Group1 would have
         fullName() == 'Group1.Anchor_CamMain'.  The stub simulates this by
@@ -450,7 +447,6 @@ class TestCrossScriptFqnnUpdate(unittest.TestCase):
 
             mock_nuke.nodePaste.return_value = None
             mock_nuke.selectedNodes.return_value = [pasted_dot_anchor_node]
-            mock_nuke.root.return_value.name.return_value = 'destScript.nk'
 
             from anchors import paste_anchors
             paste_anchors()
@@ -458,18 +454,17 @@ class TestCrossScriptFqnnUpdate(unittest.TestCase):
         result_fqnn = pasted_dot_anchor_node[KNOB_NAME].getText()
         self.assertEqual(
             result_fqnn,
-            'destScript.Group1.Anchor_CamMain',
-            f"Expected FQNN 'destScript.Group1.Anchor_CamMain' after cross-script paste "
-            f"but got '{result_fqnn}' — group path must be preserved, only script stem changes",
+            'Group1.Anchor_CamMain',
+            f"Expected stored name 'Group1.Anchor_CamMain' (group path preserved, no stem) "
+            f"but got '{result_fqnn}'",
         )
 
     def test_node_fullname_portion_preserved_after_fqnn_update(self):
-        """The node.fullName() portion of the FQNN must be preserved verbatim;
-        only the leading script stem is replaced with the destination stem."""
+        """The stored name must use node.fullName() verbatim — no script stem.
+        Auto-renames by Nuke (e.g. digit appended on collision) are reflected."""
         import nuke as _nuke
         from constants import KNOB_NAME
 
-        # An anchor with a deeply nested fullName
         pasted_anchor_node = self._make_noop_anchor_node(
             anchor_name='DeepAnchor',
             stored_fqnn='sourceScript.Anchor_DeepAnchor',
@@ -486,17 +481,15 @@ class TestCrossScriptFqnnUpdate(unittest.TestCase):
 
             mock_nuke.nodePaste.return_value = None
             mock_nuke.selectedNodes.return_value = [pasted_anchor_node]
-            mock_nuke.root.return_value.name.return_value = 'destScript.nk'
 
             from anchors import paste_anchors
             paste_anchors()
 
         result_fqnn = pasted_anchor_node[KNOB_NAME].getText()
-        # get_fully_qualified_node_name uses node.fullName() — which returns 'Anchor_DeepAnchor1'
         self.assertEqual(
             result_fqnn,
-            'destScript.Anchor_DeepAnchor1',
-            f"Expected FQNN to use node's current fullName() after paste "
+            'Anchor_DeepAnchor1',
+            f"Expected stored name 'Anchor_DeepAnchor1' (current fullName, no stem) "
             f"but got '{result_fqnn}'",
         )
 
