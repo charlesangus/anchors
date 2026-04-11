@@ -107,12 +107,6 @@ def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: 3 node-cl
                     add_input_knob(node, dot_type='local')
                 node[KNOB_NAME].setText(stored_fqnn)
 
-            # Path C — existing anchor node (e.g. a NoOp named Anchor_*) being copied.
-            elif is_anchor(node):
-                stored_fqnn = "" if cut else get_fully_qualified_node_name(node)
-                add_input_knob(node)
-                node[KNOB_NAME].setText(stored_fqnn)
-
         # now that we've stored the info we need on the nodes, do a regular copy
         nuke.nodeCopy(nukescripts.cut_paste_file())
 
@@ -172,21 +166,13 @@ def paste_anchors():  # noqa: C901 — complexity is inherent: anchor/link/dot p
 
             input_node = find_anchor_node(node)
 
-            if node.Class() in LINK_SOURCE_CLASSES or is_anchor(node):
-                # Path A/C: file node or anchor node pasted → replace with a link node.
+            if node.Class() in LINK_SOURCE_CLASSES:
+                # Path A: file node pasted → replace with a link node.
                 # find_anchor_node() resolves the stored FQNN; None means cross-script or
                 # deleted.
                 if not input_node:
                     # Cross-script (or deleted) case: find_anchor_node() returned None.
-                    # File nodes and Dot anchors are left disconnected as placeholders.
-                    # BUG-02 fix: anchor pasted cross-script stays an anchor — do not
-                    # attempt replacement regardless of whether a same-named anchor exists
-                    # in the destination.
-                    # GitHub #5 fix: rewrite the stored name to reflect any auto-rename
-                    # Nuke may have applied (e.g. appending a digit on name collision),
-                    # so that subsequent Link Dots copied from this anchor reconnect correctly.
-                    if is_anchor(node):
-                        node[KNOB_NAME].setValue(node.fullName())
+                    # File nodes are left disconnected as placeholders.
                     continue
                 nukescripts.clear_selection_recursive()
                 node["selected"].setValue(True)

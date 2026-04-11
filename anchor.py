@@ -219,13 +219,37 @@ def find_anchor_by_name(display_name):
     return None
 
 
+def _stored_fqnn_matches_anchor(stored_fqnn, anchor_fqnn, legacy_fqnn):
+    """Return True if *stored_fqnn* refers to the same anchor as *anchor_fqnn*.
+
+    Handles three formats in descending recency:
+      1. Current:        ``Anchor_Foo`` or ``Group1.Anchor_Foo``
+      2. Legacy stem:    ``scriptStem.Anchor_Foo``
+      3. Very old:       full file path prefix, e.g. ``/path/to/script.Anchor_Foo``
+
+    For formats 2 and 3 the first dot-segment is stripped and the remainder is
+    compared against *anchor_fqnn*, matching the same stripping logic used in
+    ``find_anchor_node`` for the forward lookup direction.
+    """
+    if not stored_fqnn:
+        return False
+    if stored_fqnn in (anchor_fqnn, legacy_fqnn):
+        return True
+    parts = stored_fqnn.split('.')
+    if len(parts) > 1:
+        stripped = '.'.join(parts[1:])
+        if stripped == anchor_fqnn:
+            return True
+    return False
+
+
 def get_links_for_anchor(anchor_node):
     """Return all link nodes in the current script that reference *anchor_node*."""
     fqnn = get_fully_qualified_node_name(anchor_node)
     legacy_fqnn = f"{nuke.root().name().split('.')[0]}.{fqnn}"
     return [node for node in nuke.allNodes()
             if is_link(node) and not is_anchor(node)
-            and node[KNOB_NAME].getText() in (fqnn, legacy_fqnn)]
+            and _stored_fqnn_matches_anchor(node[KNOB_NAME].getText(), fqnn, legacy_fqnn)]
 
 
 # Compiled once at module level — covers %d, %04d, ####, %V, %v frame token styles
@@ -330,7 +354,7 @@ def rename_anchor_to(anchor_node, name, color=None):
         new_fqnn = get_fully_qualified_node_name(anchor_node)
 
         for node in nuke.allNodes():
-            if is_link(node) and not is_anchor(node) and node[KNOB_NAME].getText() in (old_fqnn, old_fqnn_legacy):
+            if is_link(node) and not is_anchor(node) and _stored_fqnn_matches_anchor(node[KNOB_NAME].getText(), old_fqnn, old_fqnn_legacy):
                 node[KNOB_NAME].setValue(new_fqnn)
                 node['label'].setValue(f"Link: {new_label}")
     else:
@@ -346,7 +370,7 @@ def rename_anchor_to(anchor_node, name, color=None):
 
         new_label = anchor_node['label'].getText() or anchor_node.name()
         for node in nuke.allNodes():
-            if is_link(node) and not is_anchor(node) and node[KNOB_NAME].getText() in (old_fqn, old_fqn_legacy):
+            if is_link(node) and not is_anchor(node) and _stored_fqnn_matches_anchor(node[KNOB_NAME].getText(), old_fqn, old_fqn_legacy):
                 node[KNOB_NAME].setValue(new_fqn)
                 node['label'].setValue(f"Link: {new_label}")
 
@@ -401,13 +425,8 @@ def rename_selected_anchor():
 
 
 def reconnect_anchor_node(anchor_node):
-    # Bug fix: filter by exact FQNN match so only this anchor's links reconnect,
-    # not all links in the script (the old substring check was commented out).
-    fqnn = get_fully_qualified_node_name(anchor_node)
-    legacy_fqnn = f"{nuke.root().name().split('.')[0]}.{fqnn}"
-    for node in nuke.allNodes():
-        if is_link(node) and not is_anchor(node) and node[KNOB_NAME].getText() in (fqnn, legacy_fqnn):
-            reconnect_link_node(node)
+    for link_node in get_links_for_anchor(anchor_node):
+        reconnect_link_node(link_node)
 
 
 def reconnect_all_links():
@@ -487,8 +506,7 @@ def create_anchor():
 
 def create_from_anchor(anchor_node):
     nukescripts.clear_selection_recursive()
-    source = anchor_node if anchor_node.Class() == 'Dot' else anchor_node.input(0)
-    link_class = get_link_class_for_source(source)
+    link_class = 'Dot' if anchor_node.Class() == 'Dot' else 'NoOp'
     link = nuke.createNode(link_class)
     setup_link_node(anchor_node, link)
     return link
