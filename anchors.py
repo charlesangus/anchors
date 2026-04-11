@@ -50,10 +50,8 @@ def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: 3 node-cl
         selected_nodes = nuke.selectedNodes()
         for node in selected_nodes:
             # Skip nodes that are already links (hidden-input Dots, PostageStamps, etc.)
-            # but NOT anchor nodes — an anchor may have KNOB_NAME set from a prior copy
-            # or old paste, yet it is still an independent anchor and must be re-stamped
-            # with its own current FQNN (Path C below) so subsequent pastes link to it
-            # rather than to whatever anchor KNOB_NAME happened to point to previously.
+            # but NOT anchor nodes — an anchor may have KNOB_NAME set from a prior old
+            # paste. That stale reference is cleared below before the clipboard copy.
             if is_link(node) and not is_anchor(node):
                 continue
 
@@ -106,6 +104,12 @@ def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: 3 node-cl
                     node['tile_color'].setValue(LOCAL_DOT_COLOR)
                     add_input_knob(node, dot_type='local')
                 node[KNOB_NAME].setText(stored_fqnn)
+
+            elif is_anchor(node) and is_link(node):
+                # Anchor with stale KNOB_NAME from a prior old-style paste: clear it so
+                # the clipboard copy carries no spurious reference. Anchors are never
+                # stamped during copy/cut — they are independent named nodes, not links.
+                node[KNOB_NAME].setValue('')
 
         # now that we've stored the info we need on the nodes, do a regular copy
         nuke.nodeCopy(nukescripts.cut_paste_file())

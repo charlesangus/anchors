@@ -214,6 +214,94 @@ class TestCopyAnchorsDoesNotStampFqnnOnAnchors(unittest.TestCase):
         mock_nuke.createNode.assert_not_called()
         mock_nuke.delete.assert_not_called()
 
+    def test_copy_anchors_clears_stale_knob_name_on_anchor(self):
+        """copy_anchors() must clear KNOB_NAME to '' on an anchor that has a stale
+        reference from a prior old paste, so the clipboard copy carries no
+        spurious reference that could corrupt a later paste."""
+        anchor = _make_anchor(stored_fqnn='oldScript.Anchor_Foo')
+
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts'), \
+             patch('anchors.is_link', return_value=True), \
+             patch('anchors.is_anchor', return_value=True), \
+             patch('anchors.add_input_knob'):
+
+            mock_nuke.selectedNodes.return_value = [anchor]
+
+            from anchors import copy_anchors
+            copy_anchors()
+
+        self.assertEqual(
+            anchor[KNOB_NAME].getText(), '',
+            "Expected KNOB_NAME cleared to '' after copy_anchors, "
+            f"but got '{anchor[KNOB_NAME].getText()}'",
+        )
+
+    def test_group_qualified_anchor_pasted_cross_script_stays_as_anchor(self):
+        """A Group-qualified anchor pasted cross-script must not be replaced with a link.
+
+        After copy_anchors clears its stale KNOB_NAME to '', paste_anchors receives
+        an anchor with an empty stored name and must leave it untouched.
+        """
+        pasted_anchor = StubNode(
+            name='Group1.Anchor_CamMain',
+            node_class='NoOp',
+            knobs_dict={
+                KNOB_NAME: _make_knob(''),  # cleared by copy_anchors
+                'label': _make_knob('CamMain'),
+                'tile_color': _make_knob(0),
+                'hide_input': _make_knob(False),
+                'selected': _make_knob(False),
+            },
+        )
+
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts') as mock_nukescripts, \
+             patch('anchors.find_anchor_node', return_value=None), \
+             patch('anchors.find_anchor_by_name', return_value=None):
+
+            mock_nuke.nodePaste.return_value = None
+            mock_nuke.selectedNodes.return_value = [pasted_anchor]
+
+            from anchors import paste_anchors
+            paste_anchors()
+
+        mock_nuke.createNode.assert_not_called()
+        mock_nuke.delete.assert_not_called()
+
+    def test_autorename_anchor_pasted_cross_script_stays_as_anchor(self):
+        """An anchor that Nuke auto-renamed on paste (digit appended, e.g. Anchor_Foo1)
+        must not be replaced with a link.
+
+        After copy_anchors clears its stale KNOB_NAME to '', paste_anchors must
+        leave the renamed anchor untouched regardless of the new name.
+        """
+        pasted_anchor = StubNode(
+            name='Anchor_DeepAnchor1',  # Nuke appended '1' due to name collision
+            node_class='NoOp',
+            knobs_dict={
+                KNOB_NAME: _make_knob(''),  # cleared by copy_anchors
+                'label': _make_knob('DeepAnchor'),
+                'tile_color': _make_knob(0),
+                'hide_input': _make_knob(False),
+                'selected': _make_knob(False),
+            },
+        )
+
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts') as mock_nukescripts, \
+             patch('anchors.find_anchor_node', return_value=None), \
+             patch('anchors.find_anchor_by_name', return_value=None):
+
+            mock_nuke.nodePaste.return_value = None
+            mock_nuke.selectedNodes.return_value = [pasted_anchor]
+
+            from anchors import paste_anchors
+            paste_anchors()
+
+        mock_nuke.createNode.assert_not_called()
+        mock_nuke.delete.assert_not_called()
+
 
 # ---------------------------------------------------------------------------
 # Bug C — old-format FQNN matching in get_links_for_anchor / rename_anchor_to
