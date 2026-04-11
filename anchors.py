@@ -50,10 +50,8 @@ def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: 3 node-cl
         selected_nodes = nuke.selectedNodes()
         for node in selected_nodes:
             # Skip nodes that are already links (hidden-input Dots, PostageStamps, etc.)
-            # but NOT anchor nodes — an anchor may have KNOB_NAME set from a prior copy
-            # or old paste, yet it is still an independent anchor and must be re-stamped
-            # with its own current FQNN (Path C below) so subsequent pastes link to it
-            # rather than to whatever anchor KNOB_NAME happened to point to previously.
+            # but NOT anchor nodes — an anchor may have KNOB_NAME set from a prior old
+            # paste. That stale reference is cleared below before the clipboard copy.
             if is_link(node) and not is_anchor(node):
                 continue
 
@@ -107,11 +105,11 @@ def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: 3 node-cl
                     add_input_knob(node, dot_type='local')
                 node[KNOB_NAME].setText(stored_fqnn)
 
-            # Path C — existing anchor node (e.g. a NoOp named Anchor_*) being copied.
-            elif is_anchor(node):
-                stored_fqnn = "" if cut else get_fully_qualified_node_name(node)
-                add_input_knob(node)
-                node[KNOB_NAME].setText(stored_fqnn)
+            elif is_anchor(node) and is_link(node):
+                # Anchor with stale KNOB_NAME from a prior old-style paste: clear it so
+                # the clipboard copy carries no spurious reference. Anchors are never
+                # stamped during copy/cut — they are independent named nodes, not links.
+                node[KNOB_NAME].setValue('')
 
         # now that we've stored the info we need on the nodes, do a regular copy
         nuke.nodeCopy(nukescripts.cut_paste_file())
@@ -172,27 +170,13 @@ def paste_anchors():  # noqa: C901 — complexity is inherent: anchor/link/dot p
 
             input_node = find_anchor_node(node)
 
-            if node.Class() in LINK_SOURCE_CLASSES or is_anchor(node):
-                # Path A/C: file node or anchor node pasted → replace with a link node.
+            if node.Class() in LINK_SOURCE_CLASSES:
+                # Path A: file node pasted → replace with a link node.
                 # find_anchor_node() resolves the stored FQNN; None means cross-script or
                 # deleted.
                 if not input_node:
-                    # Cross-script case: find_anchor_node() returned None because the
-                    # stored FQNN belongs to a different script. Dot anchors and file
-                    # nodes are left disconnected as placeholders.
-                    # BUG-02 fix: anchor pasted cross-script stays an anchor.
-                    # Do not attempt replacement regardless of whether a same-named anchor
-                    # exists in the destination. Leave the placeholder in place.
-                    # GitHub #5 fix: rewrite the stored FQNN so it references the
-                    # destination script stem.  Without this, subsequent copy-paste of
-                    # Link Dots pointing to this anchor in the destination script would
-                    # detect a "cross-script" mismatch (stem still says the source script)
-                    # and fail to reconnect.  We recompute using the current script stem
-                    # and the node's current fullName() so auto-renames (Nuke appends a
-                    # digit when a name collides) are also reflected.
-                    if is_anchor(node):
-                        destination_stem = nuke.root().name().split('.')[0]
-                        node[KNOB_NAME].setValue(f"{destination_stem}.{node.fullName()}")
+                    # Cross-script (or deleted) case: find_anchor_node() returned None.
+                    # File nodes are left disconnected as placeholders.
                     continue
                 nukescripts.clear_selection_recursive()
                 node["selected"].setValue(True)
@@ -216,15 +200,7 @@ def paste_anchors():  # noqa: C901 — complexity is inherent: anchor/link/dot p
                     display_name_for_compat = _extract_display_name_from_fqnn(stored_fqnn)
                     dot_type = 'link' if display_name_for_compat is not None else 'local'
 
-                # Detect cross-script: compare stored FQNN script stem against current script stem.
-                # Using FQNN stem comparison (not find_anchor_node() return value) as the cross-script
-                # gate prevents same-stem false positives where find_anchor_node() returns a same-named
-                # node from the destination script for a Local Dot.
-                current_stem = nuke.root().name().split('.')[0]
-                fqnn_stem = stored_fqnn.split('.')[0] if stored_fqnn else ''
-                is_cross_script = bool(fqnn_stem) and (fqnn_stem != current_stem)
-
-                if is_cross_script or not input_node:
+                if not input_node:
                     # Cross-script (or unresolvable FQNN): gate on DOT_TYPE.
                     if dot_type == 'link':
                         # Link Dot: attempt name-based reconnect to same-named anchor in destination.
@@ -332,6 +308,54 @@ def migrate_script():
             nodes_updated += 1
 
     print(f"anchors.migrate_script(): updated {nodes_updated} node(s), renamed {knobs_renamed} knob(s).")
+
+
+def migrate_to_stemless_names():
+    """Migrate stored anchor references from old format (script stem prefix) to new format.
+
+    Old format: "scriptStem.fullName"       e.g. "myScript.Anchor_Foo"
+    New format: "fullName" only             e.g. "Anchor_Foo" or "Group1.Anchor_Foo"
+
+    Scans every node in the current script (including inside Groups) that has a
+    KNOB_NAME knob.  If the stored value cannot be resolved by nuke.toNode() but
+    CAN be resolved after stripping the first segment, the stored value is rewritten
+    to the shorter form.  References that cannot be resolved either way (orphaned or
+    pointing to a node in a different script) are left unchanged.
+
+    Prints a summary of how many nodes were updated.
+
+    Usage (Python console or Anchors menu):
+        import anchors
+        anchors.migrate_to_stemless_names()
+    """
+    nodes_updated = 0
+
+    for node in nuke.allNodes(recurseGroups=True):
+        if KNOB_NAME not in node.knobs():
+            continue
+
+        stored_name = node[KNOB_NAME].getText()
+        if not stored_name:
+            continue
+
+        name_parts = stored_name.split('.')
+        if len(name_parts) <= 1:
+            # Single segment — already new format, nothing to strip
+            continue
+
+        if nuke.toNode(stored_name) is not None:
+            # Resolves as-is: stored value is already new format (or first segment
+            # happens to be a group name that Nuke resolves correctly)
+            continue
+
+        name_without_stem = '.'.join(name_parts[1:])
+        if nuke.toNode(name_without_stem) is not None:
+            # Old format confirmed: full value failed but stripped value resolves
+            node[KNOB_NAME].setValue(name_without_stem)
+            nodes_updated += 1
+        # else: orphaned or cross-script reference — leave unchanged
+
+    print(f"anchors.migrate_to_stemless_names(): updated {nodes_updated} node(s).")
 
 
 def copy_old():

@@ -349,159 +349,6 @@ class TestBugRegressions(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Regression tests for GitHub issue #5 — FQNN not updated on cross-script anchor paste
-# ---------------------------------------------------------------------------
-
-class TestCrossScriptFqnnUpdate(unittest.TestCase):
-    """Regression tests for GitHub issue #5.
-
-    When an anchor node is copy-pasted cross-script, its stored FQNN (in KNOB_NAME)
-    must be updated to use the destination script stem.  Without this fix,
-    subsequent copy-paste of Link Dots referencing the anchor in the destination
-    script would see a cross-script FQNN mismatch and fail to reconnect.
-
-    Both tests FAIL before the fix because paste_anchors() Path A/C just does
-    `continue` without rewriting the FQNN.
-    """
-
-    def _make_noop_anchor_node(self, anchor_name, stored_fqnn, xpos=100, ypos=200):
-        """Return a stub NoOp anchor node with KNOB_NAME set."""
-        import nuke as _nuke
-        from constants import KNOB_NAME, ANCHOR_PREFIX
-        knob = _nuke.StubKnob(stored_fqnn)
-        selected_knob = _nuke.StubKnob(False)
-        return _nuke.StubNode(
-            name=ANCHOR_PREFIX + anchor_name,
-            node_class='NoOp',
-            xpos=xpos,
-            ypos=ypos,
-            knobs_dict={KNOB_NAME: knob, 'selected': selected_knob},
-        )
-
-    def _make_dot_anchor_node(self, stored_fqnn):
-        """Return a stub Dot anchor node with KNOB_NAME set."""
-        import nuke as _nuke
-        from constants import KNOB_NAME
-        knob = _nuke.StubKnob(stored_fqnn)
-        selected_knob = _nuke.StubKnob(False)
-        return _nuke.StubNode(
-            name='Dot1',
-            node_class='Dot',
-            knobs_dict={KNOB_NAME: knob, 'selected': selected_knob},
-        )
-
-    def test_noop_anchor_fqnn_updated_after_cross_script_paste(self):
-        """When a NoOp anchor is pasted cross-script, its stored FQNN must be
-        rewritten to use the destination script stem (GitHub issue #5)."""
-        import nuke as _nuke
-        from constants import KNOB_NAME
-
-        pasted_anchor_node = self._make_noop_anchor_node(
-            anchor_name='MyFootage',
-            stored_fqnn='sourceScript.Anchor_MyFootage',
-        )
-
-        with patch('anchors.nuke') as mock_nuke, \
-             patch('anchors.nukescripts') as mock_nukescripts, \
-             patch('anchors.find_anchor_node', return_value=None), \
-             patch('anchors.find_anchor_by_name', return_value=None), \
-             patch('anchors.setup_link_node') as mock_setup_link_node, \
-             patch('anchors.is_anchor', return_value=True):
-
-            mock_nuke.nodePaste.return_value = None
-            mock_nuke.selectedNodes.return_value = [pasted_anchor_node]
-            mock_nuke.root.return_value.name.return_value = 'destScript.nk'
-
-            from anchors import paste_anchors
-            paste_anchors()
-
-        result_fqnn = pasted_anchor_node[KNOB_NAME].getText()
-        self.assertEqual(
-            result_fqnn,
-            'destScript.Anchor_MyFootage',
-            f"Expected FQNN 'destScript.Anchor_MyFootage' after cross-script paste "
-            f"but got '{result_fqnn}' — FQNN was not updated to destination script stem",
-        )
-
-    def test_dot_anchor_fqnn_updated_after_cross_script_paste(self):
-        """When a Dot anchor is pasted cross-script, its stored FQNN must be
-        rewritten to use the destination script stem (GitHub issue #5).
-
-        In real Nuke, a Dot named 'Anchor_CamMain' inside Group1 would have
-        fullName() == 'Group1.Anchor_CamMain'.  The stub simulates this by
-        setting the node name to 'Group1.Anchor_CamMain'.
-        """
-        import nuke as _nuke
-        from constants import KNOB_NAME
-
-        # Dot anchor inside a Group: fullName() returns the path including the Group prefix
-        pasted_dot_anchor_node = self._make_dot_anchor_node(
-            stored_fqnn='sourceScript.Group1.Anchor_CamMain',
-        )
-        # Override _name so fullName() returns the full Group-qualified name
-        pasted_dot_anchor_node._name = 'Group1.Anchor_CamMain'
-
-        with patch('anchors.nuke') as mock_nuke, \
-             patch('anchors.nukescripts') as mock_nukescripts, \
-             patch('anchors.find_anchor_node', return_value=None), \
-             patch('anchors.find_anchor_by_name', return_value=None), \
-             patch('anchors.setup_link_node') as mock_setup_link_node, \
-             patch('anchors.is_anchor', return_value=True):
-
-            mock_nuke.nodePaste.return_value = None
-            mock_nuke.selectedNodes.return_value = [pasted_dot_anchor_node]
-            mock_nuke.root.return_value.name.return_value = 'destScript.nk'
-
-            from anchors import paste_anchors
-            paste_anchors()
-
-        result_fqnn = pasted_dot_anchor_node[KNOB_NAME].getText()
-        self.assertEqual(
-            result_fqnn,
-            'destScript.Group1.Anchor_CamMain',
-            f"Expected FQNN 'destScript.Group1.Anchor_CamMain' after cross-script paste "
-            f"but got '{result_fqnn}' — group path must be preserved, only script stem changes",
-        )
-
-    def test_node_fullname_portion_preserved_after_fqnn_update(self):
-        """The node.fullName() portion of the FQNN must be preserved verbatim;
-        only the leading script stem is replaced with the destination stem."""
-        import nuke as _nuke
-        from constants import KNOB_NAME
-
-        # An anchor with a deeply nested fullName
-        pasted_anchor_node = self._make_noop_anchor_node(
-            anchor_name='DeepAnchor',
-            stored_fqnn='sourceScript.Anchor_DeepAnchor',
-        )
-        # Simulate that Nuke auto-renamed the node after paste
-        pasted_anchor_node._name = 'Anchor_DeepAnchor1'
-
-        with patch('anchors.nuke') as mock_nuke, \
-             patch('anchors.nukescripts') as mock_nukescripts, \
-             patch('anchors.find_anchor_node', return_value=None), \
-             patch('anchors.find_anchor_by_name', return_value=None), \
-             patch('anchors.setup_link_node') as mock_setup_link_node, \
-             patch('anchors.is_anchor', return_value=True):
-
-            mock_nuke.nodePaste.return_value = None
-            mock_nuke.selectedNodes.return_value = [pasted_anchor_node]
-            mock_nuke.root.return_value.name.return_value = 'destScript.nk'
-
-            from anchors import paste_anchors
-            paste_anchors()
-
-        result_fqnn = pasted_anchor_node[KNOB_NAME].getText()
-        # get_fully_qualified_node_name uses node.fullName() — which returns 'Anchor_DeepAnchor1'
-        self.assertEqual(
-            result_fqnn,
-            'destScript.Anchor_DeepAnchor1',
-            f"Expected FQNN to use node's current fullName() after paste "
-            f"but got '{result_fqnn}'",
-        )
-
-
-# ---------------------------------------------------------------------------
 # Regression test for GitHub issue #9 — only every other Read node replaced on paste
 # ---------------------------------------------------------------------------
 
@@ -590,6 +437,136 @@ class TestMultipleReadNodePaste(unittest.TestCase):
             3,
             f"Expected 3 link nodes to be created but got {len(created_link_nodes)}",
         )
+
+
+# ---------------------------------------------------------------------------
+# Tests for migrate_to_stemless_names()
+# ---------------------------------------------------------------------------
+
+class TestMigrateToStemlessNames(unittest.TestCase):
+    """Tests for anchors.migrate_to_stemless_names() (GitHub issue #28)."""
+
+    def _make_node_with_knob(self, stored_name, node_name='Anchor_Foo', has_knob=True):
+        """Return a stub node with KNOB_NAME set to stored_name."""
+        import nuke as _nuke
+        from constants import KNOB_NAME
+        knobs = {KNOB_NAME: _nuke.StubKnob(stored_name)} if has_knob else {}
+        return _nuke.StubNode(name=node_name, node_class='NoOp', knobs_dict=knobs)
+
+    def _run_migrate(self, all_nodes, to_node_side_effect):
+        """Run migrate_to_stemless_names() with stubbed nuke state."""
+        with patch('anchors.nuke') as mock_nuke:
+            mock_nuke.allNodes.return_value = all_nodes
+            mock_nuke.toNode.side_effect = to_node_side_effect
+            from anchors import migrate_to_stemless_names
+            migrate_to_stemless_names()
+
+    def test_old_format_with_resolvable_node_is_rewritten(self):
+        """Old-format 'stem.Anchor_Foo' must be rewritten to 'Anchor_Foo'
+        when the node resolves after stripping the stem."""
+        import nuke as _nuke
+        from constants import KNOB_NAME
+
+        node = self._make_node_with_knob('myScript.Anchor_Foo')
+        resolved_node = _nuke.StubNode(name='Anchor_Foo', node_class='NoOp')
+
+        def to_node_side_effect(name):
+            if name == 'myScript.Anchor_Foo':
+                return None   # old format: full name doesn't resolve
+            if name == 'Anchor_Foo':
+                return resolved_node  # stripped name resolves
+            return None
+
+        self._run_migrate([node], to_node_side_effect)
+        self.assertEqual(node[KNOB_NAME].getText(), 'Anchor_Foo')
+
+    def test_old_format_group_nested_is_rewritten_preserving_group_path(self):
+        """Old-format 'stem.Group1.Anchor_Foo' must be rewritten to 'Group1.Anchor_Foo'."""
+        import nuke as _nuke
+        from constants import KNOB_NAME
+
+        node = self._make_node_with_knob('myScript.Group1.Anchor_Foo')
+        resolved_node = _nuke.StubNode(name='Anchor_Foo', node_class='NoOp')
+
+        def to_node_side_effect(name):
+            if name == 'myScript.Group1.Anchor_Foo':
+                return None
+            if name == 'Group1.Anchor_Foo':
+                return resolved_node
+            return None
+
+        self._run_migrate([node], to_node_side_effect)
+        self.assertEqual(node[KNOB_NAME].getText(), 'Group1.Anchor_Foo')
+
+    def test_new_format_single_segment_is_unchanged(self):
+        """New-format 'Anchor_Foo' (single segment, no stem) must not be touched."""
+        from constants import KNOB_NAME
+
+        node = self._make_node_with_knob('Anchor_Foo')
+
+        self._run_migrate([node], lambda name: None)
+        self.assertEqual(node[KNOB_NAME].getText(), 'Anchor_Foo')
+
+    def test_new_format_multi_segment_that_resolves_is_unchanged(self):
+        """A multi-segment name that already resolves (e.g. 'Group1.Anchor_Foo' in new
+        format) must not be touched — nuke.toNode() returning a node means it's valid."""
+        import nuke as _nuke
+        from constants import KNOB_NAME
+
+        node = self._make_node_with_knob('Group1.Anchor_Foo')
+        resolved_node = _nuke.StubNode(name='Anchor_Foo', node_class='NoOp')
+
+        self._run_migrate([node], lambda name: resolved_node if name == 'Group1.Anchor_Foo' else None)
+        self.assertEqual(node[KNOB_NAME].getText(), 'Group1.Anchor_Foo')
+
+    def test_orphaned_old_format_that_does_not_resolve_is_unchanged(self):
+        """If neither the full stored name nor the stripped version resolves (e.g. the
+        node was deleted), the stored value must be left unchanged."""
+        from constants import KNOB_NAME
+
+        node = self._make_node_with_knob('myScript.Anchor_Deleted')
+
+        self._run_migrate([node], lambda name: None)
+        self.assertEqual(node[KNOB_NAME].getText(), 'myScript.Anchor_Deleted')
+
+    def test_empty_stored_name_is_skipped(self):
+        """Nodes with an empty KNOB_NAME value must be skipped without error."""
+        from constants import KNOB_NAME
+
+        node = self._make_node_with_knob('')
+        self._run_migrate([node], lambda name: None)
+        self.assertEqual(node[KNOB_NAME].getText(), '')
+
+    def test_node_without_knob_is_skipped(self):
+        """Nodes that do not have KNOB_NAME at all must be skipped without error."""
+        from constants import KNOB_NAME
+
+        node = self._make_node_with_knob('', has_knob=False)
+        # Should complete without raising
+        self._run_migrate([node], lambda name: None)
+
+    def test_only_nodes_with_old_format_are_counted(self):
+        """migrate_to_stemless_names() must update only old-format nodes; new-format
+        and no-knob nodes must be unaffected."""
+        import nuke as _nuke
+        from constants import KNOB_NAME
+
+        old_node = self._make_node_with_knob('myScript.Anchor_Old', node_name='Anchor_Old')
+        new_node = self._make_node_with_knob('Anchor_New', node_name='Anchor_New')
+        resolved_node = _nuke.StubNode(name='Anchor_Old', node_class='NoOp')
+
+        def to_node_side_effect(name):
+            if name == 'myScript.Anchor_Old':
+                return None
+            if name == 'Anchor_Old':
+                return resolved_node
+            if name == 'Anchor_New':
+                return _nuke.StubNode(name='Anchor_New', node_class='NoOp')
+            return None
+
+        self._run_migrate([old_node, new_node], to_node_side_effect)
+        self.assertEqual(old_node[KNOB_NAME].getText(), 'Anchor_Old')
+        self.assertEqual(new_node[KNOB_NAME].getText(), 'Anchor_New')
 
 
 if __name__ == '__main__':

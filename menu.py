@@ -74,6 +74,12 @@ anchors_menu.addCommand("Paste (old)", "anchors.paste_old()", "+^D")
 
 anchors_menu.addSeparator()
 anchors_menu.addCommand(
+    "Anchor Migrate from Old Version",
+    "anchors.migrate_to_stemless_names()"
+)
+
+anchors_menu.addSeparator()
+anchors_menu.addCommand(
     "Anchor Preferences...",
     "from colors import PrefsDialog; dlg = PrefsDialog(); dlg.exec()"
 )

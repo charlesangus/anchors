@@ -75,68 +75,12 @@ def _make_link_node(stored_fqnn, node_name='Dot1', node_class='Dot'):
 # ---------------------------------------------------------------------------
 
 class TestBug12CopyAnchorsGuard(unittest.TestCase):
-    """BUG-12: copy_anchors() guard must allow anchor nodes through even when
-    is_link() returns True (i.e. the anchor has KNOB_NAME from an old paste).
+    """BUG-12: copy_anchors() guard must skip regular link nodes but not anchor nodes.
 
-    Before the fix the guard was `if is_link(node): continue`, which caused
-    Anchor_Two (old-pasted with stale KNOB_NAME pointing to Anchor_One) to be
-    skipped.  The clipboard copy retained the stale FQNN, so the subsequent
-    paste created a link to Anchor_One instead of Anchor_Two.
-
-    After the fix the guard is `if is_link(node) and not is_anchor(node): continue`,
-    so Path C runs and re-stamps KNOB_NAME with the anchor's own current FQNN.
+    The guard is `if is_link(node) and not is_anchor(node): continue`, so plain
+    link nodes (hide_input Dots, etc.) are skipped while anchors pass through to
+    the remaining copy paths.
     """
-
-    def test_anchor_with_stale_knob_name_is_not_skipped_by_copy_guard(self):
-        """copy_anchors() must call get_fully_qualified_node_name for an anchor
-        node that is also is_link=True (stale KNOB_NAME from old paste).
-
-        This proves Path C ran instead of being skipped by the is_link guard.
-        """
-        anchor_two = _make_anchor_node('Two', stored_fqnn='destScript.Anchor_One')
-
-        with patch('anchors.nuke') as mock_nuke, \
-             patch('anchors.nukescripts'), \
-             patch('anchors.is_link', return_value=True), \
-             patch('anchors.is_anchor', return_value=True), \
-             patch('anchors.add_input_knob'), \
-             patch('anchors.get_fully_qualified_node_name',
-                   return_value='destScript.Anchor_Two') as mock_fqnn:
-
-            mock_nuke.selectedNodes.return_value = [anchor_two]
-
-            from anchors import copy_anchors
-            copy_anchors()
-
-        mock_fqnn.assert_called_once_with(anchor_two)
-
-    def test_anchor_knob_name_updated_to_own_fqnn_when_previously_stale(self):
-        """copy_anchors() Path C must overwrite the stale KNOB_NAME with the
-        anchor node's own current FQNN, not keep the old pointer to Anchor_One.
-        """
-        from constants import KNOB_NAME
-        anchor_two = _make_anchor_node('Two', stored_fqnn='destScript.Anchor_One')
-
-        with patch('anchors.nuke') as mock_nuke, \
-             patch('anchors.nukescripts'), \
-             patch('anchors.is_link', return_value=True), \
-             patch('anchors.is_anchor', return_value=True), \
-             patch('anchors.add_input_knob'), \
-             patch('anchors.get_fully_qualified_node_name',
-                   return_value='destScript.Anchor_Two'):
-
-            mock_nuke.selectedNodes.return_value = [anchor_two]
-
-            from anchors import copy_anchors
-            copy_anchors()
-
-        result_fqnn = anchor_two[KNOB_NAME].getText()
-        self.assertEqual(
-            result_fqnn,
-            'destScript.Anchor_Two',
-            f"Expected KNOB_NAME 'destScript.Anchor_Two' after copy_anchors re-stamps "
-            f"the old-pasted anchor, but got '{result_fqnn}'",
-        )
 
     def test_regular_link_node_is_still_skipped_by_copy_guard(self):
         """The guard change must not break existing behaviour: regular link nodes

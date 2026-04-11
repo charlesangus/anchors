@@ -296,3 +296,19 @@ This renames the `paste_hidden_dot_anchor` and `paste_hidden_dot_type` knobs on 
 the current script to `anchors_dot_anchor` and `anchors_dot_type`. It prints a summary of
 nodes and knobs updated so you can verify the migration. The old knobs are removed after
 migration. This operation is not undoable — save a backup of your script first.
+
+# Development
+
+## Setup
+
+After cloning, activate the pre-commit hook (runs the same tests as CI):
+
+```sh
+git config core.hooksPath .githooks
+```
+
+## Running tests
+
+```sh
+pytest tests/
+```
