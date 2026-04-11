@@ -1,0 +1,14 @@
+#!/bin/sh
+# Run the same tests as CI before allowing a commit.
+
+echo "Running tests (pytest tests/)..."
+pytest tests/
+status=$?
+
+if [ $status -ne 0 ]; then
+    echo ""
+    echo "Tests failed — commit aborted."
+    exit 1
+fi
+
+exit 0
