@@ -76,6 +76,16 @@ class TestExtractDisplayNameFromFqnn(unittest.TestCase):
         result = self.extract('shotA.Anchor_')
         self.assertEqual(result, '')
 
+    def test_new_format_single_segment_returns_display_name(self):
+        # Current format: no stem prefix, just the node name
+        result = self.extract('Anchor_MyFootage')
+        self.assertEqual(result, 'MyFootage')
+
+    def test_new_format_group_qualified_returns_last_segment_display_name(self):
+        # Current format: group-qualified without stem, e.g. 'Group1.Anchor_Foo'
+        result = self.extract('Group1.Anchor_MyFootage')
+        self.assertEqual(result, 'MyFootage')
+
 
 # ---------------------------------------------------------------------------
 # Integration tests for paste_anchors() cross-script reconnect behavior

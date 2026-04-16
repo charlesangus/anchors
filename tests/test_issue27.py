@@ -1,6 +1,6 @@
 """Regression tests for GitHub issue #27 — Issues with Anchors/Links in Test Script.
 
-Covers four bugs found when using old-format scripts:
+Covers five bugs found when using old-format scripts:
 
   Bug A  create_from_anchor() produced a Dot link when a NoOp anchor's input was a Dot.
   Bug B  (removed) anchors no longer receive FQNNs during copy, so cross-script paste
@@ -9,6 +9,8 @@ Covers four bugs found when using old-format scripts:
          stored in the very-old full-file-path format ("/path/to/script.Anchor_Foo").
   Bug D  reconnect_anchor_node() had a duplicated inline loop that also missed
          old-format links; it now delegates to get_links_for_anchor().
+  Bug E  reconnect_link_node() failed to reconnect when KNOB_NAME held a very-old
+         full-file-path FQNN; fixed by find_anchor_node() stripping the first segment.
 """
 
 import sys
@@ -466,6 +468,52 @@ class TestReconnectAnchorNodeOldFormat(unittest.TestCase):
             anchor_module.reconnect_anchor_node(anchor)
 
         self.assertNotIn(wrong_link, reconnected)
+
+
+# ---------------------------------------------------------------------------
+# Bug E — reconnect_link_node resolves old-format stored FQNNs
+# ---------------------------------------------------------------------------
+
+class TestReconnectLinkNodeOldFormat(unittest.TestCase):
+    """Bug E: reconnect_link_node() must reconnect to the anchor even when the
+    link's KNOB_NAME holds a very-old full-file-path FQNN.
+
+    find_anchor_node() strips the first dot-segment as a backward-compat
+    fallback, so reconnect_link_node() (which calls find_anchor_node()) must
+    also work transparently with old-format stored names.
+    """
+
+    def test_reconnect_link_node_with_old_format_fqnn_sets_input_to_anchor(self):
+        """reconnect_link_node() must wire the link's input to the resolved anchor
+        when KNOB_NAME stores a very-old full-file-path prefix FQNN."""
+        old_format_stored = '/mnt/proj/editorial/script_v008.Anchor_PLATE_fg01'
+        anchor = StubNode(name='Anchor_PLATE_fg01', node_class='NoOp', knobs_dict={})
+        link = _make_link(old_format_stored)
+
+        with patch('link.nuke') as mock_nuke:
+            mock_nuke.toNode.side_effect = (
+                lambda name: anchor if name == 'Anchor_PLATE_fg01' else None
+            )
+
+            from link import reconnect_link_node
+            reconnect_link_node(link)
+
+        self.assertIs(link._input, anchor)
+
+    def test_reconnect_link_node_with_unresolvable_old_format_fqnn_leaves_input_unchanged(self):
+        """reconnect_link_node() must leave the link untouched when the anchor
+        cannot be resolved (orphaned reference)."""
+        old_format_stored = '/mnt/proj/editorial/script_v008.Anchor_DELETED'
+        link = _make_link(old_format_stored)
+        link._input = None
+
+        with patch('link.nuke') as mock_nuke:
+            mock_nuke.toNode.return_value = None
+
+            from link import reconnect_link_node
+            reconnect_link_node(link)
+
+        self.assertIsNone(link._input)
 
 
 if __name__ == '__main__':
