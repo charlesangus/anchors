@@ -78,6 +78,11 @@ anchors_menu.addCommand(
     "anchors.migrate_to_stemless_names()"
 )
 
+# Automatically migrate old-style knob names on every script load.
+# migrate_script() is idempotent — it only acts when the old knob names are
+# present and the new ones are absent, so repeated loads are no-ops.
+nuke.addOnScriptLoad(anchors.migrate_script)
+
 anchors_menu.addSeparator()
 anchors_menu.addCommand(
     "Anchor Preferences...",
