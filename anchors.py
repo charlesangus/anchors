@@ -49,17 +49,35 @@ def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: 3 node-cl
     with nuke.lastHitGroup():
         selected_nodes = nuke.selectedNodes()
         for node in selected_nodes:
-            # Skip nodes that are already links (hidden-input Dots, PostageStamps, etc.)
-            # but NOT anchor nodes — an anchor may have KNOB_NAME set from a prior old
-            # paste. That stale reference is cleared below before the clipboard copy.
+            # Path L — existing link nodes: re-setup from the current live input so the
+            # clipboard copy always reflects fresh state.  Anchors that also carry a stale
+            # KNOB_NAME are handled by the elif at the bottom of the chain, not here.
             if is_link(node) and not is_anchor(node):
-                continue
+                input_node = node.input(0)
+                if input_node is None or input_node in selected_nodes:
+                    # Input is absent or being copied alongside this node.  Stamp "" so
+                    # paste_anchors() knows to re-setup from whatever Nuke re-connects the
+                    # pasted copy to.
+                    node[KNOB_NAME].setText("")
+                elif is_anchor(input_node):
+                    setup_link_node(input_node, node)
+                else:
+                    # Local Dot: restore Local appearance after setup_link_node() overwrites
+                    # label/color, matching the behaviour of Path B for non-link hidden-input nodes.
+                    stored_fqnn = get_fully_qualified_node_name(input_node)
+                    setup_link_node(input_node, node)
+                    add_input_knob(node, dot_type='local')
+                    source_label = input_node['label'].getText() or input_node.name()
+                    node['label'].setValue(f"Local: {source_label}")
+                    node['tile_color'].setValue(LOCAL_DOT_COLOR)
+                    node[KNOB_NAME].setText(stored_fqnn)
+
 
             # Path A — LINK_SOURCE_CLASSES file node: scan for an anchor whose input is this
             # node and store the anchor's FQNN so paste can read the correct link class
             # from the anchor's hidden knob. Falls back to the file node's own FQNN when
             # no anchor points at it (legacy direct-file-node path).
-            if node.Class() in LINK_SOURCE_CLASSES:
+            elif node.Class() in LINK_SOURCE_CLASSES:
                 if prefs.link_classes_paste_mode == 'passthrough':
                     # skip stamping; node copies plainly via nuke.nodeCopy() at end of function
                     continue
@@ -86,24 +104,23 @@ def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: 3 node-cl
                 if input_node is None or input_node in selected_nodes:
                     stored_fqnn = ""
                     add_input_knob(node)
+                    node[KNOB_NAME].setText(stored_fqnn)
                 elif is_anchor(input_node):
                     # Link Dot: anchor-backed, cross-script capable.
                     # Override tile_color to canonical purple — setup_link_node() may apply a
                     # custom anchor color via find_node_color(), which we do not want here.
-                    stored_fqnn = get_fully_qualified_node_name(input_node)
                     setup_link_node(input_node, node)
                     node['tile_color'].setValue(ANCHOR_DEFAULT_COLOR)
-                    add_input_knob(node, dot_type='link')
                 else:
                     # Local Dot: plain-node-backed, same-script only.
                     # Restore Local appearance after setup_link_node() overwrites label/color.
                     stored_fqnn = get_fully_qualified_node_name(input_node)
                     setup_link_node(input_node, node)
+                    add_input_knob(node, dot_type='local')
                     source_label = input_node['label'].getText() or input_node.name()
                     node['label'].setValue(f"Local: {source_label}")
                     node['tile_color'].setValue(LOCAL_DOT_COLOR)
-                    add_input_knob(node, dot_type='local')
-                node[KNOB_NAME].setText(stored_fqnn)
+                    node[KNOB_NAME].setText(stored_fqnn)
 
             elif is_anchor(node) and is_link(node):
                 # Anchor with stale KNOB_NAME from a prior old-style paste: clear it so
@@ -199,6 +216,13 @@ def paste_anchors():  # noqa: C901 — complexity is inherent: anchor/link/dot p
                     # else → 'local'.
                     display_name_for_compat = _extract_display_name_from_fqnn(stored_fqnn)
                     dot_type = 'link' if display_name_for_compat is not None else 'local'
+
+                # "Input was in selection" case: KNOB_NAME="" because the input was copied
+                # alongside this node.  Nuke has already re-connected the pasted copy to the
+                # pasted copy of the input, so just re-setup from the actual live input.
+                if stored_fqnn == "" and node.input(0) is not None:
+                    setup_link_node(node.input(0), node)
+                    continue
 
                 if not input_node:
                     # Cross-script (or unresolvable FQNN): gate on DOT_TYPE.
