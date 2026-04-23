@@ -110,6 +110,7 @@ def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: 3 node-cl
                     # Link Dot: anchor-backed, cross-script capable.
                     # Override tile_color to canonical purple — setup_link_node() may apply a
                     # custom anchor color via find_node_color(), which we do not want here.
+                    add_input_knob(node, dot_type='link')
                     setup_link_node(input_node, node)
                     node['tile_color'].setValue(ANCHOR_DEFAULT_COLOR)
                 else:
