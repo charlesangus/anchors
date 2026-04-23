@@ -59,8 +59,16 @@ def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: 3 node-cl
                     # paste_anchors() knows to re-setup from whatever Nuke re-connects the
                     # pasted copy to.
                     node[KNOB_NAME].setText("")
-                else:
+                elif is_anchor(input_node):
                     setup_link_node(input_node, node)
+                else:
+                    # Local Dot: restore Local appearance after setup_link_node() overwrites
+                    # label/color, matching the behaviour of Path B for non-link hidden-input nodes.
+                    setup_link_node(input_node, node)
+                    source_label = input_node['label'].getText() or input_node.name()
+                    node['label'].setValue(f"Local: {source_label}")
+                    node['tile_color'].setValue(LOCAL_DOT_COLOR)
+                    add_input_knob(node, dot_type='local')
 
             # Path A — LINK_SOURCE_CLASSES file node: scan for an anchor whose input is this
             # node and store the anchor's FQNN so paste can read the correct link class

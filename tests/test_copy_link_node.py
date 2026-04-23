@@ -115,10 +115,12 @@ class TestCopyLinkNodePathL(unittest.TestCase):
 
         mock_setup.assert_called_once_with(anchor, noop_link)
 
-    def test_copy_link_dot_with_plain_input_calls_setup_link_node(self):
+    def test_copy_local_dot_restores_local_appearance(self):
         """Copying a Local Dot (input is a plain node NOT in the selection) calls
-        setup_link_node(plain_node, local_dot)."""
+        setup_link_node then restores Local label, LOCAL_DOT_COLOR, and dot_type='local'."""
+        from constants import DOT_TYPE_KNOB_NAME, LOCAL_DOT_COLOR
         plain = _make_plain_node('Merge1')
+        plain.knobs()['label']._value = 'my merge'
         local_dot = _make_link_node(stored_fqnn='Merge1', node_class='Dot', name='Dot1')
         local_dot._input = plain
 
@@ -135,6 +137,10 @@ class TestCopyLinkNodePathL(unittest.TestCase):
             copy_anchors()
 
         mock_setup.assert_called_once_with(plain, local_dot)
+        self.assertEqual(local_dot['label'].getValue(), 'Local: my merge')
+        self.assertEqual(local_dot['tile_color'].getValue(), LOCAL_DOT_COLOR)
+        self.assertIn(DOT_TYPE_KNOB_NAME, local_dot.knobs())
+        self.assertEqual(local_dot[DOT_TYPE_KNOB_NAME].getValue(), 'local')
 
     def test_copy_link_dot_no_input_stamps_empty_fqnn(self):
         """Copying a disconnected link node (input(0)=None) stamps KNOB_NAME=""."""
