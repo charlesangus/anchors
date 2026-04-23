@@ -60,6 +60,7 @@ def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: 3 node-cl
                     # pasted copy to.
                     node[KNOB_NAME].setText("")
                 elif is_anchor(input_node):
+                    add_input_knob(node, dot_type='link')
                     setup_link_node(input_node, node)
                 else:
                     # Local Dot: restore Local appearance after setup_link_node() overwrites
