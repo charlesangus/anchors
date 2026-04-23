@@ -49,17 +49,24 @@ def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: 3 node-cl
     with nuke.lastHitGroup():
         selected_nodes = nuke.selectedNodes()
         for node in selected_nodes:
-            # Skip nodes that are already links (hidden-input Dots, PostageStamps, etc.)
-            # but NOT anchor nodes — an anchor may have KNOB_NAME set from a prior old
-            # paste. That stale reference is cleared below before the clipboard copy.
+            # Path L — existing link nodes: re-setup from the current live input so the
+            # clipboard copy always reflects fresh state.  Anchors that also carry a stale
+            # KNOB_NAME are handled by the elif at the bottom of the chain, not here.
             if is_link(node) and not is_anchor(node):
-                continue
+                input_node = node.input(0)
+                if input_node is None or input_node in selected_nodes:
+                    # Input is absent or being copied alongside this node.  Stamp "" so
+                    # paste_anchors() knows to re-setup from whatever Nuke re-connects the
+                    # pasted copy to.
+                    node[KNOB_NAME].setText("")
+                else:
+                    setup_link_node(input_node, node)
 
             # Path A — LINK_SOURCE_CLASSES file node: scan for an anchor whose input is this
             # node and store the anchor's FQNN so paste can read the correct link class
             # from the anchor's hidden knob. Falls back to the file node's own FQNN when
             # no anchor points at it (legacy direct-file-node path).
-            if node.Class() in LINK_SOURCE_CLASSES:
+            elif node.Class() in LINK_SOURCE_CLASSES:
                 if prefs.link_classes_paste_mode == 'passthrough':
                     # skip stamping; node copies plainly via nuke.nodeCopy() at end of function
                     continue
@@ -199,6 +206,13 @@ def paste_anchors():  # noqa: C901 — complexity is inherent: anchor/link/dot p
                     # else → 'local'.
                     display_name_for_compat = _extract_display_name_from_fqnn(stored_fqnn)
                     dot_type = 'link' if display_name_for_compat is not None else 'local'
+
+                # "Input was in selection" case: KNOB_NAME="" because the input was copied
+                # alongside this node.  Nuke has already re-connected the pasted copy to the
+                # pasted copy of the input, so just re-setup from the actual live input.
+                if stored_fqnn == "" and node.input(0) is not None:
+                    setup_link_node(node.input(0), node)
+                    continue
 
                 if not input_node:
                     # Cross-script (or unresolvable FQNN): gate on DOT_TYPE.
