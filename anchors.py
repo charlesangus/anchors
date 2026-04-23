@@ -64,11 +64,14 @@ def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: 3 node-cl
                 else:
                     # Local Dot: restore Local appearance after setup_link_node() overwrites
                     # label/color, matching the behaviour of Path B for non-link hidden-input nodes.
+                    stored_fqnn = get_fully_qualified_node_name(input_node)
                     setup_link_node(input_node, node)
+                    add_input_knob(node, dot_type='local')
                     source_label = input_node['label'].getText() or input_node.name()
                     node['label'].setValue(f"Local: {source_label}")
                     node['tile_color'].setValue(LOCAL_DOT_COLOR)
-                    add_input_knob(node, dot_type='local')
+                    node[KNOB_NAME].setText(stored_fqnn)
+
 
             # Path A — LINK_SOURCE_CLASSES file node: scan for an anchor whose input is this
             # node and store the anchor's FQNN so paste can read the correct link class
@@ -101,24 +104,23 @@ def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: 3 node-cl
                 if input_node is None or input_node in selected_nodes:
                     stored_fqnn = ""
                     add_input_knob(node)
+                    node[KNOB_NAME].setText(stored_fqnn)
                 elif is_anchor(input_node):
                     # Link Dot: anchor-backed, cross-script capable.
                     # Override tile_color to canonical purple — setup_link_node() may apply a
                     # custom anchor color via find_node_color(), which we do not want here.
-                    stored_fqnn = get_fully_qualified_node_name(input_node)
                     setup_link_node(input_node, node)
                     node['tile_color'].setValue(ANCHOR_DEFAULT_COLOR)
-                    add_input_knob(node, dot_type='link')
                 else:
                     # Local Dot: plain-node-backed, same-script only.
                     # Restore Local appearance after setup_link_node() overwrites label/color.
                     stored_fqnn = get_fully_qualified_node_name(input_node)
                     setup_link_node(input_node, node)
+                    add_input_knob(node, dot_type='local')
                     source_label = input_node['label'].getText() or input_node.name()
                     node['label'].setValue(f"Local: {source_label}")
                     node['tile_color'].setValue(LOCAL_DOT_COLOR)
-                    add_input_knob(node, dot_type='local')
-                node[KNOB_NAME].setText(stored_fqnn)
+                    node[KNOB_NAME].setText(stored_fqnn)
 
             elif is_anchor(node) and is_link(node):
                 # Anchor with stale KNOB_NAME from a prior old-style paste: clear it so
