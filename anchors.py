@@ -48,6 +48,7 @@ def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: 3 node-cl
         return
     with nuke.lastHitGroup():
         selected_nodes = nuke.selectedNodes()
+        selection_is_all_anchors = bool(selected_nodes) and all(is_anchor(n) for n in selected_nodes)
         for node in selected_nodes:
             # Path L — existing link nodes: re-setup from the current live input so the
             # clipboard copy always reflects fresh state.  Anchors that also carry a stale
@@ -124,11 +125,17 @@ def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: 3 node-cl
                     node['tile_color'].setValue(LOCAL_DOT_COLOR)
                     node[KNOB_NAME].setText(stored_fqnn)
 
-            elif is_anchor(node) and is_link(node):
-                # Anchor with stale KNOB_NAME from a prior old-style paste: clear it so
-                # the clipboard copy carries no spurious reference. Anchors are never
-                # stamped during copy/cut — they are independent named nodes, not links.
-                node[KNOB_NAME].setValue('')
+            elif is_anchor(node):
+                if selection_is_all_anchors:
+                    # Issue #37: entire selection is anchors — stamp each anchor's own FQNN
+                    # so paste_anchors() can replace the pasted copy with a Link pointing
+                    # back to the original anchor.
+                    add_input_knob(node, dot_type='link')
+                    node[KNOB_NAME].setText(get_fully_qualified_node_name(node))
+                elif is_link(node):
+                    # Anchor with stale KNOB_NAME from a prior old-style paste: clear it so
+                    # the clipboard copy carries no spurious reference.
+                    node[KNOB_NAME].setValue('')
 
         # now that we've stored the info we need on the nodes, do a regular copy
         nuke.nodeCopy(nukescripts.cut_paste_file())
@@ -201,6 +208,36 @@ def paste_anchors():  # noqa: C901 — complexity is inherent: anchor/link/dot p
                 node["selected"].setValue(True)
                 link_node = nuke.createNode(get_link_class_for_source(input_node))
                 setup_link_node(input_node, link_node)
+                link_node.setXYpos(node.xpos(), node.ypos())
+                final_selection.remove(node)
+                final_selection.append(link_node)
+                nuke.delete(node)
+
+            elif (is_anchor(node)
+                  and DOT_TYPE_KNOB_NAME in node.knobs()
+                  and node[DOT_TYPE_KNOB_NAME].getValue() == 'link'):
+                # Path D (Issue #37): pasted node is an anchor that was stamped at copy
+                # time because the entire selection was anchors.  Only anchors that carry
+                # DOT_TYPE_KNOB_NAME = 'link' are processed — this knob is added by
+                # add_input_knob(node, dot_type='link') in copy_anchors() and is absent
+                # on old-style stale-KNOB_NAME anchors (which must remain as-is per BUG-02).
+                # Path D is checked before Path B because NoOp is in HIDDEN_INPUT_CLASSES;
+                # without this ordering a stamped anchor NoOp would enter Path B instead.
+                if not input_node:
+                    # Cross-script (or unresolvable FQNN): attempt name-based fallback.
+                    # KNOB_NAME is guaranteed present here — we passed the top-of-loop guard.
+                    stored_fqnn = node[KNOB_NAME].getText()
+                    display_name = _extract_display_name_from_fqnn(stored_fqnn)
+                    original_anchor = find_anchor_by_name(display_name) if display_name else None
+                else:
+                    original_anchor = input_node
+                if not original_anchor:
+                    # Cannot resolve — leave the pasted anchor as-is.
+                    continue
+                nukescripts.clear_selection_recursive()
+                node["selected"].setValue(True)
+                link_node = nuke.createNode(get_link_class_for_source(original_anchor))
+                setup_link_node(original_anchor, link_node)
                 link_node.setXYpos(node.xpos(), node.ypos())
                 final_selection.remove(node)
                 final_selection.append(link_node)
