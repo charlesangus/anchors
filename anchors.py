@@ -126,10 +126,12 @@ def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: 3 node-cl
                     node[KNOB_NAME].setText(stored_fqnn)
 
             elif is_anchor(node):
-                if selection_is_all_anchors:
+                if selection_is_all_anchors and not cut:
                     # Issue #37: entire selection is anchors — stamp each anchor's own FQNN
                     # so paste_anchors() can replace the pasted copy with a Link pointing
-                    # back to the original anchor.
+                    # back to the original anchor.  Skip when cutting: the originals will be
+                    # deleted, so paste can never resolve them and would leave the pasted
+                    # copies with stale link knobs.
                     add_input_knob(node, dot_type='link')
                     node[KNOB_NAME].setText(get_fully_qualified_node_name(node))
                 elif is_link(node):

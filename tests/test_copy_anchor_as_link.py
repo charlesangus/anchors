@@ -408,5 +408,48 @@ class TestPasteAnchorAsLink(unittest.TestCase):
         mock_nuke.delete.assert_not_called()
 
 
+# ---------------------------------------------------------------------------
+# copy_anchors(cut=True) — all-anchor cut must NOT stamp anchors
+# ---------------------------------------------------------------------------
+
+class TestCopyAnchorsAllAnchorCut(unittest.TestCase):
+    """copy_anchors(cut=True): all-anchor cut must leave anchors unstamped.
+
+    When the user cuts (rather than copies) an all-anchor selection the original
+    nodes will be deleted immediately after copy_anchors() returns.  Stamping
+    them with DOT_TYPE_KNOB_NAME='link' and their own FQNN would mean that on
+    paste, Path D fires but cannot find the (deleted) originals, leaving the
+    pasted copies with stale link knobs and is_link() == True.  The `not cut`
+    guard prevents this by skipping the stamp step entirely for cuts.
+    """
+
+    def test_cut_all_anchor_selection_does_not_stamp_anchors(self):
+        """add_input_knob must NOT be called for anchors when cut=True,
+        even when the entire selection is anchors."""
+        anchor_a = _make_anchor_node('Foo')
+        anchor_b = _make_anchor_node('Bar')
+
+        add_input_knob_calls = []
+
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts'), \
+             patch('anchors.prefs') as mock_prefs, \
+             patch('anchors.is_link', return_value=False), \
+             patch('anchors.is_anchor', return_value=True), \
+             patch('anchors.add_input_knob', side_effect=lambda n, **kw: add_input_knob_calls.append(n)):
+
+            _patch_copy(mock_nuke, [anchor_a, anchor_b], mock_prefs)
+
+            from anchors import copy_anchors
+            copy_anchors(cut=True)
+
+        # add_input_knob must NOT have been called — anchors are not stamped on cut
+        self.assertEqual(add_input_knob_calls, [],
+                         "add_input_knob must not be called for anchors when cut=True")
+        # KNOB_NAME must not have been added to either anchor
+        self.assertNotIn(KNOB_NAME, anchor_a.knobs())
+        self.assertNotIn(KNOB_NAME, anchor_b.knobs())
+
+
 if __name__ == '__main__':
     unittest.main()
