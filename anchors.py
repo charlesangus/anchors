@@ -66,7 +66,8 @@ def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: 3 node-cl
                 else:
                     # Local Dot: restore Local appearance after setup_link_node() overwrites
                     # label/color, matching the behaviour of Path B for non-link hidden-input nodes.
-                    stored_fqnn = get_fully_qualified_node_name(input_node)
+                    script_stem = nuke.root().name().split('.')[0]
+                    stored_fqnn = f"{script_stem}.{get_fully_qualified_node_name(input_node)}"
                     setup_link_node(input_node, node)
                     add_input_knob(node, dot_type='local')
                     source_label = input_node['label'].getText() or input_node.name()
@@ -117,7 +118,8 @@ def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: 3 node-cl
                 else:
                     # Local Dot: plain-node-backed, same-script only.
                     # Restore Local appearance after setup_link_node() overwrites label/color.
-                    stored_fqnn = get_fully_qualified_node_name(input_node)
+                    script_stem = nuke.root().name().split('.')[0]
+                    stored_fqnn = f"{script_stem}.{get_fully_qualified_node_name(input_node)}"
                     setup_link_node(input_node, node)
                     add_input_knob(node, dot_type='local')
                     source_label = input_node['label'].getText() or input_node.name()
@@ -173,6 +175,26 @@ def _extract_display_name_from_fqnn(stored_fqnn):
     if node_full_name.startswith(ANCHOR_PREFIX):
         return node_full_name[len(ANCHOR_PREFIX):]
     return None
+
+
+def _find_local_node(stored_fqnn):
+    """Resolve a local-dot FQNN to a live node, enforcing same-script guard.
+
+    Expects "scriptStem.nodeFullName" format.  Returns the node when the stem
+    matches the current script; returns None for a different stem (cross-script)
+    or for any FQNN without a dot (defensively handles pre-fix nodes that are
+    restamped at copy time before being pasted).
+    """
+    if not stored_fqnn:
+        return None
+    parts = stored_fqnn.split('.', 1)
+    if len(parts) != 2:
+        return None
+    script_stem, node_name = parts
+    current_stem = nuke.root().name().split('.')[0]
+    if script_stem != current_stem:
+        return None
+    return nuke.toNode(node_name)
 
 
 def paste_anchors():  # noqa: C901 — complexity is inherent: anchor/link/dot paths × same/cross-script gate
@@ -255,6 +277,9 @@ def paste_anchors():  # noqa: C901 — complexity is inherent: anchor/link/dot p
                     # else → 'local'.
                     display_name_for_compat = _extract_display_name_from_fqnn(stored_fqnn)
                     dot_type = 'link' if display_name_for_compat is not None else 'local'
+
+                if dot_type == 'local':
+                    input_node = _find_local_node(stored_fqnn)
 
                 # "Input was in selection" case: KNOB_NAME="" because the input was copied
                 # alongside this node.  Nuke has already re-connected the pasted copy to the
