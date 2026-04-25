@@ -8,7 +8,6 @@ Covers:
 - TEST-38-05: setup_link_node() does not raise when input_node lacks a 'label' knob
 """
 
-import sys
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -73,7 +72,7 @@ class TestFinalSelectionRemoveGuard(unittest.TestCase):
             return link_node
 
         with patch('anchors.nuke') as mock_nuke, \
-             patch('anchors.nukescripts') as mock_nukescripts, \
+             patch('anchors.nukescripts'), \
              patch('anchors.find_anchor_node', return_value=resolved_original), \
              patch('anchors.is_anchor', return_value=True), \
              patch('anchors.get_link_class_for_source', return_value='NoOp'), \
@@ -195,7 +194,7 @@ class TestPasteMultipleAnchorsSmoke(unittest.TestCase):
         )
 
         with patch('anchors.nuke') as mock_nuke, \
-             patch('anchors.nukescripts') as mock_nukescripts, \
+             patch('anchors.nukescripts'), \
              patch('anchors.paste_anchors') as mock_paste_anchors:
 
             mock_nuke.selectedNodes.return_value = [node_a, node_b]
@@ -217,10 +216,8 @@ class TestPasteMultipleAnchorsSmoke(unittest.TestCase):
     def test_paste_multiple_anchors_uses_last_hit_group_context(self):
         """paste_multiple_anchors() must call nuke.lastHitGroup() so that
         selectedNodes() operates in the user's last-active group context."""
-        import nuke as _nuke
-
         with patch('anchors.nuke') as mock_nuke, \
-             patch('anchors.nukescripts') as mock_nukescripts, \
+             patch('anchors.nukescripts'), \
              patch('anchors.paste_anchors'):
 
             mock_nuke.selectedNodes.return_value = []
