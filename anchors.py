@@ -9,6 +9,8 @@ import prefs
 from anchor import find_anchor_by_name
 from constants import (
     ANCHOR_DEFAULT_COLOR,
+    ANCHOR_PREFIX,
+    DOT_ANCHOR_PREFIX,
     DOT_TYPE_KNOB_NAME,
     HIDDEN_INPUT_CLASSES,
     KNOB_NAME,
@@ -140,14 +142,15 @@ def cut_anchors():
 def _extract_display_name_from_fqnn(stored_fqnn):
     """Extract the anchor display name from a stored FQNN for cross-script lookup.
 
-    Returns the display name string (with ANCHOR_PREFIX stripped) if the last
-    segment of the FQNN starts with ANCHOR_PREFIX, or None otherwise.
+    Returns the display name string (with ANCHOR_PREFIX or DOT_ANCHOR_PREFIX stripped)
+    if the last segment of the FQNN starts with either anchor prefix, or None otherwise.
     Returns None for empty or blank FQNNs.
     """
-    from constants import ANCHOR_PREFIX
     if not stored_fqnn:
         return None
     node_full_name = stored_fqnn.split('.')[-1]
+    if node_full_name.startswith(DOT_ANCHOR_PREFIX):
+        return node_full_name[len(DOT_ANCHOR_PREFIX):]
     if node_full_name.startswith(ANCHOR_PREFIX):
         return node_full_name[len(ANCHOR_PREFIX):]
     return None
