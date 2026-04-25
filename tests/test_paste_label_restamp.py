@@ -14,7 +14,7 @@ Covers:
 """
 
 import unittest
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import patch
 
 
 # ---------------------------------------------------------------------------
@@ -24,7 +24,6 @@ from unittest.mock import MagicMock, patch, call
 def _make_noop_anchor_node(node_name, label_value, knobs_dict_extra=None):
     """Return a stub NoOp anchor node with the given name and label, no KNOB_NAME."""
     import nuke as _nuke
-    from constants import ANCHOR_PREFIX
     knobs = {
         'label': _nuke.StubKnob(label_value),
         'selected': _nuke.StubKnob(False),
@@ -98,7 +97,8 @@ class TestNoOpAnchorLabelRestampAfterCollision(unittest.TestCase):
 
     def test_noop_anchor_label_updated_to_reflect_renamed_node_after_collision(self):
         """paste_anchors() must re-stamp the label to 'Foo1' when the pasted
-        NoOp anchor was renamed from Anchor_Foo to Anchor_Foo1 by Nuke."""
+        NoOp anchor was renamed from Anchor_Foo to Anchor_Foo1 by Nuke.
+        The optimised path updates the label knob directly (no rename_anchor_to)."""
         from constants import ANCHOR_PREFIX
 
         # Post-collision: node name is Anchor_Foo1 but label still says "Foo"
@@ -115,15 +115,11 @@ class TestNoOpAnchorLabelRestampAfterCollision(unittest.TestCase):
             from constants import ANCHOR_PREFIX
             return node.name()[len(ANCHOR_PREFIX):]
 
-        def rename_anchor_to_side_effect(anchor_node, display_name, color=None):
-            # Mirror the real rename_anchor_to: update the label knob
-            anchor_node['label'].setValue(display_name)
-
         with patch('anchors.nuke') as mock_nuke, \
              patch('anchors.nukescripts') as mock_nukescripts, \
              patch('anchors.is_anchor', side_effect=is_anchor_side_effect), \
              patch('anchors.anchor_display_name', side_effect=anchor_display_name_side_effect), \
-             patch('anchors.rename_anchor_to', side_effect=rename_anchor_to_side_effect) as mock_rename:
+             patch('anchors.rename_anchor_to') as mock_rename:
 
             mock_nuke.nodePaste.return_value = pasted_node
             mock_nuke.selectedNodes.return_value = [pasted_node]
@@ -132,8 +128,8 @@ class TestNoOpAnchorLabelRestampAfterCollision(unittest.TestCase):
             from anchors import paste_anchors
             paste_anchors()
 
-        # rename_anchor_to must have been called with the new display name
-        mock_rename.assert_called_once_with(pasted_node, 'Foo1')
+        # The optimised path sets the label knob directly; rename_anchor_to is not called
+        mock_rename.assert_not_called()
         # The label must now reflect the collided name
         self.assertEqual(pasted_node['label'].getValue(), 'Foo1')
 
@@ -192,14 +188,15 @@ class TestNoOpAnchorLabelAlreadyCorrectIsIdempotent(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 class TestDotAnchorNodeNameResyncedAfterCollision(unittest.TestCase):
-    """For a Dot anchor, anchor_display_name reads from the label, so rename_anchor_to
-    is called with the label value and setName restores the invariant."""
+    """For a Dot anchor, anchor_display_name reads from the label (not the node
+    name), so after a collision the label is already correct. The optimised
+    pre-loop short-circuits without calling rename_anchor_to."""
 
-    def test_dot_anchor_setname_called_with_anchor_prefix_plus_label_after_collision(self):
-        """When a Dot anchor is pasted and Nuke renames it to Anchor_Plates1 (collision),
-        the label still says 'Plates'. rename_anchor_to('Plates') must call
-        setName('Anchor_Plates'), restoring the Dot anchor name invariant."""
-        import nuke as _nuke
+    def test_dot_anchor_label_already_correct_after_collision(self):
+        """When a Dot anchor is pasted and Nuke renames it to Anchor_Plates1
+        (collision), the label still says 'Plates' — which is already correct.
+        anchor_display_name reads from the label, so display_name == label_knob
+        value and no update is needed; rename_anchor_to must NOT be called."""
         from constants import ANCHOR_PREFIX
 
         # Post-collision node name: Anchor_Plates1; label: "Plates" (unchanged)
@@ -215,21 +212,11 @@ class TestDotAnchorNodeNameResyncedAfterCollision(unittest.TestCase):
             # For a Dot anchor: reads from label
             return node['label'].getValue().strip()
 
-        def rename_anchor_to_side_effect(anchor_node, display_name, color=None):
-            # Mirror real Dot branch: setName then setValue label
-            from constants import ANCHOR_PREFIX
-            import re
-            sanitized = re.sub(r'[^A-Za-z0-9_]', '_', display_name.strip())
-            if not sanitized:
-                raise ValueError(f"empty sanitized name")
-            anchor_node.setName(ANCHOR_PREFIX + sanitized)
-            anchor_node['label'].setValue(display_name.strip())
-
         with patch('anchors.nuke') as mock_nuke, \
              patch('anchors.nukescripts') as mock_nukescripts, \
              patch('anchors.is_anchor', side_effect=is_anchor_side_effect), \
              patch('anchors.anchor_display_name', side_effect=anchor_display_name_side_effect), \
-             patch('anchors.rename_anchor_to', side_effect=rename_anchor_to_side_effect) as mock_rename:
+             patch('anchors.rename_anchor_to') as mock_rename:
 
             mock_nuke.nodePaste.return_value = pasted_dot
             mock_nuke.selectedNodes.return_value = [pasted_dot]
@@ -238,11 +225,9 @@ class TestDotAnchorNodeNameResyncedAfterCollision(unittest.TestCase):
             from anchors import paste_anchors
             paste_anchors()
 
-        # rename_anchor_to must be called with the label value as the display name
-        mock_rename.assert_called_once_with(pasted_dot, 'Plates')
-        # setName must have been called with 'Anchor_Plates' (the invariant name)
-        self.assertIn(ANCHOR_PREFIX + 'Plates', pasted_dot._set_name_calls)
-        # Label must be unchanged at 'Plates'
+        # Label is already correct; the optimised path does nothing
+        mock_rename.assert_not_called()
+        # Label must remain 'Plates'
         self.assertEqual(pasted_dot['label'].getValue(), 'Plates')
 
 
@@ -257,7 +242,6 @@ class TestPathDStampedAnchorIsNotRestamped(unittest.TestCase):
     def test_anchor_with_knob_name_is_not_passed_to_rename_anchor_to(self):
         """paste_anchors() must NOT call rename_anchor_to for an anchor that
         has KNOB_NAME set (it is a link-stamped copy, not a plain pasted anchor)."""
-        import nuke as _nuke
         from constants import ANCHOR_PREFIX
 
         # Stamped anchor: has KNOB_NAME + DOT_TYPE_KNOB_NAME == 'link' (Path D)
@@ -302,8 +286,6 @@ class TestRegularLinkNodeIsNotRestamped(unittest.TestCase):
         """The re-stamp loop condition requires both is_anchor(node) == True
         AND KNOB_NAME not in node.knobs(). A link node fails the KNOB_NAME check,
         so rename_anchor_to is never called."""
-        import nuke as _nuke
-
         link_node = _make_link_node_with_knob(
             node_name='NoOp_link1',
             stored_fqnn='Anchor_Foo',
