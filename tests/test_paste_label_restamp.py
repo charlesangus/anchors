@@ -149,7 +149,6 @@ class TestNoOpAnchorLabelAlreadyCorrectIsIdempotent(unittest.TestCase):
     def test_noop_anchor_label_unchanged_when_no_collision_occurred(self):
         """paste_anchors() must leave the label 'Bar' unchanged when the node
         name is Anchor_Bar and the label already reads 'Bar'."""
-        import nuke as _nuke
         from constants import ANCHOR_PREFIX
 
         pasted_node = _make_noop_anchor_node(
