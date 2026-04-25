@@ -1000,25 +1000,3 @@ def select_anchor_and_navigate():
     _anchor_navigate_widget.raise_()
 
 
-def create_links_from_selected_anchors():
-    """Create a link node for each selected anchor, placed near the anchor.
-
-    For each anchor in the current selection, calls create_from_anchor() to
-    produce a wired link node and positions it to the right of the anchor.
-    Silent no-op when the plugin is disabled or no anchors are selected.
-    """
-    if not prefs.plugin_enabled:
-        return
-    hit_group = nuke.lastHitGroup()
-    with hit_group:
-        selected_nodes = nuke.selectedNodes()
-    selected_anchors = [node for node in selected_nodes if is_anchor(node)]
-    if not selected_anchors:
-        return
-    for anchor_node in selected_anchors:
-        with hit_group:
-            link_node = create_from_anchor(anchor_node)
-            link_node.setXYpos(
-                anchor_node.xpos() + anchor_node.screenWidth() + 20,
-                anchor_node.ypos(),
-            )
