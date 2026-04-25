@@ -155,18 +155,30 @@ class TestCopyAnchorsDoesNotStampFqnnOnAnchors(unittest.TestCase):
     cross-script.  Path C has been removed; anchors are left untouched.
     """
 
-    def test_copy_anchors_does_not_call_add_input_knob_for_anchor(self):
-        """add_input_knob must not be called for an anchor node during copy."""
+    def test_copy_anchors_does_not_call_add_input_knob_for_anchor_in_mixed_selection(self):
+        """add_input_knob must not be called for an anchor node when the selection
+        is mixed (contains non-anchor nodes).
+
+        Issue #37 introduced all-anchor stamping, but mixed selections must still
+        leave anchors unstamped so they paste as anchor copies, not links.
+        """
         anchor = _make_anchor()
+        non_anchor = StubNode(name='Merge1', node_class='Merge', knobs_dict={
+            'label': _make_knob(''),
+            'tile_color': _make_knob(0),
+            'hide_input': _make_knob(False),
+            'selected': _make_knob(False),
+        })
 
         with patch('anchors.nuke') as mock_nuke, \
              patch('anchors.nukescripts'), \
              patch('anchors.is_link', return_value=False), \
-             patch('anchors.is_anchor', return_value=True), \
+             patch('anchors.is_anchor', side_effect=lambda n: n.name().startswith(ANCHOR_PREFIX)), \
              patch('anchors.add_input_knob') as mock_add_input_knob, \
              patch('anchors.get_fully_qualified_node_name') as mock_fqnn:
 
-            mock_nuke.selectedNodes.return_value = [anchor]
+            mock_nuke.selectedNodes.return_value = [anchor, non_anchor]
+            mock_nuke.allNodes.return_value = []
 
             from anchors import copy_anchors
             copy_anchors()
@@ -216,26 +228,37 @@ class TestCopyAnchorsDoesNotStampFqnnOnAnchors(unittest.TestCase):
         mock_nuke.createNode.assert_not_called()
         mock_nuke.delete.assert_not_called()
 
-    def test_copy_anchors_clears_stale_knob_name_on_anchor(self):
+    def test_copy_anchors_clears_stale_knob_name_on_anchor_in_mixed_selection(self):
         """copy_anchors() must clear KNOB_NAME to '' on an anchor that has a stale
-        reference from a prior old paste, so the clipboard copy carries no
-        spurious reference that could corrupt a later paste."""
+        reference from a prior old paste, when the selection is mixed (contains
+        non-anchor nodes), so the clipboard copy carries no spurious reference.
+
+        Issue #37 introduced all-anchor stamping, so the stale-clear path only
+        fires when the selection is not exclusively anchors.
+        """
         anchor = _make_anchor(stored_fqnn='oldScript.Anchor_Foo')
+        non_anchor = StubNode(name='Merge1', node_class='Merge', knobs_dict={
+            'label': _make_knob(''),
+            'tile_color': _make_knob(0),
+            'hide_input': _make_knob(False),
+            'selected': _make_knob(False),
+        })
 
         with patch('anchors.nuke') as mock_nuke, \
              patch('anchors.nukescripts'), \
-             patch('anchors.is_link', return_value=True), \
-             patch('anchors.is_anchor', return_value=True), \
+             patch('anchors.is_link', side_effect=lambda n: KNOB_NAME in n.knobs()), \
+             patch('anchors.is_anchor', side_effect=lambda n: n.name().startswith(ANCHOR_PREFIX)), \
              patch('anchors.add_input_knob'):
 
-            mock_nuke.selectedNodes.return_value = [anchor]
+            mock_nuke.selectedNodes.return_value = [anchor, non_anchor]
+            mock_nuke.allNodes.return_value = []
 
             from anchors import copy_anchors
             copy_anchors()
 
         self.assertEqual(
             anchor[KNOB_NAME].getText(), '',
-            "Expected KNOB_NAME cleared to '' after copy_anchors, "
+            "Expected KNOB_NAME cleared to '' after copy_anchors in mixed selection, "
             f"but got '{anchor[KNOB_NAME].getText()}'",
         )
 
