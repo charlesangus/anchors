@@ -199,15 +199,59 @@ def set_anchor_color(anchor_node):
             propagate_anchor_color(anchor_node, chosen_color)
 
 
-def anchor_display_name(node):
+def _anchor_sort_key(node):
+    """Return a lower-cased sort key for an anchor node.
+
+    Uses the raw label for Dot anchors and the node-name suffix for NoOp
+    anchors.  This avoids calling anchor_display_name() (which may trigger an
+    allNodes() scan per element when duplicates are present) and keeps the sort
+    O(n log n) instead of O(n² log n).
+    """
     if node.Class() == 'Dot':
-        return node['label'].getValue().strip()
+        return node['label'].getValue().strip().lower()
+    return node.name()[len(ANCHOR_PREFIX):].lower()
+
+
+def _dot_anchor_duplicate_labels():
+    """Return the set of Dot-anchor labels that appear more than once."""
+    from collections import Counter
+    dot_labels = [
+        n['label'].getValue().strip()
+        for n in nuke.allNodes()
+        if is_anchor(n) and n.Class() == 'Dot'
+    ]
+    return {label for label, count in Counter(dot_labels).items() if count > 1}
+
+
+def anchor_display_name(node, duplicate_dot_labels=None):
+    """Return the human-readable display name for an anchor node.
+
+    For Dot anchors whose label appears on more than one Dot anchor, the node
+    name is appended in parentheses so the user can tell them apart in the
+    tabtabtab picker (issue #34).
+
+    Parameters
+    ----------
+    node : nuke.Node
+        The anchor node.
+    duplicate_dot_labels : set[str] or None
+        Pre-computed set of ambiguous labels.  When None the function calls
+        _dot_anchor_duplicate_labels() itself (one allNodes() scan per call).
+        Pass a pre-computed set in loops (e.g. get_items()) to avoid O(n²) scans.
+    """
+    if node.Class() == 'Dot':
+        label = node['label'].getValue().strip()
+        if duplicate_dot_labels is None:
+            duplicate_dot_labels = _dot_anchor_duplicate_labels()
+        if label in duplicate_dot_labels:
+            return f"{label} ({node.name()})"
+        return label
     return node.name()[len(ANCHOR_PREFIX):]
 
 
 def all_anchors():
     anchors = [n for n in nuke.allNodes() if is_anchor(n)]
-    anchors.sort(key=lambda n: anchor_display_name(n).lower())
+    anchors.sort(key=_anchor_sort_key)
     return anchors
 
 
@@ -380,7 +424,10 @@ def rename_anchor_to(anchor_node, name, color=None):
 
 def rename_anchor(anchor_node):
     """Prompt the user for a new name (and optionally a new color) and rename the anchor."""
-    suggested = anchor_display_name(anchor_node)
+    if anchor_node.Class() == 'Dot':
+        suggested = anchor_node['label'].getValue().strip()
+    else:
+        suggested = anchor_display_name(anchor_node)
 
     if ColorPaletteDialog is None:
         # Qt unavailable — fall back to plain text input
@@ -603,12 +650,14 @@ class AnchorPlugin(_tabtabtab.TabTabTabPlugin):
         # exited, so lastHitGroup() would return root.
         hit_group = self._hit_group or nuke.root()
         with hit_group:
+            anchors = all_anchors()
+            duplicate_dot_labels = _dot_anchor_duplicate_labels()
             return [
                 {
                     'menuobj': anchor,
-                    'menupath': 'Anchors/' + anchor_display_name(anchor),
+                    'menupath': 'Anchors/' + anchor_display_name(anchor, duplicate_dot_labels),
                 }
-                for anchor in all_anchors()
+                for anchor in anchors
             ]
 
     def get_weights_file(self):
@@ -861,12 +910,14 @@ class AnchorNavigatePlugin(_tabtabtab.TabTabTabPlugin):
         # exited, so lastHitGroup() would return root.
         hit_group = self._hit_group or nuke.root()
         with hit_group:
+            anchor_nodes = all_anchors()
+            duplicate_dot_labels = _dot_anchor_duplicate_labels()
             items = [
                 {
                     'menuobj': anchor_node,
-                    'menupath': 'Anchors/' + anchor_display_name(anchor_node),
+                    'menupath': 'Anchors/' + anchor_display_name(anchor_node, duplicate_dot_labels),
                 }
-                for anchor_node in all_anchors()
+                for anchor_node in anchor_nodes
             ]
             for backdrop_node in nuke.allNodes('BackdropNode'):
                 label = backdrop_node['label'].value().strip()
