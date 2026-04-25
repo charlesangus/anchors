@@ -28,6 +28,7 @@ from constants import (
     ANCHOR_RECONNECT_KNOB_NAME,
     ANCHOR_RENAME_KNOB_NAME,
     ANCHOR_SET_COLOR_KNOB_NAME,
+    DOT_ANCHOR_PREFIX,
     DOT_LABEL_FONT_SIZE_LARGE,
     DOT_LABEL_FONT_SIZE_MEDIUM,
     KNOB_NAME,
@@ -348,7 +349,7 @@ def rename_anchor_to(anchor_node, name, color=None):
 
         old_fqnn = get_fully_qualified_node_name(anchor_node)
         old_fqnn_legacy = f"{nuke.root().name().split('.')[0]}.{old_fqnn}"
-        anchor_node.setName(ANCHOR_PREFIX + sanitized)
+        anchor_node.setName(DOT_ANCHOR_PREFIX + sanitized)
         new_label = name.strip()
         anchor_node['label'].setValue(new_label)
         new_fqnn = get_fully_qualified_node_name(anchor_node)

@@ -11,6 +11,7 @@ LINK_RECONNECT_KNOB_NAME = "reconnect_link"
 HIDDEN_INPUT_CLASSES = ['PostageStamp', 'Dot', 'NoOp']
 
 ANCHOR_PREFIX = 'Anchor_'
+DOT_ANCHOR_PREFIX = 'Dot_'
 # FROZEN: value stored in .nk files — do not rename
 ANCHOR_RECONNECT_KNOB_NAME = "reconnect_child_links"
 # FROZEN: value stored in .nk files — do not rename

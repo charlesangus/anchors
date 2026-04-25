@@ -14,6 +14,7 @@ from constants import (
     ANCHOR_PREFIX,
     DOT_ANCHOR_KNOB_NAME,
     DOT_ANCHOR_MIN_FONT_SIZE,
+    DOT_ANCHOR_PREFIX,
     DOT_LINK_LABEL_FONT_SIZE,
     DOT_TYPE_KNOB_NAME,
     KNOB_NAME,
@@ -108,7 +109,7 @@ def mark_dot_as_anchor(dot_node):
     label = dot_node['label'].getValue().strip()
     sanitized_label = re.sub(r'[^A-Za-z0-9_]', '_', label)
     if sanitized_label:
-        dot_node.setName(ANCHOR_PREFIX + sanitized_label)
+        dot_node.setName(DOT_ANCHOR_PREFIX + sanitized_label)
 
     dot_node['tile_color'].setValue(ANCHOR_DEFAULT_COLOR)
 
@@ -116,6 +117,8 @@ def mark_dot_as_anchor(dot_node):
 def is_anchor(node):
     try:
         if node.name().startswith(ANCHOR_PREFIX):
+            return True
+        if node.name().startswith(DOT_ANCHOR_PREFIX):
             return True
         if node.Class() == 'Dot':
             # Font size gate: Dots must have a sufficiently large label to qualify as anchors.

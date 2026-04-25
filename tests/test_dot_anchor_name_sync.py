@@ -1,11 +1,11 @@
 """Tests for Dot anchor node name sync in mark_dot_as_anchor() and rename_anchor_to().
 
 Covers:
-- mark_dot_as_anchor() with labelled Dot: node name becomes 'Anchor_<sanitized_label>'
+- mark_dot_as_anchor() with labelled Dot: node name becomes 'Dot_<sanitized_label>'
 - mark_dot_as_anchor() with empty-label Dot: node name unchanged
 - mark_dot_as_anchor() called twice on same node: idempotent (knob guard fires, name still correct)
 - rename_anchor_to() Dot anchor: label updated
-- rename_anchor_to() Dot anchor: node name updated to 'Anchor_<sanitized>'
+- rename_anchor_to() Dot anchor: node name updated to 'Dot_<sanitized>'
 - rename_anchor_to() Dot anchor: old FQNN in link nodes updated to new FQNN
 - rename_anchor_to() Dot anchor with name that sanitizes to empty: raises ValueError
 - anchor_display_name() for Dot still returns label (not derived from node name)
@@ -66,12 +66,12 @@ def _make_link_node(knob_name_value='', label=''):
 # ---------------------------------------------------------------------------
 
 class TestMarkDotAsAnchorNameSync(unittest.TestCase):
-    """mark_dot_as_anchor() must sync the Dot node name to 'Anchor_<sanitized_label>'."""
+    """mark_dot_as_anchor() must sync the Dot node name to 'Dot_<sanitized_label>'."""
 
-    def test_mark_dot_as_anchor_with_labelled_dot_sets_node_name_to_anchor_prefix_plus_sanitized_label(self):
-        """mark_dot_as_anchor() on a Dot with label 'My Footage' must set node name to 'Anchor_My_Footage'."""
+    def test_mark_dot_as_anchor_with_labelled_dot_sets_node_name_to_dot_prefix_plus_sanitized_label(self):
+        """mark_dot_as_anchor() on a Dot with label 'My Footage' must set node name to 'Dot_My_Footage'."""
         import nuke as _nuke
-        from constants import DOT_ANCHOR_KNOB_NAME, ANCHOR_PREFIX
+        from constants import DOT_ANCHOR_KNOB_NAME, DOT_ANCHOR_PREFIX
 
         dot_node = _make_dot_node(name='Dot1', label='My Footage')
 
@@ -84,8 +84,8 @@ class TestMarkDotAsAnchorNameSync(unittest.TestCase):
 
         self.assertEqual(
             dot_node.name(),
-            'Anchor_My_Footage',
-            "mark_dot_as_anchor() must set node name to 'Anchor_<sanitized_label>' when label is non-empty"
+            'Dot_My_Footage',
+            "mark_dot_as_anchor() must set node name to 'Dot_<sanitized_label>' when label is non-empty"
         )
 
     def test_mark_dot_as_anchor_with_empty_label_dot_leaves_node_name_unchanged(self):
@@ -112,7 +112,7 @@ class TestMarkDotAsAnchorNameSync(unittest.TestCase):
 
         The second call hits the knob guard (DOT_ANCHOR_KNOB_NAME already present),
         sets the knob to True, and returns early. The node name set on the first call
-        must still be 'Anchor_MyClip'.
+        must still be 'Dot_MyClip'.
         """
         import nuke as _nuke
         from constants import DOT_ANCHOR_KNOB_NAME
@@ -127,7 +127,7 @@ class TestMarkDotAsAnchorNameSync(unittest.TestCase):
             }
         )
         # Pre-set name as if the first call already renamed it
-        dot_node._name = 'Anchor_MyClip'
+        dot_node._name = 'Dot_MyClip'
 
         stub_boolean_knob = _nuke.StubKnob()
         _nuke.Boolean_Knob = MagicMock(return_value=stub_boolean_knob)
@@ -138,8 +138,8 @@ class TestMarkDotAsAnchorNameSync(unittest.TestCase):
 
         self.assertEqual(
             dot_node.name(),
-            'Anchor_MyClip',
-            "Node name must remain 'Anchor_MyClip' after idempotent second call"
+            'Dot_MyClip',
+            "Node name must remain 'Dot_MyClip' after idempotent second call"
         )
         # The early-return path must have set the knob value to True
         self.assertEqual(
@@ -191,13 +191,13 @@ class TestRenameAnchorToDotPath(unittest.TestCase):
         """rename_anchor_to(dot_anchor, 'NewName') must update the Dot's label knob."""
         import nuke as _nuke
 
-        dot_anchor = self._make_dot_anchor_with_label(name='Anchor_OldName', label='OldName')
+        dot_anchor = self._make_dot_anchor_with_label(name='Dot_OldName', label='OldName')
 
         with patch('anchor.nuke', _nuke), \
              patch('anchor.nuke.allNodes', return_value=[]), \
              patch('anchor.is_link', return_value=False), \
              patch('anchor.get_fully_qualified_node_name',
-                   side_effect=['myScript.Anchor_OldName', 'myScript.Anchor_NewName']):
+                   side_effect=['myScript.Dot_OldName', 'myScript.Dot_NewName']):
             from anchor import rename_anchor_to
             rename_anchor_to(dot_anchor, 'NewName')
 
@@ -207,24 +207,24 @@ class TestRenameAnchorToDotPath(unittest.TestCase):
             "rename_anchor_to() must set the Dot's label to 'NewName'"
         )
 
-    def test_rename_anchor_to_dot_updates_node_name_to_anchor_prefix_plus_sanitized(self):
-        """rename_anchor_to(dot_anchor, 'New Name') must set node name to 'Anchor_New_Name'."""
+    def test_rename_anchor_to_dot_updates_node_name_to_dot_prefix_plus_sanitized(self):
+        """rename_anchor_to(dot_anchor, 'New Name') must set node name to 'Dot_New_Name'."""
         import nuke as _nuke
 
-        dot_anchor = self._make_dot_anchor_with_label(name='Anchor_OldName', label='OldName')
+        dot_anchor = self._make_dot_anchor_with_label(name='Dot_OldName', label='OldName')
 
         with patch('anchor.nuke', _nuke), \
              patch('anchor.nuke.allNodes', return_value=[]), \
              patch('anchor.is_link', return_value=False), \
              patch('anchor.get_fully_qualified_node_name',
-                   side_effect=['myScript.Anchor_OldName', 'myScript.Anchor_New_Name']):
+                   side_effect=['myScript.Dot_OldName', 'myScript.Dot_New_Name']):
             from anchor import rename_anchor_to
             rename_anchor_to(dot_anchor, 'New Name')
 
         self.assertEqual(
             dot_anchor.name(),
-            'Anchor_New_Name',
-            "rename_anchor_to() must set node name to 'Anchor_New_Name' (sanitized)"
+            'Dot_New_Name',
+            "rename_anchor_to() must set node name to 'Dot_New_Name' (sanitized)"
         )
 
     def test_rename_anchor_to_dot_updates_link_node_knob_name_from_old_fqnn_to_new_fqnn(self):
@@ -232,13 +232,13 @@ class TestRenameAnchorToDotPath(unittest.TestCase):
         import nuke as _nuke
         from constants import KNOB_NAME
 
-        dot_anchor = self._make_dot_anchor_with_label(name='Anchor_OldName', label='OldName')
+        dot_anchor = self._make_dot_anchor_with_label(name='Dot_OldName', label='OldName')
 
-        old_fqnn = 'myScript.Anchor_OldName'
-        new_fqnn = 'myScript.Anchor_NewName'
+        old_fqnn = 'myScript.Dot_OldName'
+        new_fqnn = 'myScript.Dot_NewName'
 
         link_node_matching = _make_link_node(knob_name_value=old_fqnn, label='Link: OldName')
-        link_node_unrelated = _make_link_node(knob_name_value='myScript.Anchor_OtherNode', label='Link: OtherNode')
+        link_node_unrelated = _make_link_node(knob_name_value='myScript.Dot_OtherNode', label='Link: OtherNode')
 
         def is_link_stub(node):
             return KNOB_NAME in node.knobs()
@@ -258,7 +258,7 @@ class TestRenameAnchorToDotPath(unittest.TestCase):
         )
         self.assertEqual(
             link_node_unrelated[KNOB_NAME].getValue(),
-            'myScript.Anchor_OtherNode',
+            'myScript.Dot_OtherNode',
             "Unrelated link node KNOB_NAME must remain unchanged"
         )
 
@@ -267,10 +267,10 @@ class TestRenameAnchorToDotPath(unittest.TestCase):
         import nuke as _nuke
         from constants import KNOB_NAME
 
-        dot_anchor = self._make_dot_anchor_with_label(name='Anchor_OldName', label='OldName')
+        dot_anchor = self._make_dot_anchor_with_label(name='Dot_OldName', label='OldName')
 
-        old_fqnn = 'myScript.Anchor_OldName'
-        new_fqnn = 'myScript.Anchor_NewName'
+        old_fqnn = 'myScript.Dot_OldName'
+        new_fqnn = 'myScript.Dot_NewName'
 
         link_node = _make_link_node(knob_name_value=old_fqnn, label='Link: OldName')
 
@@ -299,13 +299,13 @@ class TestRenameAnchorToDotPath(unittest.TestCase):
         """
         import nuke as _nuke
 
-        dot_anchor = self._make_dot_anchor_with_label(name='Anchor_OldName', label='OldName')
+        dot_anchor = self._make_dot_anchor_with_label(name='Dot_OldName', label='OldName')
 
         with patch('anchor.nuke', _nuke), \
              patch('anchor.nuke.allNodes', return_value=[]), \
              patch('anchor.is_link', return_value=False), \
              patch('anchor.get_fully_qualified_node_name',
-                   return_value='myScript.Anchor_OldName'):
+                   return_value='myScript.Dot_OldName'):
             from anchor import rename_anchor_to
             with self.assertRaises(ValueError):
                 # A name of only spaces: strip() → '', sanitize → '' → ValueError
@@ -319,12 +319,12 @@ class TestRenameAnchorToDotPath(unittest.TestCase):
 class TestAnchorDisplayNameDotPath(unittest.TestCase):
     """anchor_display_name() must still return label text for Dot anchors, not node name."""
 
-    def test_anchor_display_name_returns_label_for_dot_anchor_with_anchor_prefix_node_name(self):
-        """anchor_display_name() on a Dot with node name 'Anchor_MyFootage' must return the label, not the node name."""
+    def test_anchor_display_name_returns_label_for_dot_anchor_with_dot_prefix_node_name(self):
+        """anchor_display_name() on a Dot with node name 'Dot_MyFootage' must return the label, not the node name."""
         import nuke as _nuke
 
         dot_anchor = _nuke.StubNode(
-            name='Anchor_MyFootage',
+            name='Dot_MyFootage',
             node_class='Dot',
             knobs_dict={
                 'label': _nuke.StubKnob('MyFootage'),
@@ -346,7 +346,7 @@ class TestAnchorDisplayNameDotPath(unittest.TestCase):
         import nuke as _nuke
 
         dot_anchor = _nuke.StubNode(
-            name='Anchor_My_Footage',
+            name='Dot_My_Footage',
             node_class='Dot',
             knobs_dict={
                 'label': _nuke.StubKnob('My Footage'),
@@ -382,12 +382,12 @@ class TestApplyLabelDoesNotTreatAnchorAsLink(unittest.TestCase):
         import nuke as _nuke
         from constants import KNOB_NAME, DOT_ANCHOR_KNOB_NAME
 
-        anchor_fqnn = 'myScript.Anchor_bla_bla'
+        anchor_fqnn = 'myScript.Dot_bla_bla'
 
         # Original Dot anchor: has DOT_ANCHOR_KNOB_NAME (anchor) AND KNOB_NAME (added
         # by copy_anchors Path C), with KNOB_NAME pointing to its own FQNN.
         original_anchor = _nuke.StubNode(
-            name='Anchor_bla_bla',
+            name='Dot_bla_bla',
             node_class='Dot',
             knobs_dict={
                 'label': _nuke.StubKnob('bla bla'),
