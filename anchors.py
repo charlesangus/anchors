@@ -192,9 +192,9 @@ def paste_anchors():  # noqa: C901 — complexity is inherent: anchor/link/dot p
         # anchors (no KNOB_NAME = not a link-stamped copy). After nodePaste,
         # Nuke may have renamed the node to avoid collision (e.g. Anchor_Foo →
         # Anchor_Foo1) while the label knob still holds the old serialised
-        # value. Refresh it from the pasted anchor's current display name,
-        # which reflects the post-paste state for plain anchors and also
-        # handles anchor types whose display name comes from the label.
+        # value. For NoOp anchors the display name is re-derived from the
+        # (now correct) post-collision node name; for Dot anchors the label
+        # knob is the source of truth and is written back directly.
         for pasted_node in nodes_to_process:
             if is_anchor(pasted_node) and KNOB_NAME not in pasted_node.knobs():
                 display_name = anchor_display_name(pasted_node)

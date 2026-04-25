@@ -16,6 +16,9 @@ Covers:
 import unittest
 from unittest.mock import patch
 
+import nuke as _nuke
+from constants import ANCHOR_PREFIX, DOT_TYPE_KNOB_NAME, KNOB_NAME
+
 
 # ---------------------------------------------------------------------------
 # Helper factories
@@ -23,7 +26,6 @@ from unittest.mock import patch
 
 def _make_noop_anchor_node(node_name, label_value, knobs_dict_extra=None):
     """Return a stub NoOp anchor node with the given name and label, no KNOB_NAME."""
-    import nuke as _nuke
     knobs = {
         'label': _nuke.StubKnob(label_value),
         'selected': _nuke.StubKnob(False),
@@ -39,7 +41,6 @@ def _make_noop_anchor_node(node_name, label_value, knobs_dict_extra=None):
 
 def _make_dot_anchor_node(node_name, label_value, knobs_dict_extra=None):
     """Return a stub Dot anchor node with the given name and label, no KNOB_NAME."""
-    import nuke as _nuke
     knobs = {
         'label': _nuke.StubKnob(label_value),
         'tile_color': _nuke.StubKnob(0),
@@ -56,8 +57,6 @@ def _make_dot_anchor_node(node_name, label_value, knobs_dict_extra=None):
 
 def _make_stamped_anchor_node(node_name, label_value, stored_fqnn, dot_type_value=None):
     """Return a stub anchor node that has KNOB_NAME set (Path D stamped copy)."""
-    import nuke as _nuke
-    from constants import KNOB_NAME, DOT_TYPE_KNOB_NAME
     knobs = {
         'label': _nuke.StubKnob(label_value),
         'selected': _nuke.StubKnob(False),
@@ -74,8 +73,6 @@ def _make_stamped_anchor_node(node_name, label_value, stored_fqnn, dot_type_valu
 
 def _make_link_node_with_knob(node_name, stored_fqnn):
     """Return a stub link NoOp node with KNOB_NAME set (not an anchor)."""
-    import nuke as _nuke
-    from constants import KNOB_NAME
     knobs = {
         'label': _nuke.StubKnob('Link: Foo'),
         'selected': _nuke.StubKnob(False),
@@ -99,8 +96,6 @@ class TestNoOpAnchorLabelRestampAfterCollision(unittest.TestCase):
         """paste_anchors() must re-stamp the label to 'Foo1' when the pasted
         NoOp anchor was renamed from Anchor_Foo to Anchor_Foo1 by Nuke.
         The optimised path updates the label knob directly (no rename_anchor_to)."""
-        from constants import ANCHOR_PREFIX
-
         # Post-collision: node name is Anchor_Foo1 but label still says "Foo"
         pasted_node = _make_noop_anchor_node(
             node_name=ANCHOR_PREFIX + 'Foo1',
@@ -112,7 +107,6 @@ class TestNoOpAnchorLabelRestampAfterCollision(unittest.TestCase):
 
         def anchor_display_name_side_effect(node):
             # For a NoOp anchor: derived from the current node name
-            from constants import ANCHOR_PREFIX
             return node.name()[len(ANCHOR_PREFIX):]
 
         with patch('anchors.nuke') as mock_nuke, \
@@ -144,8 +138,6 @@ class TestNoOpAnchorLabelAlreadyCorrectIsIdempotent(unittest.TestCase):
     def test_noop_anchor_label_unchanged_when_no_collision_occurred(self):
         """paste_anchors() must leave the label 'Bar' unchanged when the node
         name is Anchor_Bar and the label already reads 'Bar'."""
-        from constants import ANCHOR_PREFIX
-
         pasted_node = _make_noop_anchor_node(
             node_name=ANCHOR_PREFIX + 'Bar',
             label_value='Bar',
@@ -155,7 +147,6 @@ class TestNoOpAnchorLabelAlreadyCorrectIsIdempotent(unittest.TestCase):
             return node is pasted_node
 
         def anchor_display_name_side_effect(node):
-            from constants import ANCHOR_PREFIX
             return node.name()[len(ANCHOR_PREFIX):]
 
         rename_call_count = []
@@ -197,8 +188,6 @@ class TestDotAnchorNodeNameResyncedAfterCollision(unittest.TestCase):
         (collision), the label still says 'Plates' — which is already correct.
         anchor_display_name reads from the label, so display_name == label_knob
         value and no update is needed; rename_anchor_to must NOT be called."""
-        from constants import ANCHOR_PREFIX
-
         # Post-collision node name: Anchor_Plates1; label: "Plates" (unchanged)
         pasted_dot = _make_dot_anchor_node(
             node_name=ANCHOR_PREFIX + 'Plates1',
@@ -242,8 +231,6 @@ class TestPathDStampedAnchorIsNotRestamped(unittest.TestCase):
     def test_anchor_with_knob_name_is_not_passed_to_rename_anchor_to(self):
         """paste_anchors() must NOT call rename_anchor_to for an anchor that
         has KNOB_NAME set (it is a link-stamped copy, not a plain pasted anchor)."""
-        from constants import ANCHOR_PREFIX
-
         # Stamped anchor: has KNOB_NAME + DOT_TYPE_KNOB_NAME == 'link' (Path D)
         stamped_anchor = _make_stamped_anchor_node(
             node_name=ANCHOR_PREFIX + 'Foo',
