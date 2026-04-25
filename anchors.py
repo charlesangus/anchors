@@ -2,11 +2,17 @@
 
 import os
 
+import contextlib
+
 import nuke
 import nukescripts
 
 import prefs
-from anchor import find_anchor_by_name
+from anchor import (
+    anchor_display_name,
+    find_anchor_by_name,
+    rename_anchor_to,
+)
 from constants import (
     ANCHOR_DEFAULT_COLOR,
     ANCHOR_PREFIX,
@@ -189,6 +195,26 @@ def paste_anchors():  # noqa: C901 — complexity is inherent: anchor/link/dot p
         # Build the final selection separately so replacements (link nodes) appear
         # selected in place of the originals after the loop.
         final_selection = list(nodes_to_process)
+
+        # Issue #35: re-stamp the visible anchor name/label on plain pasted
+        # anchors (no KNOB_NAME = not a link-stamped copy). After nodePaste,
+        # Nuke may have renamed the node to avoid collision (e.g. Anchor_Foo →
+        # Anchor_Foo1) while the label knob still holds the old serialised
+        # value. For NoOp anchors the display name is re-derived from the
+        # (now correct) post-collision node name; for Dot anchors the label
+        # knob is the source of truth and is written back directly.
+        for pasted_node in nodes_to_process:
+            if is_anchor(pasted_node) and KNOB_NAME not in pasted_node.knobs():
+                display_name = anchor_display_name(pasted_node)
+                if not display_name:
+                    continue
+                label_knob = pasted_node.knobs().get("label")
+                if label_knob is not None:
+                    if label_knob.value() != display_name:
+                        label_knob.setValue(display_name)
+                    continue
+                with contextlib.suppress(ValueError):
+                    rename_anchor_to(pasted_node, display_name)
 
         for node in nodes_to_process:
             if KNOB_NAME not in node.knobs():
