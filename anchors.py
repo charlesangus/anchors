@@ -149,10 +149,10 @@ def _extract_display_name_from_fqnn(stored_fqnn):
     if not stored_fqnn:
         return None
     node_full_name = stored_fqnn.split('.')[-1]
-    if node_full_name.startswith(ANCHOR_PREFIX):
-        return node_full_name[len(ANCHOR_PREFIX):]
     if node_full_name.startswith(DOT_ANCHOR_PREFIX):
         return node_full_name[len(DOT_ANCHOR_PREFIX):]
+    if node_full_name.startswith(ANCHOR_PREFIX):
+        return node_full_name[len(ANCHOR_PREFIX):]
     return None
 
 

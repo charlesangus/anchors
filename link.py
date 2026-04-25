@@ -92,9 +92,9 @@ def get_link_class_for_source(source_node):
 def mark_dot_as_anchor(dot_node):
     """Add the canonical anchor marker knob to a Dot node if not already present.
 
-    Also syncs the Dot's node name to 'Anchor_<sanitized_label>' so that the
+    Also syncs the Dot's node name to 'Anchor_Dot_<sanitized_label>' so that the
     FQNN reflects the anchor name and cross-script reconnect can strip the
-    ANCHOR_PREFIX to recover the display name.  If the label is empty or
+    DOT_ANCHOR_PREFIX to recover the display name.  If the label is empty or
     sanitizes to empty, the node name is left unchanged (the caller can set
     the label before calling, or rename_anchor_to() can fix it later).
     """

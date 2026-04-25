@@ -58,23 +58,23 @@ class TestExtractDisplayNameFromFqnn(unittest.TestCase):
         self.assertEqual(result, 'MyFootage')
 
     def test_dot_prefix_simple_fqnn_returns_display_name(self):
-        # New Dot_ prefix format: 'shotA.Dot_MyFootage'
-        result = self.extract('shotA.Dot_MyFootage')
+        # New Anchor_Dot_ prefix format: 'shotA.Anchor_Dot_MyFootage'
+        result = self.extract('shotA.Anchor_Dot_MyFootage')
         self.assertEqual(result, 'MyFootage')
 
     def test_dot_prefix_single_segment_returns_display_name(self):
-        # New Dot_ prefix format without stem: 'Dot_MyFootage'
-        result = self.extract('Dot_MyFootage')
+        # New Anchor_Dot_ prefix format without stem: 'Anchor_Dot_MyFootage'
+        result = self.extract('Anchor_Dot_MyFootage')
         self.assertEqual(result, 'MyFootage')
 
     def test_dot_prefix_group_qualified_returns_last_segment_display_name(self):
-        # New Dot_ prefix format: 'Group1.Dot_MyFootage'
-        result = self.extract('Group1.Dot_MyFootage')
+        # New Anchor_Dot_ prefix format: 'Group1.Anchor_Dot_MyFootage'
+        result = self.extract('Group1.Anchor_Dot_MyFootage')
         self.assertEqual(result, 'MyFootage')
 
     def test_dot_prefix_only_returns_empty_string(self):
-        # 'Dot_' with nothing after the prefix — edge case
-        result = self.extract('shotA.Dot_')
+        # 'Anchor_Dot_' with nothing after the prefix — edge case
+        result = self.extract('shotA.Anchor_Dot_')
         self.assertEqual(result, '')
 
 
