@@ -462,6 +462,37 @@ class TestFindLocalNode(unittest.TestCase):
         self.assertIs(result, found_node)
         mock_nuke.toNode.assert_called_once_with('Group1.ReadNode1')
 
+    def test_multi_dot_script_name_same_stem_returns_node(self):
+        """'project.shotA.nk' → stem 'project.shotA'; FQNN 'project.shotA.Blur1' resolves."""
+        from anchors import _find_local_node
+
+        found_node = _make_stub_node(name='Blur1', node_class='Blur')
+
+        with patch('anchors.nuke') as mock_nuke:
+            root_obj = MagicMock()
+            root_obj.name.return_value = 'project.shotA.nk'
+            mock_nuke.root.return_value = root_obj
+            mock_nuke.toNode.return_value = found_node
+
+            result = _find_local_node('project.shotA.Blur1')
+
+        self.assertIs(result, found_node)
+        mock_nuke.toNode.assert_called_once_with('Blur1')
+
+    def test_multi_dot_script_name_different_stem_returns_none(self):
+        """'project.shotA.nk' and 'project.shotB.Blur1' have distinct full stems — no reconnect."""
+        from anchors import _find_local_node
+
+        with patch('anchors.nuke') as mock_nuke:
+            root_obj = MagicMock()
+            root_obj.name.return_value = 'project.shotA.nk'
+            mock_nuke.root.return_value = root_obj
+
+            result = _find_local_node('project.shotB.Blur1')
+
+        self.assertIsNone(result)
+        mock_nuke.toNode.assert_not_called()
+
 
 # ---------------------------------------------------------------------------
 # Tests for paste_anchors() Path B cross-script DOT_TYPE behavior
@@ -754,7 +785,7 @@ class TestPasteHiddenSameScriptDotTypeBehavior(unittest.TestCase):
 
         with patch('anchors.nuke') as mock_nuke, \
              patch('anchors.nukescripts') as mock_nukescripts, \
-             patch('anchors.find_anchor_node', return_value=source_node), \
+             patch('anchors.find_anchor_node') as mock_find_anchor_node, \
              patch('anchors.find_anchor_by_name') as mock_find_by_name, \
              patch('anchors.setup_link_node') as mock_setup_link_node, \
              patch('anchors.is_anchor', return_value=False):
@@ -768,6 +799,9 @@ class TestPasteHiddenSameScriptDotTypeBehavior(unittest.TestCase):
 
             from anchors import paste_anchors
             paste_anchors()
+
+            # Local dots use _find_local_node(), not find_anchor_node()
+            mock_find_anchor_node.assert_not_called()
 
             # setup_link_node must be called for same-script reconnect
             mock_setup_link_node.assert_called_once_with(source_node, dot_node)
@@ -893,7 +927,7 @@ class TestPasteHiddenSameScriptDotTypeKnobPreservation(unittest.TestCase):
 
         with patch('anchors.nuke') as mock_nuke, \
              patch('anchors.nukescripts') as mock_nukescripts, \
-             patch('anchors.find_anchor_node', return_value=source_node), \
+             patch('anchors.find_anchor_node') as mock_find_anchor_node, \
              patch('anchors.setup_link_node') as mock_setup_link_node, \
              patch('anchors.add_input_knob') as mock_add_input_knob, \
              patch('anchors.is_anchor', return_value=False):
@@ -907,6 +941,9 @@ class TestPasteHiddenSameScriptDotTypeKnobPreservation(unittest.TestCase):
 
             from anchors import paste_anchors
             paste_anchors()
+
+            # Local dots use _find_local_node(), not find_anchor_node()
+            mock_find_anchor_node.assert_not_called()
 
             # add_input_knob must be called with dot_type='local' to re-stamp the knob
             mock_add_input_knob.assert_called_once_with(dot_node, dot_type='local')
