@@ -358,5 +358,79 @@ class TestHtmlStrippingInDotLabel(unittest.TestCase):
         self.assertEqual(result, 'PLATES')
 
 
+class TestAnchorDisplayNameDuplicateDotLabels(unittest.TestCase):
+    """anchor_display_name() appends node name when Dot labels are duplicated (issue #34).
+
+    Test cases:
+      - Two Dot anchors sharing the label "INPUT" each get the node name suffix.
+      - A Dot anchor with a unique label is returned plain (no suffix).
+    """
+
+    def setUp(self):
+        from tests.stubs import StubKnob, StubNode
+
+        label_knob_a = StubKnob(value='INPUT', knob_name='label')
+        self._dot_anchor_a = StubNode(
+            name='Anchor_INPUT',
+            node_class='Dot',
+            knobs_dict={'label': label_knob_a},
+        )
+
+        label_knob_b = StubKnob(value='INPUT', knob_name='label')
+        self._dot_anchor_b = StubNode(
+            name='Anchor_INPUT1',
+            node_class='Dot',
+            knobs_dict={'label': label_knob_b},
+        )
+
+        label_knob_unique = StubKnob(value='OUTPUT', knob_name='label')
+        self._dot_anchor_unique = StubNode(
+            name='Anchor_OUTPUT',
+            node_class='Dot',
+            knobs_dict={'label': label_knob_unique},
+        )
+
+    def _stub_all_anchors(self, nodes):
+        """Patch nuke.allNodes and link.is_anchor so _dot_anchor_duplicate_labels sees *nodes*."""
+        import nuke as nuke_module
+        nuke_module.allNodes.return_value = nodes
+
+    def test_duplicate_label_dot_gets_node_name_suffix_first(self):
+        """Dot anchor 'Anchor_INPUT' with duplicate label returns 'INPUT (Anchor_INPUT)'."""
+        self._stub_all_anchors([self._dot_anchor_a, self._dot_anchor_b, self._dot_anchor_unique])
+        with patch('anchor.is_anchor', side_effect=lambda n: n in (
+            self._dot_anchor_a, self._dot_anchor_b, self._dot_anchor_unique
+        )):
+            result = anchor.anchor_display_name(self._dot_anchor_a)
+        self.assertEqual(result, 'INPUT (Anchor_INPUT)')
+
+    def test_duplicate_label_dot_gets_node_name_suffix_second(self):
+        """Dot anchor 'Anchor_INPUT1' with duplicate label returns 'INPUT (Anchor_INPUT1)'."""
+        self._stub_all_anchors([self._dot_anchor_a, self._dot_anchor_b, self._dot_anchor_unique])
+        with patch('anchor.is_anchor', side_effect=lambda n: n in (
+            self._dot_anchor_a, self._dot_anchor_b, self._dot_anchor_unique
+        )):
+            result = anchor.anchor_display_name(self._dot_anchor_b)
+        self.assertEqual(result, 'INPUT (Anchor_INPUT1)')
+
+    def test_unique_label_dot_returns_plain_label(self):
+        """Dot anchor with a unique label returns just the label with no suffix."""
+        self._stub_all_anchors([self._dot_anchor_a, self._dot_anchor_b, self._dot_anchor_unique])
+        with patch('anchor.is_anchor', side_effect=lambda n: n in (
+            self._dot_anchor_a, self._dot_anchor_b, self._dot_anchor_unique
+        )):
+            result = anchor.anchor_display_name(self._dot_anchor_unique)
+        self.assertEqual(result, 'OUTPUT')
+
+    def test_pre_computed_duplicate_labels_used_when_supplied(self):
+        """When duplicate_dot_labels is passed in, no allNodes scan is triggered."""
+        import nuke as nuke_module
+        nuke_module.allNodes.reset_mock()
+        duplicate_dot_labels = {'INPUT'}
+        result = anchor.anchor_display_name(self._dot_anchor_a, duplicate_dot_labels)
+        nuke_module.allNodes.assert_not_called()
+        self.assertEqual(result, 'INPUT (Anchor_INPUT)')
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -47,7 +47,6 @@ def _add_gated_command(menu, name, command, shortcut=None):
 _add_gated_command(anchors_menu, "Create Anchor",       "anchor.create_anchor()")
 _add_gated_command(anchors_menu, "Rename Anchor",       "anchor.rename_selected_anchor()")
 _add_gated_command(anchors_menu, "Create Link",                "anchor.select_anchor_and_create()")
-_add_gated_command(anchors_menu, "Create Link From Anchor(s)", "anchor.create_links_from_selected_anchors()", "^D")
 _add_gated_command(anchors_menu, "Anchor",              "anchor.anchor_shortcut()",            "A")
 _add_gated_command(anchors_menu, "Reconnect All Links", "anchor.reconnect_all_links()")
 _add_gated_command(anchors_menu, "Anchor Find", "anchor.select_anchor_and_navigate()", "alt+A")
@@ -69,9 +68,9 @@ anchors_menu.addSeparator()
 # Copy (old) / Cut (old) / Paste (old) are explicit fallback commands.
 # Preferences entry is added by Phase 7 and must also remain always active.
 # ---------------------------------------------------------------------------
-anchors_menu.addCommand("Copy (old)",  "anchors.copy_old()",  "+^C")
+anchors_menu.addCommand("Copy (old)",  "anchors.copy_old()")
 anchors_menu.addCommand("Cut (old)",   "anchors.cut_old()")
-anchors_menu.addCommand("Paste (old)", "anchors.paste_old()", "+^V")
+anchors_menu.addCommand("Paste (old)", "anchors.paste_old()", "+^D")
 
 anchors_menu.addSeparator()
 anchors_menu.addCommand(

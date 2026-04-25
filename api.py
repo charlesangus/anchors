@@ -103,6 +103,19 @@ def find_anchor_by_name(display_name):
     RuntimeError
         If nuke is not available in the current Python session.
 
+    Notes
+    -----
+    When multiple Dot anchors share the same label (e.g. two Dots both labelled
+    ``"INPUT"``), their display names are disambiguated by appending the unique
+    node name in parentheses: ``"INPUT (Anchor_INPUT)"`` and
+    ``"INPUT (Anchor_INPUT1)"``.  Calling this function with the plain label
+    ``"INPUT"`` in that situation will not match those Dot anchors — neither
+    Dot's display name equals the unsuffixed string any more.  Other anchor
+    types (e.g. a NoOp anchor named ``Anchor_INPUT``) whose display name
+    happens to equal ``"INPUT"`` may still be returned.  To resolve a specific
+    Dot in an ambiguous set, supply the suffixed form, e.g.
+    ``find_anchor_by_name("INPUT (Anchor_INPUT1)")``.
+
     Examples
     --------
     Look up an anchor before creating a duplicate:
@@ -110,6 +123,10 @@ def find_anchor_by_name(display_name):
         >>> existing = find_anchor_by_name('BG_Plate')
         >>> if existing is None:
         ...     existing = create_anchor('BG_Plate')
+
+    Look up a specific Dot anchor when multiple share the same label:
+
+        >>> anchor_node = find_anchor_by_name('INPUT (Anchor_INPUT1)')
     """
     _assert_nuke_session()
     return anchor.find_anchor_by_name(display_name)
