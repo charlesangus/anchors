@@ -35,10 +35,12 @@ def get_fully_qualified_node_name(node):
 
 
 def find_node_default_color(node):
-    prefs = nuke.toNode("preferences")
+    prefs_node = nuke.toNode("preferences")
+    if prefs_node is None:
+        return 0
     node_colour_slots = [
-        prefs[knob_name].value().split(' ')
-        for knob_name in prefs.knobs()
+        prefs_node[knob_name].value().split(' ')
+        for knob_name in prefs_node.knobs()
         if knob_name.startswith("NodeColourSlot")
     ]
     node_colour_slots = [
@@ -46,14 +48,14 @@ def find_node_default_color(node):
         for parent_item in node_colour_slots
     ]
     node_colour_choices = [
-        prefs[knob_name].value()
-        for knob_name in prefs.knobs()
+        prefs_node[knob_name].value()
+        for knob_name in prefs_node.knobs()
         if knob_name.startswith("NodeColourChoice")
     ]
     for i, slot in enumerate(node_colour_slots):
         if node.Class().lower() in slot:
             return node_colour_choices[i]
-    return prefs["NodeColor"].value()
+    return prefs_node["NodeColor"].value()
 
 
 def find_node_color(node):
@@ -187,10 +189,8 @@ def setup_link_node(input_node, link_node):
     link_node["hide_input"].setValue(True)
     link_node["tile_color"].setValue(find_node_color(input_node))
 
-    if input_node["label"].getText():
-        link_node["label"].setValue(f"Link: {input_node['label'].getText()}")
-    else:
-        link_node["label"].setValue(f"Link: {input_node.name()}")
+    label_text = input_node['label'].getText() if 'label' in input_node.knobs() else ''
+    link_node["label"].setValue(f"Link: {label_text}" if label_text else f"Link: {input_node.name()}")
 
     if link_node.Class() == 'Dot':
         link_node["note_font_size"].setValue(DOT_LINK_LABEL_FONT_SIZE)

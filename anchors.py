@@ -36,6 +36,10 @@ from link import (
 def _get_script_stem():
     # os.path.splitext handles multi-dot names like "project.shotA.nk" → "project.shotA"
     # whereas split('.')[0] would give the ambiguous "project" for both shotA and shotB.
+    # Returns '' for unsaved scripts (nuke.root().name() == '').  _find_local_node()
+    # will then pass the same-script guard trivially (both source and destination stems
+    # are ''), so a local-dot FQNN like '.NodeName' still resolves — this is intentional
+    # and consistent behaviour for unsaved-script workflows.
     return os.path.splitext(os.path.basename(nuke.root().name()))[0]
 
 
@@ -76,7 +80,7 @@ def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: multiple 
                     stored_fqnn = f"{script_stem}.{get_fully_qualified_node_name(input_node)}"
                     setup_link_node(input_node, node)
                     add_input_knob(node, dot_type='local')
-                    source_label = input_node['label'].getText() or input_node.name()
+                    source_label = (input_node['label'].getText() if 'label' in input_node.knobs() else '') or input_node.name()
                     node['label'].setValue(f"Local: {source_label}")
                     node['tile_color'].setValue(LOCAL_DOT_COLOR)
                     node[KNOB_NAME].setText(stored_fqnn)
@@ -104,7 +108,7 @@ def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: multiple 
                     stored_fqnn = f"{script_stem}.{get_fully_qualified_node_name(input_node)}"
                     setup_link_node(input_node, node)
                     add_input_knob(node, dot_type='local')
-                    source_label = input_node['label'].getText() or input_node.name()
+                    source_label = (input_node['label'].getText() if 'label' in input_node.knobs() else '') or input_node.name()
                     node['label'].setValue(f"Local: {source_label}")
                     node['tile_color'].setValue(LOCAL_DOT_COLOR)
                     node[KNOB_NAME].setText(stored_fqnn)
@@ -248,7 +252,8 @@ def paste_anchors():  # noqa: C901 — complexity is inherent: anchor/link/dot p
                 link_node = nuke.createNode(get_link_class_for_source(original_anchor))
                 setup_link_node(original_anchor, link_node)
                 link_node.setXYpos(node.xpos(), node.ypos())
-                final_selection.remove(node)
+                if node in final_selection:
+                    final_selection.remove(node)
                 final_selection.append(link_node)
                 nuke.delete(node)
 
@@ -307,7 +312,7 @@ def paste_anchors():  # noqa: C901 — complexity is inherent: anchor/link/dot p
                     # Re-add the DOT_TYPE knob that setup_link_node stripped, then restore
                     # Local Dot appearance (label and color overwritten by setup_link_node).
                     add_input_knob(node, dot_type='local')
-                    source_label = input_node['label'].getText() or input_node.name()
+                    source_label = (input_node['label'].getText() if 'label' in input_node.knobs() else '') or input_node.name()
                     node['label'].setValue(f"Local: {source_label}")
                     node['tile_color'].setValue(LOCAL_DOT_COLOR)
 
@@ -321,19 +326,20 @@ def paste_anchors():  # noqa: C901 — complexity is inherent: anchor/link/dot p
 
 
 def paste_multiple_anchors():
-    selected_nodes = nuke.selectedNodes()
-    new_selection = []
+    with nuke.lastHitGroup():
+        selected_nodes = nuke.selectedNodes()
+        new_selection = []
 
-    for node in selected_nodes:
+        for node in selected_nodes:
+            nukescripts.clear_selection_recursive()
+            node["selected"].setValue(True)
+            paste_anchors()
+
+            new_selection.extend(nuke.selectedNodes())
+
         nukescripts.clear_selection_recursive()
-        node["selected"].setValue(True)
-        paste_anchors()
-
-        new_selection.extend(nuke.selectedNodes())
-
-    nukescripts.clear_selection_recursive()
-    for node in new_selection:
-        node["selected"].setValue(True)
+        for node in new_selection:
+            node["selected"].setValue(True)
 
 
 def migrate_script():
