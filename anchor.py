@@ -206,10 +206,16 @@ def _anchor_sort_key(node):
     anchors.  This avoids calling anchor_display_name() (which may trigger an
     allNodes() scan per element when duplicates are present) and keeps the sort
     O(n log n) instead of O(n² log n).
+
+    Both branches return a two-element tuple so Python can compare any two
+    anchor nodes without a TypeError.  For Dot anchors, the node name is used
+    as a tie-breaker when two Dots share the same label, producing a stable
+    and deterministic ordering.
     """
     if node.Class() == 'Dot':
-        return node['label'].getValue().strip().lower()
-    return node.name()[len(ANCHOR_PREFIX):].lower()
+        label = node['label'].getValue().strip().lower()
+        return (label, node.name().lower())
+    return (node.name()[len(ANCHOR_PREFIX):].lower(), '')
 
 
 def _dot_anchor_duplicate_labels():
@@ -257,8 +263,9 @@ def all_anchors():
 
 def find_anchor_by_name(display_name):
     """Return the anchor node whose display name equals *display_name*, or None."""
+    duplicate_dot_labels = _dot_anchor_duplicate_labels()
     for anchor in all_anchors():
-        if anchor_display_name(anchor) == display_name:
+        if anchor_display_name(anchor, duplicate_dot_labels) == display_name:
             return anchor
     return None
 
@@ -999,4 +1006,26 @@ def select_anchor_and_navigate():
     _anchor_navigate_widget.show()
     _anchor_navigate_widget.raise_()
 
+
+def create_links_from_selected_anchors():
+    """Create a link node for each selected anchor, placed near the anchor.
+
+    For each anchor in the current selection, calls create_from_anchor() to
+    produce a wired link node and positions it to the right of the anchor.
+    Silent no-op when the plugin is disabled or no anchors are selected.
+    """
+    if not prefs.plugin_enabled:
+        return
+    hit_group = nuke.lastHitGroup()
+    with hit_group:
+        selected_nodes = nuke.selectedNodes()
+        selected_anchors = [node for node in selected_nodes if is_anchor(node)]
+        if not selected_anchors:
+            return
+        for anchor_node in selected_anchors:
+            link_node = create_from_anchor(anchor_node)
+            link_node.setXYpos(
+                anchor_node.xpos() + anchor_node.screenWidth() + 20,
+                anchor_node.ypos(),
+            )
 

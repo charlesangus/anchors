@@ -109,9 +109,11 @@ def find_anchor_by_name(display_name):
     ``"INPUT"``), their display names are disambiguated by appending the unique
     node name in parentheses: ``"INPUT (Anchor_INPUT)"`` and
     ``"INPUT (Anchor_INPUT1)"``.  Calling this function with the plain label
-    ``"INPUT"`` in that situation will return ``None`` — neither Dot's display
-    name matches the unsuffixed string any more.  To resolve a specific Dot in
-    that case, supply the suffixed form, e.g.
+    ``"INPUT"`` in that situation will not match those Dot anchors — neither
+    Dot's display name equals the unsuffixed string any more.  Other anchor
+    types (e.g. a NoOp anchor named ``Anchor_INPUT``) whose display name
+    happens to equal ``"INPUT"`` may still be returned.  To resolve a specific
+    Dot in an ambiguous set, supply the suffixed form, e.g.
     ``find_anchor_by_name("INPUT (Anchor_INPUT1)")``.
 
     Examples
