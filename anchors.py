@@ -196,9 +196,15 @@ def paste_anchors():  # noqa: C901 — complexity is inherent: anchor/link/dot p
         for pasted_node in nodes_to_process:
             if is_anchor(pasted_node) and KNOB_NAME not in pasted_node.knobs():
                 display_name = anchor_display_name(pasted_node)
-                if display_name:
-                    with contextlib.suppress(ValueError):
-                        rename_anchor_to(pasted_node, display_name)
+                if not display_name:
+                    continue
+                label_knob = pasted_node.knobs().get("label")
+                if label_knob is not None:
+                    if label_knob.value() != display_name:
+                        label_knob.setValue(display_name)
+                    continue
+                with contextlib.suppress(ValueError):
+                    rename_anchor_to(pasted_node, display_name)
 
         for node in nodes_to_process:
             if KNOB_NAME not in node.knobs():
