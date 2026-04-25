@@ -94,11 +94,8 @@ class TestPrefsFirstRunCreatesFile(unittest.TestCase):
                 with open(temp_prefs_path) as file_handle:
                     data = json.load(file_handle)
                 self.assertIn('plugin_enabled', data, "prefs file must contain plugin_enabled key")
-                self.assertIn('link_classes_paste_mode', data,
-                              "prefs file must contain link_classes_paste_mode key")
                 self.assertIn('custom_colors', data, "prefs file must contain custom_colors key")
                 self.assertEqual(data['plugin_enabled'], True)
-                self.assertEqual(data['link_classes_paste_mode'], 'passthrough')
                 self.assertEqual(data['custom_colors'], [])
             finally:
                 constants.PREFS_PATH = original_prefs_path
@@ -153,7 +150,6 @@ class TestPrefsFirstRunCreatesFile(unittest.TestCase):
             # Pre-create the prefs file with non-default values
             existing_data = {
                 'plugin_enabled': False,
-                'link_classes_paste_mode': 'passthrough',
                 'custom_colors': [0xdeadbeef],
             }
             with open(temp_prefs_path, 'w') as file_handle:
@@ -174,7 +170,6 @@ class TestPrefsFirstRunCreatesFile(unittest.TestCase):
                     data = json.load(file_handle)
                 self.assertEqual(data['plugin_enabled'], False,
                                  "existing prefs should not be overwritten on load")
-                self.assertEqual(data['link_classes_paste_mode'], 'passthrough')
             finally:
                 constants.PREFS_PATH = original_prefs_path
                 constants.USER_PALETTE_PATH = original_palette_path
@@ -253,7 +248,6 @@ class TestNamingPrefsRoundTrip(unittest.TestCase):
             # Write a prefs file with naming fields pre-populated
             prefs_data = {
                 'plugin_enabled': True,
-                'link_classes_paste_mode': 'create_link',
                 'custom_colors': [],
                 'naming_regex': r'(?P<name>\w+)',
                 'naming_template': '{name}_anchor',
@@ -290,7 +284,6 @@ class TestNamingPrefsRoundTrip(unittest.TestCase):
             # Write a prefs file with invalid types for naming fields
             prefs_data = {
                 'plugin_enabled': True,
-                'link_classes_paste_mode': 'create_link',
                 'custom_colors': [],
                 'naming_regex': 42,          # int — not a string
                 'naming_template': ['list'], # list — not a string
@@ -392,7 +385,6 @@ class TestNamingDemoFilenameRoundTrip(unittest.TestCase):
 
             prefs_data = {
                 'plugin_enabled': True,
-                'link_classes_paste_mode': 'create_link',
                 'custom_colors': [],
                 'naming_regex': '',
                 'naming_template': '',
@@ -449,8 +441,8 @@ class TestPublish(unittest.TestCase):
         """publish(path) creates a sparse site config JSON containing ONLY naming fields.
 
         Phase 16: publish() must write only naming_regex, naming_template,
-        naming_demo_filename. Non-naming fields (plugin_enabled,
-        link_classes_paste_mode, custom_colors) must be absent.
+        naming_demo_filename. Non-naming fields (plugin_enabled, custom_colors)
+        must be absent.
         """
         with tempfile.TemporaryDirectory() as temp_dir:
             default_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
@@ -481,10 +473,6 @@ class TestPublish(unittest.TestCase):
             self.assertNotIn(
                 'plugin_enabled', data,
                 "publish() must NOT write plugin_enabled — site config must be naming-only",
-            )
-            self.assertNotIn(
-                'link_classes_paste_mode', data,
-                "publish() must NOT write link_classes_paste_mode — site config must be naming-only",
             )
             self.assertNotIn(
                 'custom_colors', data,
@@ -592,7 +580,6 @@ class TestSiteConfigLoading(unittest.TestCase):
         """Write a minimal user prefs JSON file with optional field overrides."""
         user_prefs_data = {
             'plugin_enabled': True,
-            'link_classes_paste_mode': 'create_link',
             'custom_colors': [],
             'naming_regex': 'user_regex',
             'naming_template': 'user_template',
@@ -855,7 +842,6 @@ class TestLastPublishPath(unittest.TestCase):
 
             prefs_data = {
                 'plugin_enabled': True,
-                'link_classes_paste_mode': 'create_link',
                 'custom_colors': [],
                 'naming_regex': '',
                 'naming_template': '',

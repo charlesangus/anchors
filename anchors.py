@@ -1,9 +1,4 @@
-"""Copy-cut-paste behaviour that re-connects hidden inputs and replaces
-input-type nodes with hidden-inputted NoOp link nodes.
-
-Configure which node classes trigger link replacement by editing LINK_SOURCE_CLASSES
-in constants.py.
-"""
+"""Copy-cut-paste behaviour that re-connects hidden inputs."""
 
 import os
 
@@ -17,7 +12,6 @@ from constants import (
     DOT_TYPE_KNOB_NAME,
     HIDDEN_INPUT_CLASSES,
     KNOB_NAME,
-    LINK_SOURCE_CLASSES,
     LOCAL_DOT_COLOR,
 )
 from link import (
@@ -37,13 +31,9 @@ def _get_script_stem():
     return os.path.splitext(os.path.basename(nuke.root().name()))[0]
 
 
-def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: 3 node-class paths × same/cross-script gate
+def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: multiple node-class paths × same/cross-script gate
     """Add a hidden knob storing the original name of the node/node's input. We
     can then, when pasting, replace the node or reconnect its inputs.
-
-    Setting cut to True does not store the original name on nodes in LINK_SOURCE_CLASSES,
-    causing our paste routine to do a normal paste without replacement. This is required
-    for cuts, as the original node will have been deleted.
 
     Uses `with nuke.lastHitGroup():` so that when this is triggered from a Group
     View floating panel (where nuke.thisGroup() = root but the user's last click
@@ -83,30 +73,6 @@ def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: 3 node-cl
                     node['tile_color'].setValue(LOCAL_DOT_COLOR)
                     node[KNOB_NAME].setText(stored_fqnn)
 
-
-            # Path A — LINK_SOURCE_CLASSES file node: scan for an anchor whose input is this
-            # node and store the anchor's FQNN so paste can read the correct link class
-            # from the anchor's hidden knob. Falls back to the file node's own FQNN when
-            # no anchor points at it (legacy direct-file-node path).
-            elif node.Class() in LINK_SOURCE_CLASSES:
-                if prefs.link_classes_paste_mode == 'passthrough':
-                    # skip stamping; node copies plainly via nuke.nodeCopy() at end of function
-                    continue
-                if cut:
-                    stored_fqnn = ""
-                else:
-                    anchor_for_node = None
-                    for candidate in nuke.allNodes():
-                        if is_anchor(candidate) and candidate.input(0) is node:
-                            anchor_for_node = candidate
-                            break
-                    if anchor_for_node is not None:
-                        stored_fqnn = get_fully_qualified_node_name(anchor_for_node)
-                    else:
-                        # Legacy fallback: no anchor found, store the file node's own FQNN
-                        stored_fqnn = get_fully_qualified_node_name(node)
-                add_input_knob(node)
-                node[KNOB_NAME].setText(stored_fqnn)
 
             # Path B — hidden-input Dot (or PostageStamp/NoOp with hide_input set):
             # split on whether the upstream input is an anchor (Link Dot) or a plain node (Local Dot).
@@ -226,25 +192,7 @@ def paste_anchors():  # noqa: C901 — complexity is inherent: anchor/link/dot p
                 # we haven't stored any info on this node, do nothing
                 continue
 
-            if node.Class() in LINK_SOURCE_CLASSES:
-                # Path A: file node pasted → replace with a link node.
-                # find_anchor_node() resolves the stored FQNN; None means cross-script or
-                # deleted.
-                input_node = find_anchor_node(node)
-                if not input_node:
-                    # Cross-script (or deleted) case: find_anchor_node() returned None.
-                    # File nodes are left disconnected as placeholders.
-                    continue
-                nukescripts.clear_selection_recursive()
-                node["selected"].setValue(True)
-                link_node = nuke.createNode(get_link_class_for_source(input_node))
-                setup_link_node(input_node, link_node)
-                link_node.setXYpos(node.xpos(), node.ypos())
-                final_selection.remove(node)
-                final_selection.append(link_node)
-                nuke.delete(node)
-
-            elif (is_anchor(node)
+            if (is_anchor(node)
                   and DOT_TYPE_KNOB_NAME in node.knobs()
                   and node[DOT_TYPE_KNOB_NAME].getValue() == 'link'):
                 # Path D (Issue #37): pasted node is an anchor that was stamped at copy
