@@ -99,7 +99,6 @@ class TestNoOpAnchorLabelRestampAfterCollision(unittest.TestCase):
     def test_noop_anchor_label_updated_to_reflect_renamed_node_after_collision(self):
         """paste_anchors() must re-stamp the label to 'Foo1' when the pasted
         NoOp anchor was renamed from Anchor_Foo to Anchor_Foo1 by Nuke."""
-        import nuke as _nuke
         from constants import ANCHOR_PREFIX
 
         # Post-collision: node name is Anchor_Foo1 but label still says "Foo"
