@@ -98,7 +98,6 @@ def _patch_copy(mock_nuke, selected_nodes, prefs_mock):
     mock_nuke.nodeCopy.return_value = None
     mock_nuke.allNodes.return_value = []
     prefs_mock.plugin_enabled = True
-    prefs_mock.link_classes_paste_mode = 'replace'
 
 
 # ---------------------------------------------------------------------------

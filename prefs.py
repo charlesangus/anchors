@@ -5,7 +5,6 @@ Writes via explicit save() call only — called by Phase 7 PrefsDialog on accept
 
 Module-level variables (read these directly after import):
     plugin_enabled          bool  — True if the plugin is active
-    link_classes_paste_mode str   — 'create_link' or 'passthrough'
     custom_colors           list  — list of 0xRRGGBBAA color ints
 """
 
@@ -18,7 +17,6 @@ from constants import OLD_PREFS_PATH, PREFS_PATH, USER_PALETTE_PATH
 # Defaults — overwritten by _load() at module import time
 # ---------------------------------------------------------------------------
 plugin_enabled = True
-link_classes_paste_mode = "passthrough"
 custom_colors = []
 naming_regex = ""
 naming_template = ""
@@ -57,7 +55,7 @@ def _migrate_from_old_prefs_file():
     Called only when anchors_prefs.json does not exist but paste_hidden_prefs.json does.
     Never modifies the old file. Silent no-op if old file is absent or corrupt.
     """
-    global plugin_enabled, link_classes_paste_mode, custom_colors
+    global plugin_enabled, custom_colors
     if not os.path.exists(OLD_PREFS_PATH):
         return
     try:
@@ -75,7 +73,7 @@ def _load():
     back to defaults. Per-key type validation ensures corrupt individual values
     do not poison valid ones.
     """
-    global plugin_enabled, link_classes_paste_mode, custom_colors, \
+    global plugin_enabled, custom_colors, \
            naming_regex, naming_template, naming_demo_filename, \
            site_config_override, last_publish_path, \
            _user_naming_regex, _user_naming_template, \
@@ -94,8 +92,6 @@ def _load():
             data = json.load(file_handle)
         if isinstance(data.get('plugin_enabled'), bool):
             plugin_enabled = data['plugin_enabled']
-        if data.get('link_classes_paste_mode') in ('create_link', 'passthrough'):
-            link_classes_paste_mode = data['link_classes_paste_mode']
         if isinstance(data.get('custom_colors'), list):
             custom_colors = [int(color_value) for color_value in data['custom_colors']
                              if isinstance(color_value, (int, float))]
@@ -169,7 +165,6 @@ def save():
         json.dump(
             {
                 'plugin_enabled': plugin_enabled,
-                'link_classes_paste_mode': link_classes_paste_mode,
                 'custom_colors': custom_colors,
                 'naming_regex': _user_naming_regex,
                 'naming_template': _user_naming_template,

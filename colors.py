@@ -653,7 +653,6 @@ else:
             import prefs as prefs_module
             # Seed local working copies — never mutate prefs module vars until accept
             self._local_plugin_enabled = prefs_module.plugin_enabled
-            self._local_link_mode = prefs_module.link_classes_paste_mode
             self._local_custom_colors = list(prefs_module.custom_colors)
             # Snapshot of custom colors at open time so _on_accept can detect changes
             # and recolor any anchor nodes using the old color values.
@@ -682,11 +681,6 @@ else:
             self._plugin_checkbox = QtWidgets.QCheckBox("Enable anchors plugin")
             self._plugin_checkbox.setChecked(self._local_plugin_enabled)
             outer_layout.addWidget(self._plugin_checkbox)
-
-            # Checkbox: link classes paste mode
-            self._link_mode_checkbox = QtWidgets.QCheckBox("Input nodes paste as links")
-            self._link_mode_checkbox.setChecked(self._local_link_mode == "create_link")
-            outer_layout.addWidget(self._link_mode_checkbox)
 
             # ---- Anchor Naming section ----
             naming_section_label = QtWidgets.QLabel("Anchor Naming")
@@ -1047,7 +1041,7 @@ else:
             if not self._swatch_buttons:
                 return
             # Chain from the last focusable checkbox down to the first swatch button
-            QtWidgets.QWidget.setTabOrder(self._link_mode_checkbox, self._swatch_buttons[0])
+            QtWidgets.QWidget.setTabOrder(self._plugin_checkbox, self._swatch_buttons[0])
             # Chain each swatch button to the next one
             for swatch_index in range(len(self._swatch_buttons) - 1):
                 QtWidgets.QWidget.setTabOrder(
@@ -1177,14 +1171,10 @@ else:
         def _on_accept(self):
             """Flush local working copies to prefs module, persist, and close."""
             import prefs as prefs_module
-            # Read current checkbox states into local vars (user may have changed them)
+            # Read current checkbox state into local var (user may have changed it)
             self._local_plugin_enabled = self._plugin_checkbox.isChecked()
-            self._local_link_mode = (
-                "create_link" if self._link_mode_checkbox.isChecked() else "passthrough"
-            )
-            # Flush plugin_enabled and link mode to prefs module immediately
+            # Flush plugin_enabled to prefs module immediately
             prefs_module.plugin_enabled = self._local_plugin_enabled
-            prefs_module.link_classes_paste_mode = self._local_link_mode
             # Apply plugin_enabled live (menu enable/disable without restart).
             # set_anchors_menu_enabled is stored on the prefs module by menu.py at startup,
             # avoiding any import conflict with Nuke's built-in 'menu' module.

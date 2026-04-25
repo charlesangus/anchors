@@ -9,11 +9,6 @@ KNOB_NAME = 'copy_hidden_input_node'
 # FROZEN: value stored in .nk files — do not rename
 LINK_RECONNECT_KNOB_NAME = "reconnect_link"
 HIDDEN_INPUT_CLASSES = ['PostageStamp', 'Dot', 'NoOp']
-LINK_SOURCE_CLASSES = frozenset({
-    "Read", "DeepRead", "ReadGeo",
-    "Camera", "Camera2", "Camera3", "Camera4",
-    "GeoImport",
-})
 
 ANCHOR_PREFIX = 'Anchor_'
 # FROZEN: value stored in .nk files — do not rename
