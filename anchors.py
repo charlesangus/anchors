@@ -5,6 +5,8 @@ Configure which node classes trigger link replacement by editing LINK_SOURCE_CLA
 in constants.py.
 """
 
+import os
+
 import nuke
 import nukescripts
 
@@ -27,6 +29,12 @@ from link import (
     is_link,
     setup_link_node,
 )
+
+
+def _get_script_stem():
+    # os.path.splitext handles multi-dot names like "project.shotA.nk" → "project.shotA"
+    # whereas split('.')[0] would give the ambiguous "project" for both shotA and shotB.
+    return os.path.splitext(os.path.basename(nuke.root().name()))[0]
 
 
 def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: 3 node-class paths × same/cross-script gate
@@ -66,7 +74,8 @@ def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: 3 node-cl
                 else:
                     # Local Dot: restore Local appearance after setup_link_node() overwrites
                     # label/color, matching the behaviour of Path B for non-link hidden-input nodes.
-                    stored_fqnn = get_fully_qualified_node_name(input_node)
+                    script_stem = _get_script_stem()
+                    stored_fqnn = f"{script_stem}.{get_fully_qualified_node_name(input_node)}"
                     setup_link_node(input_node, node)
                     add_input_knob(node, dot_type='local')
                     source_label = input_node['label'].getText() or input_node.name()
@@ -117,7 +126,8 @@ def copy_anchors(cut=False):  # noqa: C901 — complexity is inherent: 3 node-cl
                 else:
                     # Local Dot: plain-node-backed, same-script only.
                     # Restore Local appearance after setup_link_node() overwrites label/color.
-                    stored_fqnn = get_fully_qualified_node_name(input_node)
+                    script_stem = _get_script_stem()
+                    stored_fqnn = f"{script_stem}.{get_fully_qualified_node_name(input_node)}"
                     setup_link_node(input_node, node)
                     add_input_knob(node, dot_type='local')
                     source_label = input_node['label'].getText() or input_node.name()
@@ -177,6 +187,26 @@ def _extract_display_name_from_fqnn(stored_fqnn):
     return None
 
 
+def _find_local_node(stored_fqnn):
+    """Resolve a local-dot FQNN to a live node, enforcing same-script guard.
+
+    Expects "scriptStem.nodeFullName" format.  Returns the node when the stem
+    matches the current script; returns None for a different stem (cross-script)
+    or for any FQNN without a dot (defensively handles pre-fix nodes that are
+    restamped at copy time before being pasted).
+    """
+    if not stored_fqnn or '.' not in stored_fqnn:
+        return None
+    current_stem = _get_script_stem()
+    prefix = current_stem + '.'
+    if not stored_fqnn.startswith(prefix):
+        return None
+    node_name = stored_fqnn[len(prefix):]
+    if not node_name:
+        return None
+    return nuke.toNode(node_name)
+
+
 def paste_anchors():  # noqa: C901 — complexity is inherent: anchor/link/dot paths × same/cross-script gate
     if not prefs.plugin_enabled:
         with nuke.lastHitGroup():
@@ -196,12 +226,11 @@ def paste_anchors():  # noqa: C901 — complexity is inherent: anchor/link/dot p
                 # we haven't stored any info on this node, do nothing
                 continue
 
-            input_node = find_anchor_node(node)
-
             if node.Class() in LINK_SOURCE_CLASSES:
                 # Path A: file node pasted → replace with a link node.
                 # find_anchor_node() resolves the stored FQNN; None means cross-script or
                 # deleted.
+                input_node = find_anchor_node(node)
                 if not input_node:
                     # Cross-script (or deleted) case: find_anchor_node() returned None.
                     # File nodes are left disconnected as placeholders.
@@ -225,6 +254,7 @@ def paste_anchors():  # noqa: C901 — complexity is inherent: anchor/link/dot p
                 # on old-style stale-KNOB_NAME anchors (which must remain as-is per BUG-02).
                 # Path D is checked before Path B because NoOp is in HIDDEN_INPUT_CLASSES;
                 # without this ordering a stamped anchor NoOp would enter Path B instead.
+                input_node = find_anchor_node(node)
                 if not input_node:
                     # Cross-script (or unresolvable FQNN): attempt name-based fallback.
                     # KNOB_NAME is guaranteed present here — we passed the top-of-loop guard.
@@ -257,6 +287,11 @@ def paste_anchors():  # noqa: C901 — complexity is inherent: anchor/link/dot p
                     # else → 'local'.
                     display_name_for_compat = _extract_display_name_from_fqnn(stored_fqnn)
                     dot_type = 'link' if display_name_for_compat is not None else 'local'
+
+                if dot_type == 'local':
+                    input_node = _find_local_node(stored_fqnn)
+                else:
+                    input_node = find_anchor_node(node)
 
                 # "Input was in selection" case: KNOB_NAME="" because the input was copied
                 # alongside this node.  Nuke has already re-connected the pasted copy to the

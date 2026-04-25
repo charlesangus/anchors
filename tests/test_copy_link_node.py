@@ -132,6 +132,7 @@ class TestCopyLinkNodePathL(unittest.TestCase):
              patch('anchors.setup_link_node') as mock_setup:
 
             _patch_copy(mock_nuke, [local_dot], mock_prefs)
+            mock_nuke.root.return_value.name.return_value = 'sourceScript.nk'
 
             from anchors import copy_anchors
             copy_anchors()
