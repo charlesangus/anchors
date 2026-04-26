@@ -137,8 +137,9 @@ def _migrate_one_knob(node, old_name, spec):
         node.addKnob(new_knob)
     elif kind == 'string':
         old_value = node[old_name].getValue()
-        new_knob = nuke.String_Knob(new_name, '')
+        new_knob = nuke.String_Knob(new_name)
         new_knob.setFlag(nuke.INVISIBLE)
+        new_knob.setVisible(False)
         node.addKnob(new_knob)
         node[new_name].setValue(old_value)
     elif kind == 'pyscript':
@@ -247,9 +248,12 @@ def migrate_prefs_files():
     """Copy ``paste_hidden_prefs.json`` to ``anchors_prefs.json`` if needed.
 
     Called only when ``anchors_prefs.json`` does not exist but
-    ``paste_hidden_prefs.json`` does.  Never modifies the old file.  Silent
-    no-op if old file is absent or unreadable.
+    ``paste_hidden_prefs.json`` does.  Never modifies the old file or an
+    existing new file.  Silent no-op if the new file already exists or the
+    old file is absent or unreadable.
     """
+    if os.path.exists(constants.PREFS_PATH):
+        return
     if not os.path.exists(constants.OLD_PREFS_PATH):
         return
     try:
@@ -263,9 +267,12 @@ def migrate_palette_file():
     """Load custom colours from the legacy palette file into ``prefs.custom_colors``.
 
     Called only when ``anchors_prefs.json`` does not exist.  Never writes to the
-    old palette file.  Silent no-op if old file is absent or corrupt; on any
-    failure ``prefs.custom_colors`` is set to ``[]``.
+    old palette file.  Silent no-op if the new prefs file already exists or the
+    old palette file is absent or corrupt; on any failure ``prefs.custom_colors``
+    is set to ``[]``.
     """
+    if os.path.exists(constants.PREFS_PATH):
+        return
     import prefs as prefs_module
     try:
         with open(constants.USER_PALETTE_PATH) as file_handle:

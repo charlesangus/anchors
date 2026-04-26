@@ -367,6 +367,33 @@ class TestMigratePrefsFiles(unittest.TestCase):
             constants.OLD_PREFS_PATH = original_old_path
             constants.PREFS_PATH = original_new_path
 
+    def test_does_not_overwrite_when_new_prefs_already_exists(self):
+        """Guard against clobbering an existing anchors_prefs.json."""
+        import constants
+        import migrations
+        original_old_path = constants.OLD_PREFS_PATH
+        original_new_path = constants.PREFS_PATH
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                old_path = os.path.join(temp_dir, 'paste_hidden_prefs.json')
+                new_path = os.path.join(temp_dir, 'anchors_prefs.json')
+                with open(old_path, 'w') as file_handle:
+                    json.dump({'plugin_enabled': False}, file_handle)
+                existing_payload = {'plugin_enabled': True, 'custom_colors': [42]}
+                with open(new_path, 'w') as file_handle:
+                    json.dump(existing_payload, file_handle)
+
+                constants.OLD_PREFS_PATH = old_path
+                constants.PREFS_PATH = new_path
+                migrations.migrate_prefs_files()
+
+                with open(new_path) as file_handle:
+                    self.assertEqual(json.load(file_handle), existing_payload,
+                                     "must not overwrite an existing anchors_prefs.json")
+        finally:
+            constants.OLD_PREFS_PATH = original_old_path
+            constants.PREFS_PATH = original_new_path
+
 
 class TestMigratePaletteFile(unittest.TestCase):
     """migrate_palette_file() loads legacy palette JSON into prefs.custom_colors."""
@@ -384,6 +411,7 @@ class TestMigratePaletteFile(unittest.TestCase):
         import migrations
         import prefs as prefs_module
         original_palette_path = constants.USER_PALETTE_PATH
+        original_new_path = constants.PREFS_PATH
         try:
             with tempfile.TemporaryDirectory() as temp_dir:
                 palette_path = os.path.join(temp_dir, 'paste_hidden_user_palette.json')
@@ -392,41 +420,76 @@ class TestMigratePaletteFile(unittest.TestCase):
                     json.dump(legacy_colors, file_handle)
 
                 constants.USER_PALETTE_PATH = palette_path
+                constants.PREFS_PATH = os.path.join(temp_dir, 'anchors_prefs.json')
                 migrations.migrate_palette_file()
 
                 self.assertEqual(prefs_module.custom_colors, legacy_colors)
         finally:
             constants.USER_PALETTE_PATH = original_palette_path
+            constants.PREFS_PATH = original_new_path
 
     def test_silent_noop_on_missing_palette_file(self):
         import constants
         import migrations
         import prefs as prefs_module
         original_palette_path = constants.USER_PALETTE_PATH
+        original_new_path = constants.PREFS_PATH
         try:
             with tempfile.TemporaryDirectory() as temp_dir:
                 palette_path = os.path.join(temp_dir, 'does_not_exist.json')
                 constants.USER_PALETTE_PATH = palette_path
+                constants.PREFS_PATH = os.path.join(temp_dir, 'anchors_prefs.json')
                 migrations.migrate_palette_file()
                 self.assertEqual(prefs_module.custom_colors, [])
         finally:
             constants.USER_PALETTE_PATH = original_palette_path
+            constants.PREFS_PATH = original_new_path
 
     def test_silent_noop_on_corrupt_palette_file(self):
         import constants
         import migrations
         import prefs as prefs_module
         original_palette_path = constants.USER_PALETTE_PATH
+        original_new_path = constants.PREFS_PATH
         try:
             with tempfile.TemporaryDirectory() as temp_dir:
                 palette_path = os.path.join(temp_dir, 'corrupt.json')
                 with open(palette_path, 'w') as file_handle:
                     file_handle.write('{ this is not json !!!')
                 constants.USER_PALETTE_PATH = palette_path
+                constants.PREFS_PATH = os.path.join(temp_dir, 'anchors_prefs.json')
                 migrations.migrate_palette_file()
                 self.assertEqual(prefs_module.custom_colors, [])
         finally:
             constants.USER_PALETTE_PATH = original_palette_path
+            constants.PREFS_PATH = original_new_path
+
+    def test_silent_noop_when_new_prefs_file_already_exists(self):
+        """Guard against clobbering custom_colors when anchors_prefs.json exists."""
+        import constants
+        import migrations
+        import prefs as prefs_module
+        original_palette_path = constants.USER_PALETTE_PATH
+        original_new_path = constants.PREFS_PATH
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                palette_path = os.path.join(temp_dir, 'paste_hidden_user_palette.json')
+                with open(palette_path, 'w') as file_handle:
+                    json.dump([0x123456ff], file_handle)
+                new_path = os.path.join(temp_dir, 'anchors_prefs.json')
+                with open(new_path, 'w') as file_handle:
+                    file_handle.write('{}')
+
+                constants.USER_PALETTE_PATH = palette_path
+                constants.PREFS_PATH = new_path
+                prefs_module.custom_colors = [0xabcdef00]
+                migrations.migrate_palette_file()
+
+                self.assertEqual(prefs_module.custom_colors, [0xabcdef00],
+                                 "must not overwrite custom_colors when new prefs file exists")
+        finally:
+            constants.USER_PALETTE_PATH = original_palette_path
+            constants.PREFS_PATH = original_new_path
 
 
 # ---------------------------------------------------------------------------
