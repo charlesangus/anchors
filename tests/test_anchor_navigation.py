@@ -541,7 +541,7 @@ class TestNavigateToAnchorZoom(unittest.TestCase):
         import nuke as nuke_stub
         anchor_node = self._make_anchor_node()
 
-        with patch('util.upstream_ignoring_hidden', return_value=set()):
+        with patch('anchor.upstream_ignoring_hidden', return_value=set()):
             anchor.navigate_to_anchor(anchor_node)
 
         nuke_stub.zoomToFitSelected.assert_called_once()
@@ -564,7 +564,7 @@ class TestNavigateToAnchorZoom(unittest.TestCase):
 
         nuke_stub.zoomToFitSelected.side_effect = capture_selection
 
-        with patch('util.upstream_ignoring_hidden', return_value={upstream_a, upstream_b}):
+        with patch('anchor.upstream_ignoring_hidden', return_value={upstream_a, upstream_b}):
             anchor.navigate_to_anchor(anchor_node)
 
         self.assertEqual(selected_at_zoom_time, [True, True, True],
@@ -580,7 +580,7 @@ class TestNavigateToAnchorZoom(unittest.TestCase):
         originally_selected['selected'].setValue(True)
         nuke_stub.selectedNodes.return_value = [originally_selected]
 
-        with patch('util.upstream_ignoring_hidden', return_value={upstream_node}):
+        with patch('anchor.upstream_ignoring_hidden', return_value={upstream_node}):
             anchor.navigate_to_anchor(anchor_node)
 
         self.assertTrue(originally_selected['selected'].value(),
@@ -598,7 +598,7 @@ class TestNavigateToAnchorZoom(unittest.TestCase):
 
         nuke_stub.zoomToFitSelected.side_effect = capture_selection
 
-        with patch('util.upstream_ignoring_hidden', return_value=set()):
+        with patch('anchor.upstream_ignoring_hidden', return_value=set()):
             anchor.navigate_to_anchor(anchor_node)
 
         self.assertEqual(selected_at_zoom_time, [True])

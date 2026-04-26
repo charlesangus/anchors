@@ -958,7 +958,7 @@ class TestAnchorShortcutDotRouting(unittest.TestCase):
     """Regression tests for BUG-04: anchor_shortcut() dispatch paths.
 
     Covers:
-    - Dot node selected → create_anchor() called, _offer_make_dot_anchor() NOT called
+    - Dot node selected → create_anchor() called
     - Non-Dot node selected → create_anchor() called (unchanged)
     - Anchor node selected → rename_anchor() called (unchanged)
     - No selection → select_anchor_and_create() called (unchanged)
@@ -975,8 +975,8 @@ class TestAnchorShortcutDotRouting(unittest.TestCase):
         nuke_stub.selectedNodes.reset_mock()
         self.nuke_stub = nuke_stub
 
-    def test_dot_selected_calls_create_anchor_not_offer_make_dot_anchor(self):
-        """Dot node selected → create_anchor() called once; _offer_make_dot_anchor() NOT called."""
+    def test_dot_selected_calls_create_anchor(self):
+        """Dot node selected → `create_anchor()` is called once."""
         import nuke as _nuke
         dot_node = _nuke.StubNode(name='Dot1', node_class='Dot')
         self.nuke_stub.selectedNodes = MagicMock(return_value=[dot_node])
@@ -984,12 +984,10 @@ class TestAnchorShortcutDotRouting(unittest.TestCase):
         with patch.object(self.anchor_mod.prefs, 'plugin_enabled', True), \
              patch.object(self.anchor_mod, 'is_anchor', return_value=False), \
              patch.object(self.anchor_mod, 'is_link', return_value=False), \
-             patch.object(self.anchor_mod, 'create_anchor') as mock_create_anchor, \
-             patch.object(self.anchor_mod, '_offer_make_dot_anchor') as mock_offer:
+             patch.object(self.anchor_mod, 'create_anchor') as mock_create_anchor:
             self.anchor_mod.anchor_shortcut()
 
         mock_create_anchor.assert_called_once()
-        mock_offer.assert_not_called()
 
     def test_non_dot_selected_calls_create_anchor(self):
         """Non-Dot node selected → create_anchor() called once."""

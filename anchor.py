@@ -689,28 +689,6 @@ class AnchorPlugin(_tabtabtab.TabTabTabPlugin):
         return (color, color)
 
 
-# Deprecated: superseded by create_anchor() for Dot nodes (BUG-04, Phase 14).
-# Retained for reference only — do not call.
-def _offer_make_dot_anchor(dot_node):
-    """Prompt the user to label an un-anchored Dot and mark it as an anchor."""
-    panel = nuke.Panel("Make Dot Anchor")
-    panel.addEnumerationPulldown("Label size", "Medium Large")
-    if not panel.show():
-        return
-    size = panel.value("Label size")
-    text = nuke.getInput("Label:", dot_node['label'].getText())
-    if text is None:
-        return
-    from labels import _apply_label
-    if size == "Medium":
-        _apply_label(dot_node, text, DOT_LABEL_FONT_SIZE_MEDIUM, None)
-    else:
-        _apply_label(dot_node, text, DOT_LABEL_FONT_SIZE_LARGE, NODE_LABEL_FONT_SIZE_LARGE)
-    # _apply_label → mark_dot_as_anchor already ran; add anchor utility knobs
-    add_reconnect_anchor_knob(dot_node)
-    add_rename_anchor_knob(dot_node)
-
-
 def anchor_shortcut():
     """If a node is selected, create an anchor from it. Otherwise, pick an anchor to create from."""
     if not prefs.plugin_enabled:
@@ -887,9 +865,27 @@ def navigate_to_backdrop(backdrop_node):
     nukescripts.clear_selection_recursive()
 
 
+def upstream_ignoring_hidden(node, nodes_so_far=None, _visited=None):
+    if _visited is None:
+        _visited = set()
+    if node in _visited:
+        return nodes_so_far
+    _visited.add(node)
+
+    inputs = node.dependencies(what=nuke.INPUTS)
+    if not inputs:
+        return nodes_so_far
+    if nodes_so_far is None:
+        nodes_so_far = set(inputs)
+    else:
+        nodes_so_far.update(inputs)
+    for input_node in inputs:
+        upstream_ignoring_hidden(input_node, nodes_so_far, _visited)
+    return nodes_so_far
+
+
 def navigate_to_anchor(anchor_node):
     """Zoom the DAG to frame *anchor_node* and its visible-path upstream nodes."""
-    from util import upstream_ignoring_hidden
     upstream_nodes = upstream_ignoring_hidden(anchor_node) or set()
     nodes_to_fit = upstream_nodes | {anchor_node}
 
