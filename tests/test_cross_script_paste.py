@@ -364,8 +364,12 @@ class TestMigrateToStemlessNames(unittest.TestCase):
         return _nuke.StubNode(name=node_name, node_class='NoOp', knobs_dict=knobs)
 
     def _run_migrate(self, all_nodes, to_node_side_effect):
-        """Run migrate_to_stemless_names() with stubbed nuke state."""
-        with patch('anchors.nuke') as mock_nuke:
+        """Run migrate_to_stemless_names() with stubbed nuke state.
+
+        The function lives in migrations.py (re-exported via anchors.py); tests
+        must patch migrations.nuke so the stubbed allNodes/toNode are seen.
+        """
+        with patch('migrations.nuke') as mock_nuke:
             mock_nuke.allNodes.return_value = all_nodes
             mock_nuke.toNode.side_effect = to_node_side_effect
             from anchors import migrate_to_stemless_names
