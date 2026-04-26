@@ -51,57 +51,50 @@ def _apply_label(node, text, dot_font_size=None, node_font_size=None):
             node['note_font_size'].setValue(node_font_size)
 
 
-def create_large_label():
-    """Prompt for a label and apply it with large font sizing."""
+def _prompt_and_label(prompt, default_supplier, applier):
+    """Common preamble for label-shortcut commands.
+
+    `prompt` is the dialog message. `default_supplier` is a callable taking the
+    selected node and returning the default text shown in the dialog (this lets
+    `append_to_label` use a different default from the create_*_label commands).
+    `applier` is called as `applier(node, text)` once a non-None text is captured.
+    """
     if not prefs.plugin_enabled:
         return
     selected_nodes = nuke.selectedNodes()
     if not selected_nodes:
         return
     node = selected_nodes[0]
-    text = nuke.getInput("Label:", node['label'].getText())
+    default = default_supplier(node)
+    text = nuke.getInput(prompt, default)
     if text is None:
         return
-    _apply_label(node, text, DOT_LABEL_FONT_SIZE_LARGE, NODE_LABEL_FONT_SIZE_LARGE)
+    applier(node, text)
+
+
+def create_large_label():
+    """Prompt for a label and apply it with large font sizing."""
+    def applier(node, text):
+        _apply_label(node, text, DOT_LABEL_FONT_SIZE_LARGE, NODE_LABEL_FONT_SIZE_LARGE)
+    _prompt_and_label("Label:", lambda node: node['label'].getText(), applier)
 
 
 def create_medium_label():
     """Prompt for a label and apply it; Dot nodes get medium font size, others unchanged."""
-    if not prefs.plugin_enabled:
-        return
-    selected_nodes = nuke.selectedNodes()
-    if not selected_nodes:
-        return
-    node = selected_nodes[0]
-    text = nuke.getInput("Label:", node['label'].getText())
-    if text is None:
-        return
-    _apply_label(node, text, DOT_LABEL_FONT_SIZE_MEDIUM, None)
+    def applier(node, text):
+        _apply_label(node, text, DOT_LABEL_FONT_SIZE_MEDIUM, None)
+    _prompt_and_label("Label:", lambda node: node['label'].getText(), applier)
 
 
 def create_small_label():
     """Prompt for a label and apply it; Dot nodes get small font size (33), others unchanged."""
-    if not prefs.plugin_enabled:
-        return
-    selected_nodes = nuke.selectedNodes()
-    if not selected_nodes:
-        return
-    node = selected_nodes[0]
-    text = nuke.getInput("Label:", node['label'].getText())
-    if text is None:
-        return
-    _apply_label(node, text, DOT_LABEL_FONT_SIZE_SMALL, None)
+    def applier(node, text):
+        _apply_label(node, text, DOT_LABEL_FONT_SIZE_SMALL, None)
+    _prompt_and_label("Label:", lambda node: node['label'].getText(), applier)
 
 
 def append_to_label():
     """Prompt for a suffix and append it to the node's existing label."""
-    if not prefs.plugin_enabled:
-        return
-    selected_nodes = nuke.selectedNodes()
-    if not selected_nodes:
-        return
-    node = selected_nodes[0]
-    text = nuke.getInput("Append to label:", "")
-    if text is None:
-        return
-    _apply_label(node, node['label'].getText() + text)
+    def applier(node, text):
+        _apply_label(node, node['label'].getText() + text)
+    _prompt_and_label("Append to label:", lambda node: "", applier)

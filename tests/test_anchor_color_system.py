@@ -88,7 +88,7 @@ class TestAnchorPickerColorReadsFromKnob(unittest.TestCase):
         self.anchor_mod = anchor_mod
 
     def test_get_color_reads_tile_color_value_not_find_anchor_color(self):
-        plugin = self.anchor_mod.AnchorPlugin()
+        plugin = self.anchor_mod._make_anchor_picker_plugin()
 
         anchor_mock = MagicMock()
         tile_color_knob = MagicMock()
@@ -102,7 +102,7 @@ class TestAnchorPickerColorReadsFromKnob(unittest.TestCase):
         tile_color_knob.value.assert_called()
 
     def test_get_color_uses_value_from_tile_color_knob(self):
-        plugin = self.anchor_mod.AnchorPlugin()
+        plugin = self.anchor_mod._make_anchor_picker_plugin()
 
         expected_color_int = 0xAABBCCFF
         anchor_mock = MagicMock()
@@ -140,7 +140,7 @@ class TestAnchorNavigatePickerColorReadsFromKnob(unittest.TestCase):
         self.anchor_mod = anchor_mod
 
     def test_navigate_get_color_reads_tile_color_value_not_find_anchor_color(self):
-        plugin = self.anchor_mod.AnchorNavigatePlugin()
+        plugin = self.anchor_mod._make_anchor_navigate_plugin()
 
         anchor_mock = MagicMock()
         tile_color_knob = MagicMock()
@@ -461,9 +461,11 @@ def _extract_method_from_source(method_name):
                     method_source = '\n'.join(method_lines[start_line:end_line])
                     method_source = textwrap.dedent(method_source)
                     import nuke as _nuke_stub
+                    from constants import ANCHOR_DEFAULT_COLOR as _ANCHOR_DEFAULT_COLOR
                     namespace = {}
                     namespace['_color_int_to_rgb'] = _real_colors_module._color_int_to_rgb
                     namespace['nuke'] = _nuke_stub
+                    namespace['ANCHOR_DEFAULT_COLOR'] = _ANCHOR_DEFAULT_COLOR
                     exec(compile(method_source, '<colors_method>', 'exec'), namespace)
                     return namespace[method_name]
     return None
@@ -740,7 +742,7 @@ class TestColorPaletteDialogCustomColorStaging(unittest.TestCase):
         self.assertEqual(call_arg, 0x6f3399ff,
                          "nuke.getColor() must be called with the int form of the selected color")
 
-    def test_on_custom_color_clicked_returns_early_for_zero_result(self):
+    def test_on_custom_color_clicked_returns_early_when_user_cancels(self):
         """_on_custom_color_clicked does nothing when nuke.getColor() returns 0."""
         on_custom_color_clicked = self._get_method('_on_custom_color_clicked')
 
@@ -750,7 +752,8 @@ class TestColorPaletteDialogCustomColorStaging(unittest.TestCase):
         dialog._append_swatch_to_custom_group = MagicMock()
 
         import nuke as nuke_stub
-        nuke_stub.getColor = MagicMock(return_value=0)  # user cancelled
+        from constants import ANCHOR_DEFAULT_COLOR
+        nuke_stub.getColor = MagicMock(return_value=ANCHOR_DEFAULT_COLOR)  # user cancelled
 
         on_custom_color_clicked(dialog)
 

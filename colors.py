@@ -406,11 +406,13 @@ else:
 
 
         def _on_custom_color_clicked(self):
-            initial_color = int(self._selected_color) if self._selected_color is not None else 0
+            # nuke.getColor() returns its `default` arg on cancel; pass a non-zero
+            # sentinel so genuine pure black (0) can be picked. Trade-off: picking
+            # exactly the default with OK is treated as cancel — users can still
+            # select that color via palette swatches.
+            initial_color = int(self._selected_color) if self._selected_color is not None else ANCHOR_DEFAULT_COLOR
             result = nuke.getColor(initial_color)
-            if result == 0:
-                # nuke.getColor() returns 0 for both cancel and pure black;
-                # treat 0 as cancel (known Nuke API limitation).
+            if result == initial_color:
                 return
             self._staged_custom_colors.append(result)
             self._selected_color = result
@@ -1103,7 +1105,7 @@ else:
         def _on_add_color(self):
             """Open nuke.getColor() and append the result to the custom colors list."""
             result = nuke.getColor(ANCHOR_DEFAULT_COLOR)
-            if result == 0:
+            if result == ANCHOR_DEFAULT_COLOR:
                 return
             self._local_custom_colors.append(result)
             self._rebuild_swatch_grid()
@@ -1120,7 +1122,7 @@ else:
                 return
             current_color = int(self._local_custom_colors[self._selected_swatch_index])
             result = nuke.getColor(current_color)
-            if result == 0:
+            if result == current_color:
                 return
             # Capture old color before updating so we can recolor matching anchors
             old_color = self._local_custom_colors[self._selected_swatch_index]

@@ -33,36 +33,21 @@ _user_naming_demo_filename = "plate_v003.exr"  # shadow: user's own saved value 
 _LOCKABLE_NAMING_FIELDS = ('naming_regex', 'naming_template', 'naming_demo_filename')
 
 
-def _migrate_from_old_palette():
-    """One-way migration: read custom colors from old palette file into custom_colors.
+# Prefs-file and palette migration helpers live in migrations.py so the entire
+# legacy → new migration story is in one place.  The thin wrappers below
+# preserve the existing _load() call sites without changing semantics.
 
-    Called only when anchors_prefs.json does not exist.
-    Never writes to the old palette file. Silent no-op if old file is absent or corrupt.
-    """
-    global custom_colors
-    try:
-        with open(USER_PALETTE_PATH) as file_handle:
-            data = json.load(file_handle)
-        custom_colors = [int(color_value) for color_value in data
-                         if isinstance(color_value, (int, float))]
-    except (OSError, ValueError, json.JSONDecodeError):
-        custom_colors = []
+
+def _migrate_from_old_palette():
+    """Delegate to migrations.migrate_palette_file (kept for back-compat)."""
+    import migrations
+    migrations.migrate_palette_file()
 
 
 def _migrate_from_old_prefs_file():
-    """One-way migration: copy paste_hidden_prefs.json to anchors_prefs.json.
-
-    Called only when anchors_prefs.json does not exist but paste_hidden_prefs.json does.
-    Never modifies the old file. Silent no-op if old file is absent or corrupt.
-    """
-    global plugin_enabled, custom_colors
-    if not os.path.exists(OLD_PREFS_PATH):
-        return
-    try:
-        import shutil
-        shutil.copy2(OLD_PREFS_PATH, PREFS_PATH)
-    except OSError:
-        pass
+    """Delegate to migrations.migrate_prefs_files (kept for back-compat)."""
+    import migrations
+    migrations.migrate_prefs_files()
 
 
 def _load():

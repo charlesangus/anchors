@@ -165,7 +165,7 @@ class TestInvokeSavesPosition(unittest.TestCase):
         stub_anchor_node.name.return_value = 'Anchor_Foo'
         stub_anchor_node.Class.return_value = 'NoOp'
 
-        plugin = anchor.AnchorNavigatePlugin()
+        plugin = anchor._make_anchor_navigate_plugin()
 
         with patch.object(anchor, '_save_dag_position', side_effect=lambda: call_order.append('save')) as mock_save, \
              patch.object(anchor, 'navigate_to_anchor', side_effect=lambda node: call_order.append('navigate')) as mock_navigate:
@@ -184,7 +184,7 @@ class TestInvokeSavesPosition(unittest.TestCase):
         stub_backdrop_node.name.return_value = 'BackdropNode1'
         stub_backdrop_node.Class.return_value = 'BackdropNode'
 
-        plugin = anchor.AnchorNavigatePlugin()
+        plugin = anchor._make_anchor_navigate_plugin()
 
         with patch.object(anchor, '_save_dag_position', side_effect=lambda: call_order.append('save')) as mock_save, \
              patch.object(anchor, 'navigate_to_backdrop', side_effect=lambda node: call_order.append('navigate_bd')) as mock_navigate_bd:
@@ -240,7 +240,7 @@ class TestGetItemsIncludesBackdrops(unittest.TestCase):
         import nuke as nuke_stub
         nuke_stub.allNodes.side_effect = _allNodes_side_effect
 
-        plugin = anchor.AnchorNavigatePlugin()
+        plugin = anchor._make_anchor_navigate_plugin()
         items = plugin.get_items()
 
         menupaths = [item['menupath'] for item in items]
@@ -258,7 +258,7 @@ class TestGetItemsIncludesBackdrops(unittest.TestCase):
         import nuke as nuke_stub
         nuke_stub.allNodes.side_effect = _allNodes_side_effect
 
-        plugin = anchor.AnchorNavigatePlugin()
+        plugin = anchor._make_anchor_navigate_plugin()
         items = plugin.get_items()
 
         backdrop_items = [item for item in items if item['menupath'].startswith('Backdrops/')]
@@ -276,7 +276,7 @@ class TestGetItemsIncludesBackdrops(unittest.TestCase):
         import nuke as nuke_stub
         nuke_stub.allNodes.side_effect = _allNodes_side_effect
 
-        plugin = anchor.AnchorNavigatePlugin()
+        plugin = anchor._make_anchor_navigate_plugin()
         items = plugin.get_items()
 
         backdrop_items = [item for item in items if item['menupath'].startswith('Backdrops/')]
@@ -294,7 +294,7 @@ class TestGetItemsIncludesBackdrops(unittest.TestCase):
         import nuke as nuke_stub
         nuke_stub.allNodes.side_effect = _allNodes_side_effect
 
-        plugin = anchor.AnchorNavigatePlugin()
+        plugin = anchor._make_anchor_navigate_plugin()
         items = plugin.get_items()
 
         anchor_items = [item for item in items if item['menupath'].startswith('Anchors/')]
@@ -541,7 +541,7 @@ class TestNavigateToAnchorZoom(unittest.TestCase):
         import nuke as nuke_stub
         anchor_node = self._make_anchor_node()
 
-        with patch('util.upstream_ignoring_hidden', return_value=set()):
+        with patch('anchor.upstream_ignoring_hidden', return_value=set()):
             anchor.navigate_to_anchor(anchor_node)
 
         nuke_stub.zoomToFitSelected.assert_called_once()
@@ -564,7 +564,7 @@ class TestNavigateToAnchorZoom(unittest.TestCase):
 
         nuke_stub.zoomToFitSelected.side_effect = capture_selection
 
-        with patch('util.upstream_ignoring_hidden', return_value={upstream_a, upstream_b}):
+        with patch('anchor.upstream_ignoring_hidden', return_value={upstream_a, upstream_b}):
             anchor.navigate_to_anchor(anchor_node)
 
         self.assertEqual(selected_at_zoom_time, [True, True, True],
@@ -580,7 +580,7 @@ class TestNavigateToAnchorZoom(unittest.TestCase):
         originally_selected['selected'].setValue(True)
         nuke_stub.selectedNodes.return_value = [originally_selected]
 
-        with patch('util.upstream_ignoring_hidden', return_value={upstream_node}):
+        with patch('anchor.upstream_ignoring_hidden', return_value={upstream_node}):
             anchor.navigate_to_anchor(anchor_node)
 
         self.assertTrue(originally_selected['selected'].value(),
@@ -598,7 +598,7 @@ class TestNavigateToAnchorZoom(unittest.TestCase):
 
         nuke_stub.zoomToFitSelected.side_effect = capture_selection
 
-        with patch('util.upstream_ignoring_hidden', return_value=set()):
+        with patch('anchor.upstream_ignoring_hidden', return_value=set()):
             anchor.navigate_to_anchor(anchor_node)
 
         self.assertEqual(selected_at_zoom_time, [True])
