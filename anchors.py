@@ -2,8 +2,6 @@
 
 import os
 
-import contextlib
-
 import nuke
 import nukescripts
 
@@ -12,6 +10,7 @@ from anchor import (
     anchor_display_name,
     find_anchor_by_name,
     rename_anchor_to,
+    sanitize_anchor_name,
 )
 from constants import (
     ANCHOR_DEFAULT_COLOR,
@@ -228,8 +227,9 @@ def _restamp_orphan_anchor_label(node):
         if label_knob.value() != display_name:
             label_knob.setValue(display_name)
         return
-    with contextlib.suppress(ValueError):
-        rename_anchor_to(node, display_name)
+    if not sanitize_anchor_name(display_name):
+        return  # Name sanitises to empty — silently skip, matching prior behaviour.
+    rename_anchor_to(node, display_name)
 
 
 def _handle_pasted_anchor_as_link(node, final_selection):

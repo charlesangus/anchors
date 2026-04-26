@@ -88,7 +88,7 @@ class TestAnchorPickerColorReadsFromKnob(unittest.TestCase):
         self.anchor_mod = anchor_mod
 
     def test_get_color_reads_tile_color_value_not_find_anchor_color(self):
-        plugin = self.anchor_mod.AnchorPlugin()
+        plugin = self.anchor_mod._make_anchor_picker_plugin()
 
         anchor_mock = MagicMock()
         tile_color_knob = MagicMock()
@@ -102,7 +102,7 @@ class TestAnchorPickerColorReadsFromKnob(unittest.TestCase):
         tile_color_knob.value.assert_called()
 
     def test_get_color_uses_value_from_tile_color_knob(self):
-        plugin = self.anchor_mod.AnchorPlugin()
+        plugin = self.anchor_mod._make_anchor_picker_plugin()
 
         expected_color_int = 0xAABBCCFF
         anchor_mock = MagicMock()
@@ -140,7 +140,7 @@ class TestAnchorNavigatePickerColorReadsFromKnob(unittest.TestCase):
         self.anchor_mod = anchor_mod
 
     def test_navigate_get_color_reads_tile_color_value_not_find_anchor_color(self):
-        plugin = self.anchor_mod.AnchorNavigatePlugin()
+        plugin = self.anchor_mod._make_anchor_navigate_plugin()
 
         anchor_mock = MagicMock()
         tile_color_knob = MagicMock()
