@@ -30,8 +30,8 @@ jobs:
       - name: Build release ZIP
         run: |
           mkdir anchors
-          cp anchor.py anchors.py colors.py constants.py labels.py link.py \
-             menu.py migrations.py prefs.py tabtabtab_anchors.py \
+          cp anchor.py anchors.py api.py colors.py constants.py labels.py \
+             link.py menu.py migrations.py prefs.py tabtabtab_anchors.py \
              README.md LICENSE \
              anchors/
           touch "anchors/${GITHUB_REF_NAME}"
