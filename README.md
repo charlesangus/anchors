@@ -36,11 +36,15 @@ The anchor system lives alongside copy/paste and provides a reusable named-input
 
 # Copy / Paste
 
-`Ctrl+C`, `Ctrl+X`, and `Ctrl+V` are replaced with hidden-aware versions:
+`Ctrl+C`, `Ctrl+X`, and `Ctrl+V` are replaced with hidden-aware versions. Copy stamps a hidden reference knob on the selected nodes; paste reads the reference and reconnects:
 
-- **Input nodes** (Read, Camera, ReadGeo, DeepRead, etc.) are converted to hidden-input PostageStamp/NoOp proxies on copy. When pasted, the proxy is re-piped to the original input node automatically, provided the original is in the same script and at the same level.
+- **Link nodes** (hidden-input Dot/PostageStamp/NoOp pointing at an anchor) — paste re-pipes the link to the original anchor when the anchor is reachable in the same script. If the anchor is missing (cross-script paste), the link falls back to looking up an anchor with the same display name in the destination script.
+- **Local Dots** (hidden-input Dot whose source is a plain node, not an anchor) — paste re-pipes by node identity inside the same script only. Cross-script pastes are silently left disconnected; Local Dots never look up by name.
+- **Anchors pasted from a clipboard whose entire selection was anchors** — each pasted anchor is automatically replaced by a Link node pointing back at the original anchor (cut + paste skips this so cuts move anchors cleanly).
 - **Paste Multiple** (`Edit > Paste Multiple`) pastes the clipboard contents multiple times in sequence, with full hidden-input re-piping applied each time.
 - **Old-style paste** (no re-piping magic): `Edit > Anchors > Paste (old)` / `Ctrl+Shift+D`. Old-style copy and cut are also available under `Edit > Anchors`.
+
+When the plugin is disabled in Preferences, `Ctrl+C/X/V` fall through to plain `nuke.nodeCopy` / `nuke.nodePaste`.
 
 # Anchor System
 
@@ -48,13 +52,14 @@ The anchor system is a reusable named-input mechanism for the node graph.
 
 ## Concepts
 
-- **Anchor** — a named NoOp (node name prefixed `Anchor_`) or labeled Dot node that sits below an input node and acts as a stable reference point. Each anchor has a "Reconnect Child Links" button and a "Rename" button in its properties panel.
-- **Link** — a PostageStamp, NoOp, or Dot node that references an anchor by fully-qualified name. Automatically re-pipes itself when reconnected. Displays a `Link: <name>` label.
+- **Anchor** — a named NoOp (node name prefixed `Anchor_`) or labelled Dot node that sits below an input node and acts as a stable reference point. NoOp anchors carry "Reconnect Child Links", "Rename", and "Set Color" buttons in their properties panel; Dot anchors carry only "Reconnect Child Links" and "Rename".
+- **Link** — a PostageStamp, NoOp, or Dot node that references an anchor by fully-qualified name. Carries a "Reconnect" button and re-pipes itself when reconnected. Displays a `Link: <name>` label.
+- **Local Dot** — a hidden-input Dot used purely for layout cleanup. Created automatically when a hidden-input Dot is copied whose upstream is a plain node (not an anchor). Reconnects same-script only and never crosses scripts. Stamped with a burnt-orange tile color and a `Local: <source>` label.
 
 ## Creating Anchors
 
-- Select a node and press `A` (or `Edit > Anchors > Create Anchor`) — a name dialog appears, pre-filled from the input node's file path and the smallest containing backdrop label.
-- **Dot anchors**: select a Dot node and press `A` to promote it to a Dot anchor. A size picker (Medium / Large label) appears first, then a label prompt.
+- Select a node and press `A` (or `Edit > Anchors > Create Anchor`) — a combined name + color dialog appears, pre-filled from the input node's file path and the smallest containing backdrop label.
+- **Dot anchors**: select a plain Dot and press `Shift+B`, `Shift+N`, or `Shift+M`. The label prompt appears; entering a label and confirming applies a small/medium/large font and promotes the Dot to a Dot anchor in place.
 - **Rename**: if an anchor is already selected when you press `A`, the rename dialog opens instead of creating a new anchor.
 
 ## Creating Links
@@ -69,36 +74,47 @@ The anchor system is a reusable named-input mechanism for the node graph.
 
 ## Navigating
 
-- `Alt+A` (or `Edit > Anchors > Anchor Find`) — opens a fuzzy-search picker to jump the DAG view to any anchor.
+- `Alt+A` (or `Edit > Anchors > Anchor Find`) — fuzzy-search picker listing every anchor and every labelled BackdropNode. Selecting an entry zooms the DAG to it.
+- `Alt+J` (or `Edit > Anchors > Anchor Jump`) — with a Link selected, jump to its source anchor.
+- `Alt+L` (or `Edit > Anchors > Cycle Links`) — with an anchor selected, cycle through each Link node that references it. After the last one, returns to the anchor.
+- `Alt+Z` (or `Edit > Anchors > Anchor Back`) — restore the DAG viewport to the position before the last Alt+A / Alt+J / Alt+L jump. Single-slot — consumes the saved position.
 
 ## Reconnecting
 
 - `Edit > Anchors > Reconnect All Links` — re-wires all link nodes in the script. Useful after a script load or merge.
 - The "Reconnect Child Links" button on each anchor node re-wires only that anchor's links.
+- The "Reconnect" button on each Link node re-wires that single Link.
 
 ## Colors
 
-Anchors inherit their tile color using this priority:
+Anchors inherit their tile color automatically using this priority:
 
-1. The smallest containing BackdropNode — only when the anchor's input is a Read node.
-2. The input node's tile color (with Preferences fallback).
+1. The smallest containing BackdropNode — when the anchor's input lives inside one (any input node type, not just Read).
+2. The input node's tile color (with Nuke Preferences fallback).
 3. Default purple (`#6f3399`) if neither is available.
 
-Link nodes inherit the same color as their anchor.
+NoOp anchors carry a "Set Color" button in their properties panel that opens the color palette dialog (preset + custom colors). Dot anchors are excluded from the color system — they always use the default purple.
+
+Link nodes inherit the same color as their anchor and update automatically when the anchor's color is changed.
 
 ## Auto-Naming
 
-The suggested anchor name is derived from the input node's file knob: the basename is taken, any trailing `_v<number>` version suffix and file extension are stripped, and the result is prefixed with the smallest containing backdrop's label (if any).
+The suggested anchor name is derived from the input node's `file` knob. By default, the basename is taken, any trailing `_v<number>` version suffix and file extension (and frame tokens like `%04d` / `####`) are stripped, and the result is prefixed with the smallest containing backdrop's label (if any).
+
+This default can be overridden via a user-configurable regex + template pair set in `Edit > Anchors > Anchor Preferences...`. Sites can ship a locked default by writing a JSON file with `naming_regex`, `naming_template`, and `naming_demo_filename` keys and pointing the `ANCHORS_SITE_CONFIG` environment variable at it. Users can override the site config via the "Override Site Config" checkbox in Preferences. Admins can publish their current naming settings to a site config file via the "Publish Naming…" button in Preferences.
 
 # Label Utilities
 
-Keyboard shortcuts for quickly labeling Dot anchors and other nodes (available under `Edit > Anchors`):
+Keyboard shortcuts for quickly labelling Dot anchors and other nodes (available under `Edit > Anchors`):
 
 | Shortcut | Action |
 |---|---|
-| `Shift+M` | Label (Large) — prompts for a label; applies large font to Dots and other nodes |
-| `Shift+N` | Label (Medium) — prompts for a label; applies medium font to Dots, unchanged for other nodes |
+| `Shift+M` | Label (Large) — prompts for a label; applies large font (111) to Dots and large font (33) to other nodes |
+| `Shift+N` | Label (Medium) — prompts for a label; applies medium font (66) to Dots, unchanged for other nodes |
+| `Shift+B` | Label (Small) — prompts for a label; applies small font (33) to Dots, unchanged for other nodes |
 | `Ctrl+M` | Append Label — prompts for a suffix and appends it to the existing label |
+
+All three Label shortcuts apply a font size at or above the Dot-anchor threshold (33pt), so labelling a plain Dot via any of them promotes it to a Dot anchor.
 
 For Dot anchors, applying or appending a label also propagates the change to all link nodes pointing at that Dot.
 
@@ -110,22 +126,53 @@ For Dot anchors, applying or appending a label also propagates the change to all
 | `Ctrl+X` | Cut (hidden) |
 | `Ctrl+V` | Paste (hidden) |
 | `Ctrl+Shift+D` | Paste (old-style, no re-piping) |
-| `A` | Anchor shortcut (context-sensitive: create anchor, promote Dot, rename, or open link picker) |
-| `Alt+A` | Anchor Find (navigate DAG to an anchor) |
+| `A` | Anchor shortcut (context-sensitive: create anchor, rename, or open link picker) |
+| `Alt+A` | Anchor Find (navigate DAG to any anchor or labelled BackdropNode) |
+| `Alt+J` | Anchor Jump (Link → source anchor) |
+| `Alt+L` | Cycle Links (anchor → each referencing Link) |
+| `Alt+Z` | Anchor Back (restore previous DAG position) |
 | `Shift+M` | Label (Large) |
 | `Shift+N` | Label (Medium) |
+| `Shift+B` | Label (Small) |
 | `Ctrl+M` | Append Label |
+
+# Preferences
+
+`Edit > Anchors > Anchor Preferences...` opens a dialog with:
+
+- **Enable anchors plugin** — master toggle. When unchecked, all gated menu items disable and `Ctrl+C/X/V` fall through to plain Nuke copy/cut/paste.
+- **Custom Colors** — a palette of user-defined colors. Available in the anchor create / rename dialogs and in the "Set Color" picker on NoOp anchors.
+- **Anchor Naming (Advanced)** — user-configurable regex + template for deriving anchor names from file paths. Includes a live preview against a test filename and an "Override Site Config" checkbox. Admins can publish the current values to a site config JSON via the "Publish Naming…" button.
+
+Preferences are persisted to `~/.nuke/anchors_prefs.json`.
 
 # Configuration
 
-Edit `constants.py` to change the default behaviour:
+Edit `constants.py` to change low-level defaults:
 
 - **`HIDDEN_INPUT_CLASSES`** — list of node classes that are treated as hidden-input proxies (default: `PostageStamp`, `Dot`, `NoOp`).
-- **`LINK_CLASSES`** — dict mapping source node classes to the proxy class used when creating links or copying (e.g. `Read → PostageStamp`, `Camera → NoOp`).
+- **`ANCHOR_PREFIX` / `DOT_ANCHOR_PREFIX`** — node-name prefixes used to identify anchors (default: `Anchor_` and `Anchor_Dot_`). FROZEN: changing these breaks loading of existing scripts.
+- **`ANCHOR_DEFAULT_COLOR`** / **`LOCAL_DOT_COLOR`** — fallback tile colors (default purple `#6f3399` for anchors, burnt orange `#7A3A00` for Local Dots).
+- **Font sizes** — `DOT_LABEL_FONT_SIZE_{LARGE,MEDIUM,SMALL}`, `DOT_LINK_LABEL_FONT_SIZE`, `DOT_ANCHOR_MIN_FONT_SIZE` (the threshold above which an unprefixed labelled Dot is treated as a Dot anchor).
+
+The link node class is determined automatically: a Dot source produces a Dot link; everything else produces a NoOp link.
 
 # Python API
 
-The following functions are stable entry points for tools and scripts that want to integrate with anchors programmatically.
+For external pipeline tools and templating systems, the **stable public surface** is `api.py`:
+
+```python
+from api import create_anchor, find_anchor_by_name
+
+bg_read = nuke.toNode('Read_BG')
+existing = find_anchor_by_name('BG_Plate')
+if existing is None:
+    anchor_node = create_anchor('BG_Plate', input_node=bg_read, color=0x8040FFFF)
+```
+
+The two functions in `api.py` are thin wrappers over `anchor.create_anchor_named` / `anchor.find_anchor_by_name` and are guaranteed to keep their signatures stable. Both raise `RuntimeError` when called outside a running Nuke session.
+
+The functions documented below in `anchor`, `anchors`, and `labels` are the internal entry points used by `menu.py`. They are usable directly but are not part of the stable public API.
 
 ## Anchors (`import anchor`)
 
@@ -173,7 +220,7 @@ Prompts the user for a name (pre-filled with the auto-suggestion) and creates th
 ```python
 anchor.create_from_anchor(anchor_node: nuke.Node) -> nuke.Node
 ```
-Creates a link node wired to the given anchor node and returns it. The link node class (PostageStamp, NoOp, Dot) is chosen based on the anchor's input.
+Creates a link node wired to the given anchor node and returns it. The link is a Dot when the anchor is a Dot anchor, and a NoOp otherwise.
 
 ```python
 anchor.create_link_for_anchor_named(display_name: str) -> nuke.Node
@@ -215,9 +262,10 @@ anchor.anchor_shortcut()
 ```
 Context-sensitive handler for the `A` keybind. Behaviour depends on the current selection:
 - One anchor selected → rename dialog.
-- One unanchored Dot selected → Dot anchor promotion (size picker + label prompt).
-- Any other nodes selected → create anchor dialog.
+- Any other selection → create-anchor dialog (combined name + color).
 - Nothing selected → open the link-creation fuzzy picker.
+
+Note: promoting a plain Dot to a Dot anchor is a separate flow — use `Shift+B/N/M` (the label shortcuts) to apply a font ≥33pt, which marks the Dot as an anchor in place.
 
 ```python
 anchor.select_anchor_and_create()
@@ -227,12 +275,32 @@ Opens the fuzzy-search picker for link creation. Selecting an entry creates a li
 ```python
 anchor.select_anchor_and_navigate()
 ```
-Opens the fuzzy-search picker for DAG navigation. Selecting an entry pans the DAG view to that anchor.
+Opens the fuzzy-search picker for DAG navigation. Lists all anchors plus all labelled BackdropNodes. Selecting an entry zooms the DAG to fit it.
 
 ```python
 anchor.navigate_to_anchor(anchor_node: nuke.Node)
 ```
-Pans the DAG view to centre on `anchor_node` without changing the zoom level.
+Zooms the DAG to fit the anchor and its visible-path upstream nodes.
+
+```python
+anchor.navigate_back()
+```
+Restores the DAG viewport to the position saved before the most recent jump (Alt+A / Alt+J / Alt+L). Single-slot — consumes the saved position.
+
+```python
+anchor.jump_to_selected_anchor()
+```
+With a Link node selected, jumps the DAG to the source anchor. Saves the current viewport first.
+
+```python
+anchor.cycle_next_link()
+```
+With an anchor selected, cycles through each Link node referencing it. Saves the viewport on first invocation; after the last Link, returns to the anchor.
+
+```python
+anchor.create_links_from_selected_anchors()
+```
+For each selected anchor, creates a wired Link node placed to the right of the anchor.
 
 ---
 
@@ -250,17 +318,36 @@ Re-wires every link node in the current script.
 
 ---
 
+### Coloring
+
+```python
+anchor.set_anchor_color(anchor_node: nuke.Node)
+```
+Opens the color palette dialog and applies the chosen color to the anchor and all its Link nodes. No-op for Dot anchors. This is the entry point called by the "Set Color" button on each anchor's properties panel.
+
+```python
+anchor.propagate_anchor_color(anchor_node: nuke.Node, color_int: int)
+```
+Sets the anchor's `tile_color` to `color_int` (0xRRGGBBAA) and propagates the same color to every Link node referencing it. No-op for Dot anchors.
+
+---
+
 ## Labels (`import labels`)
 
 ```python
 labels.create_large_label()
 ```
-Prompts for a label and applies it to the selected node with large font sizing. For Dot anchors, propagates the label to all linked nodes.
+Prompts for a label and applies it. Dot nodes get a 111pt font and other nodes get a 33pt font. For Dot anchors, propagates the label to all linked nodes.
 
 ```python
 labels.create_medium_label()
 ```
-Prompts for a label and applies it; Dot nodes get medium font size, other nodes are unchanged. For Dot anchors, propagates the label to all linked nodes.
+Prompts for a label and applies it. Dot nodes get a 66pt font; other nodes are unchanged. For Dot anchors, propagates the label to all linked nodes.
+
+```python
+labels.create_small_label()
+```
+Prompts for a label and applies it. Dot nodes get a 33pt font (the Dot-anchor threshold); other nodes are unchanged. For Dot anchors, propagates the label to all linked nodes.
 
 ```python
 labels.append_to_label()
@@ -284,18 +371,24 @@ The "old-style" equivalents (no anchor/link magic) are also available as `anchor
 
 ### Migration from paste_hidden
 
-If you have existing Nuke scripts (.nk files) created with the old `paste_hidden` plugin,
-run the following once per script to migrate the hidden knob names to the new `anchors` format:
+`anchors.migrate_script()` rewrites every legacy hidden knob on every node in the current script (recursing into Groups) to the unified `anchors_*` namespace. It is idempotent — re-running on already-migrated state is a no-op — and is registered via `nuke.addOnScriptLoad`, so opened scripts are migrated automatically before any code path reads the new constants.
 
-```python
-import anchors
-anchors.migrate_script()
-```
+The legacy → new knob mapping covers:
 
-This renames the `paste_hidden_dot_anchor` and `paste_hidden_dot_type` knobs on all nodes in
-the current script to `anchors_dot_anchor` and `anchors_dot_type`. It prints a summary of
-nodes and knobs updated so you can verify the migration. The old knobs are removed after
-migration. This operation is not undoable — save a backup of your script first.
+| Legacy knob | New knob |
+|---|---|
+| `copy_hidden_tab` | `anchors_tab` |
+| `copy_hidden_input_node` | `anchors_input_node` |
+| `paste_hidden_dot_anchor` | `anchors_dot_anchor` |
+| `paste_hidden_dot_type` | `anchors_dot_type` |
+| `reconnect_link` | `anchors_reconnect_link` |
+| `reconnect_child_links` | `anchors_reconnect_child_links` |
+| `rename_anchor` | `anchors_rename_anchor` |
+| `set_anchor_color` | `anchors_set_anchor_color` |
+
+A second migrator, available from `Edit > Anchors > Anchor Migrate from Old Version`, calls `anchors.migrate_to_stemless_names()`. This rewrites stored anchor references on link nodes from the very-old `scriptStem.fullName` format (e.g. `myScript.Anchor_Foo`) to the current `fullName`-only format (e.g. `Anchor_Foo` or `Group1.Anchor_Foo`). It is safe to run on already-migrated scripts (no-op).
+
+Both migrators print a summary of the nodes/knobs updated. Neither is undoable — save a backup of your script first.
 
 # Development
 

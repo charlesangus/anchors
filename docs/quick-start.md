@@ -6,12 +6,12 @@ _Anchors_ differentiates between three "tiers" of anchors:
 
 - Anchors - the most "official" anchor; created with "Create Anchor" or by pressing "A" with a node selected
   - semantically, these are intended for re-use throughout the script, e.g. the plate, the camera; the use of an Anchor implies "this is important"
-- Dot anchors - Dots with labels >33 point font; created by selecting a dot and using Shift-B, Shift-N, or Shift-M to apply a small/medium/large label.
+- Dot anchors - Dots with labels ≥33pt font; created by selecting a Dot and using Shift-B, Shift-N, or Shift-M to apply a small/medium/large label.
   - these are "places in the comp"; e.g. it's best to put a large-label dot at the bottom of a module, medium at the bottom of a submodule, etc.
   - largely for script navigation, but also modules often need to refer to each other, and this is a handy way to do it
 - Local anchors - hidden-input dots used just to clean up the layout
   - implies there's no larger picture to this connection, it's just for clarity/script layout
-  - does not reconnect by name across scripts (unlike Link nodes pointing to  Anchors and Dot Anchors, which when pasted into a new script will try to reconnect to the "same" anchor)
+  - does not reconnect by name across scripts (unlike Link nodes pointing to Anchors and Dot Anchors, which when pasted into a new script will try to reconnect to the "same" anchor)
 
 ## Creating and Editing Anchors
 
@@ -48,12 +48,17 @@ _Anchors_ differentiates between three "tiers" of anchors:
 
 ## Navigating to Anchors
 
-1. Press `Alt+A` — a fuzzy-search picker opens listing all anchors and backdrops in the script with their colors.
+1. Press `Alt+A` — a fuzzy-search picker opens listing all anchors and labelled backdrops in the script with their colors.
 
 ![Anchor navigation picker](img/anchor-navigate-picker.png)
 
 2. Select an anchor — the DAG zooms to its location.
 3. Press `Alt+Z` to return to the previous DAG position.
+
+**Other navigation shortcuts:**
+
+- `Alt+J` — with a Link node selected, jump straight to its source anchor.
+- `Alt+L` — with an anchor selected, cycle through each Link node that references it. Press again to advance to the next Link; after the last Link, returns to the anchor.
 
 ## Copy and Paste
 
@@ -68,12 +73,16 @@ _Anchors_ differentiates between three "tiers" of anchors:
 
 | Shortcut | Action |
 |----------|--------|
-| `A` | Create anchor (node selected), open link picker (nothing selected), rename anchor (anchor selected), or promote Dot to anchor (Dot selected) |
-| `Alt+A` | Open anchor navigation picker — jump DAG to any anchor |
+| `A` | Create anchor (node selected), open link picker (nothing selected), or rename anchor (anchor selected) |
+| `Alt+A` | Open anchor navigation picker — jump DAG to any anchor or labelled backdrop |
+| `Alt+J` | Jump to source anchor (Link selected) |
+| `Alt+L` | Cycle through Link nodes pointing at the selected anchor |
 | `Alt+Z` | Return to previous DAG position |
 | `Ctrl+C` | Copy with hidden-input conversion |
 | `Ctrl+V` | Paste with smart hidden-input reconnection |
-| `Shift-B` | Small dot label (becomes an Anchor Dot) |
-| `Shift-N` | Medium dot label (becomes an Anchor Dot) |
-| `Shift-M` | Large  dot label (becomes an Anchor Dot) |
+| `Ctrl+Shift+D` | Paste (old-style — no re-piping) |
+| `Shift+B` | Small Dot label (promotes plain Dot to a Dot anchor) |
+| `Shift+N` | Medium Dot label (promotes plain Dot to a Dot anchor) |
+| `Shift+M` | Large Dot label (promotes plain Dot to a Dot anchor) |
+| `Ctrl+M` | Append text to the selected node's label |
 
