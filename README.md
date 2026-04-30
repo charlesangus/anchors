@@ -79,6 +79,33 @@ The anchor system is a reusable named-input mechanism for the node graph.
 - `Alt+L` (or `Edit > Anchors > Cycle Links`) — with an anchor selected, cycle through each Link node that references it. After the last one, returns to the anchor.
 - `Alt+Z` (or `Edit > Anchors > Anchor Back`) — restore the DAG viewport to the position before the last Alt+A / Alt+J / Alt+L jump. Single-slot — consumes the saved position.
 
+## Leader Key
+
+`Shift+A` opens the **leader key** overlay — a translucent HUD that surfaces every anchor command as a single follow-up keystroke, with cells laid out to match your physical keyboard.
+
+Press `Shift+A`, then one of the keys below:
+
+| Key | Action |
+|---|---|
+| `Q` | Set B Input To… (opens picker; wires the new link to input 0 of the selected node, replacing whatever was there) |
+| `W` | Set A Input To… (input 1) |
+| `E` | Set Mask Input To… (resolves the mask input by name; mask is input 2 on Merge-style multi-input nodes, last input on others) |
+| `R` | Set First Free Input To… (lowest free slot only — never overwrites existing wiring) |
+| `F` | Anchor Find (same as `Alt+A`) |
+| `J` | Anchor Jump (same as `Alt+J`) |
+| `L` | Cycle Links (same as `Alt+L`) — *chaining*: stays armed so repeated `L` advances through the cycle. Any other key or a mouse click disarms. |
+| `Z` | Anchor Back (same as `Alt+Z`) |
+| `X` | Reconnect All Links |
+| `,` | Anchor Preferences |
+
+Cells grey out when their precondition isn't met for the current selection — e.g. `W` greys on a single-input node, `E` greys when no mask input exists, `R` greys when every slot is filled, `J` greys unless a Link is selected, `L` greys unless an anchor is selected, `Z` greys unless there's a saved jump-back position. Pressing a greyed key disarms the leader silently.
+
+The overlay detects your keyboard layout via locale (AZERTY for `fr_FR` / `fr_BE`, QWERTZ for German/Swiss/Czech/Slovak/Slovenian/Croatian) and renders the letter that's actually printed on your physical key — so the `Q` cell shows `A` on AZERTY, while still triggering the same Set-B-Input action.
+
+When the plugin is disabled in Preferences, `Shift+A` still works but every anchor cell is greyed; only `,` (Preferences) stays active so you can re-enable.
+
+The existing `Alt+A`, `Alt+J`, `Alt+L`, `Alt+Z` shortcuts continue to work alongside the leader for muscle-memory parity.
+
 ## Reconnecting
 
 - `Edit > Anchors > Reconnect All Links` — re-wires all link nodes in the script. Useful after a script load or merge.
@@ -127,6 +154,7 @@ For Dot anchors, applying or appending a label also propagates the change to all
 | `Ctrl+V` | Paste (hidden) |
 | `Ctrl+Shift+D` | Paste (old-style, no re-piping) |
 | `A` | Anchor shortcut (context-sensitive: create anchor, rename, or open link picker) |
+| `Shift+A` | Leader Key — opens the command overlay (see Leader Key section above) |
 | `Alt+A` | Anchor Find (navigate DAG to any anchor or labelled BackdropNode) |
 | `Alt+J` | Anchor Jump (Link → source anchor) |
 | `Alt+L` | Cycle Links (anchor → each referencing Link) |

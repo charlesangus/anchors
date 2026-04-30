@@ -782,6 +782,57 @@ def _make_anchor_navigate_plugin():
     )
 
 
+def pick_anchor(on_pick, hit_group=None):
+    """Open the tabtabtab anchor picker; call *on_pick(anchor_node, hit_group)* on selection.
+
+    Reuses the same picker geometry, weights file, and item list as the
+    link-creation picker so muscle-memory ordering carries over across the
+    leader-key Set-Input-To commands.
+
+    The callback is invoked synchronously from inside the picker's invoke()
+    context — callers that need DAG focus (e.g. for nuke.zoom()) must defer
+    via QtCore.QTimer.singleShot themselves, mirroring _anchor_navigate_invoke.
+
+    Silent no-op when:
+      - The plugin is disabled (prefs.plugin_enabled is False)
+      - Qt is unavailable (headless / test environment)
+      - There are no anchors to choose from in the active group
+
+    Parameters
+    ----------
+    on_pick : callable
+        Called with (anchor_node, hit_group) when the user selects an anchor.
+    hit_group : nuke.Group or None
+        Group context for the picker.  Defaults to nuke.lastHitGroup().
+    """
+    if not prefs.plugin_enabled:
+        return
+    if QtWidgets is None:
+        return
+    if hit_group is None:
+        hit_group = nuke.lastHitGroup()
+    with hit_group:
+        if not all_anchors():
+            return
+
+    def _custom_invoke(thing, captured_hit_group):
+        anchor = thing['menuobj']
+        with captured_hit_group:
+            if nuke.exists(anchor.name()):
+                on_pick(anchor, captured_hit_group)
+
+    plugin = _AnchorPickerPlugin(
+        get_items_fn=_anchor_picker_items,
+        invoke_fn=_custom_invoke,
+        weights_filename=os.path.expanduser('~/.nuke/anchors_anchor_weights.json'),
+    )
+    plugin._hit_group = hit_group
+    widget = _tabtabtab.TabTabTabWidget(plugin, winflags=Qt.FramelessWindowHint)
+    widget.under_cursor()
+    widget.show()
+    widget.raise_()
+
+
 def anchor_shortcut():
     """If a node is selected, create an anchor from it. Otherwise, pick an anchor to create from."""
     if not prefs.plugin_enabled:
