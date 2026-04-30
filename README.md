@@ -100,7 +100,7 @@ Press `Shift+A`, then one of the keys below:
 
 Cells grey out when their precondition isn't met for the current selection — e.g. `W` greys on a single-input node, `E` greys when no mask input exists, `R` greys when every slot is filled, `J` greys unless a Link is selected, `L` greys unless an anchor is selected, `Z` greys unless there's a saved jump-back position. Pressing a greyed key disarms the leader silently.
 
-The overlay detects your keyboard layout via locale (AZERTY for `fr_FR` / `fr_BE`, QWERTZ for German/Swiss/Czech/Slovak/Slovenian/Croatian) and renders the letter that's actually printed on your physical key — so the `Q` cell shows `A` on AZERTY, while still triggering the same Set-B-Input action.
+Set your keyboard layout in `Edit > Anchors > Anchor Preferences…` (QWERTY, AZERTY, or QWERTZ). The overlay then renders the letter actually printed on your physical key — so on AZERTY the `Q` cell shows `A`, while still triggering the same Set-B-Input action.
 
 When the plugin is disabled in Preferences, the `Shift+A` shortcut is disabled along with every other gated anchor command. Re-enable from `Edit > Anchors > Anchor Preferences…`, which stays active in the menu.
 

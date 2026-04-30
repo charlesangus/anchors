@@ -75,7 +75,7 @@ Press `Shift+A` to open a small floating panel that maps every anchor command to
 
 Cells go grey when the action doesn't apply to your current selection — e.g. `W` greys out on a single-input node, `J` greys unless a Link is selected. Pressing a greyed key just dismisses the panel without doing anything.
 
-The panel honours your keyboard layout: on AZERTY the `Q` cell shows `A` (and pressing the physical A key fires it), on QWERTZ the `Z` cell shows `Y`, etc.
+Set your keyboard layout in Anchor Preferences (QWERTY / AZERTY / QWERTZ). The panel then matches it: on AZERTY the `Q` cell shows `A` (and pressing the physical A key fires it), on QWERTZ the `Z` cell shows `Y`, etc.
 
 ## Copy and Paste
 

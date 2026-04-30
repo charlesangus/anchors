@@ -861,5 +861,100 @@ class TestLastPublishPath(unittest.TestCase):
             )
 
 
+class TestKeyboardLayoutPref(unittest.TestCase):
+    """Round-trip tests for the keyboard_layout preference field."""
+
+    def setUp(self):
+        if 'prefs' in sys.modules:
+            del sys.modules['prefs']
+
+    def tearDown(self):
+        if 'prefs' in sys.modules:
+            del sys.modules['prefs']
+
+    def _reload_prefs_with_temp_path(self, temp_prefs_path):
+        import constants
+        original_prefs_path = constants.PREFS_PATH
+        original_palette_path = constants.USER_PALETTE_PATH
+        original_old_prefs_path = constants.OLD_PREFS_PATH
+        try:
+            constants.PREFS_PATH = temp_prefs_path
+            constants.USER_PALETTE_PATH = temp_prefs_path + '.palette_unused'
+            constants.OLD_PREFS_PATH = temp_prefs_path + '.old_unused'
+            if 'prefs' in sys.modules:
+                del sys.modules['prefs']
+            import prefs as reloaded_prefs
+            reloaded_prefs.PREFS_PATH = temp_prefs_path
+            return reloaded_prefs
+        finally:
+            constants.PREFS_PATH = original_prefs_path
+            constants.USER_PALETTE_PATH = original_palette_path
+            constants.OLD_PREFS_PATH = original_old_prefs_path
+
+    def test_keyboard_layout_defaults_to_qwerty(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+            self.assertFalse(os.path.exists(temp_prefs_path))
+
+            prefs_module = self._reload_prefs_with_temp_path(temp_prefs_path)
+
+            self.assertEqual(prefs_module.keyboard_layout, 'qwerty')
+
+    def test_keyboard_layout_round_trips(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+            prefs_module = self._reload_prefs_with_temp_path(temp_prefs_path)
+
+            prefs_module.keyboard_layout = 'azerty'
+            prefs_module.save()
+
+            with open(temp_prefs_path) as file_handle:
+                data = json.load(file_handle)
+            self.assertEqual(data['keyboard_layout'], 'azerty')
+
+            prefs_module2 = self._reload_prefs_with_temp_path(temp_prefs_path)
+            self.assertEqual(prefs_module2.keyboard_layout, 'azerty')
+
+    def test_keyboard_layout_invalid_value_in_json_is_ignored(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+
+            prefs_data = {
+                'plugin_enabled': True,
+                'custom_colors': [],
+                'naming_regex': '',
+                'naming_template': '',
+                'naming_demo_filename': 'plate_v003.exr',
+                'site_config_override': False,
+                'last_publish_path': '',
+                'keyboard_layout': 'dvorak',  # not in _VALID_KEYBOARD_LAYOUTS
+            }
+            with open(temp_prefs_path, 'w') as file_handle:
+                json.dump(prefs_data, file_handle)
+
+            prefs_module = self._reload_prefs_with_temp_path(temp_prefs_path)
+
+            self.assertEqual(
+                prefs_module.keyboard_layout,
+                'qwerty',
+                "Unknown keyboard_layout value must fall back to default 'qwerty'",
+            )
+
+    def test_keyboard_layout_missing_key_keeps_default(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+
+            prefs_data = {
+                'plugin_enabled': True,
+                'custom_colors': [],
+            }
+            with open(temp_prefs_path, 'w') as file_handle:
+                json.dump(prefs_data, file_handle)
+
+            prefs_module = self._reload_prefs_with_temp_path(temp_prefs_path)
+
+            self.assertEqual(prefs_module.keyboard_layout, 'qwerty')
+
+
 if __name__ == '__main__':
     unittest.main()

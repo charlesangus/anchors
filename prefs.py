@@ -23,6 +23,9 @@ naming_template = ""
 naming_demo_filename = "plate_v003.exr"
 site_config_override = False    # persisted to anchors_prefs.json
 last_publish_path = ""          # most recently chosen publish destination; persisted to anchors_prefs.json
+keyboard_layout = "qwerty"      # one of "qwerty", "azerty", "qwertz"; persisted to anchors_prefs.json
+
+_VALID_KEYBOARD_LAYOUTS = ("qwerty", "azerty", "qwertz")
 
 # Private — populated by _load_site_config(), never written to user prefs file directly
 _site_config = {}               # keys: field names locked by site config; values: admin values
@@ -61,6 +64,7 @@ def _load():
     global plugin_enabled, custom_colors, \
            naming_regex, naming_template, naming_demo_filename, \
            site_config_override, last_publish_path, \
+           keyboard_layout, \
            _user_naming_regex, _user_naming_template, \
            _user_naming_demo_filename
     if not os.path.exists(PREFS_PATH):
@@ -90,6 +94,8 @@ def _load():
             site_config_override = data['site_config_override']
         if isinstance(data.get('last_publish_path'), str):
             last_publish_path = data['last_publish_path']
+        if data.get('keyboard_layout') in _VALID_KEYBOARD_LAYOUTS:
+            keyboard_layout = data['keyboard_layout']
     except (OSError, ValueError, json.JSONDecodeError):
         pass  # silent fallback — module-level defaults remain
     # Copy user values into shadow vars before site config is applied
@@ -156,6 +162,7 @@ def save():
                 'naming_demo_filename': _user_naming_demo_filename,
                 'site_config_override': site_config_override,
                 'last_publish_path': last_publish_path,
+                'keyboard_layout': keyboard_layout,
             },
             file_handle,
         )

@@ -105,39 +105,37 @@ def _dispatch_open_prefs():
 #
 # We bind by *physical key position*, not by produced letter.  Without a remap,
 # pressing the top-left letter on an AZERTY keyboard (which types 'A') would
-# fail to trigger the Q binding.  We detect the user's layout via QLocale and
-# rewrite Qt.Key codes accordingly so the user's muscle memory works regardless
-# of layout.
+# fail to trigger the Q binding.  The active layout comes from the user's
+# preference (prefs.keyboard_layout); rebuild_layout() re-derives the remap
+# and dispatch tables when that pref changes.
 #
 # The mapping is QWERTY-canonical-letter → letter-physically-at-that-position.
 # Example: on AZERTY the top-left letter key is 'A', so Q → A.
 # ---------------------------------------------------------------------------
 
-def _build_layout_remap():
-    """Return a dict mapping QWERTY canonical letters to current-layout letters.
+_AZERTY_REMAP = {"Q": "A", "W": "Z", "A": "Q", "Z": "W"}
+_QWERTZ_REMAP = {"Y": "Z", "Z": "Y"}
+_REMAPS_BY_LAYOUT = {
+    "qwerty": {},
+    "azerty": _AZERTY_REMAP,
+    "qwertz": _QWERTZ_REMAP,
+}
 
-    Heuristic based on system locale.  Returns {} (identity / QWERTY) for
-    unknown layouts or when QLocale is unavailable / mocked in tests.
+
+def _remap_from_prefs():
+    """Return the remap dict for the layout configured in prefs.
+
+    Returns {} (identity / QWERTY) for unknown values or when prefs is
+    unavailable (e.g. during isolated unit tests).
     """
     try:
-        from PySide6.QtCore import QLocale
-        locale_name = QLocale.system().name()
-        if not isinstance(locale_name, str):
-            return {}
-        lang, _, country = locale_name.partition("_")
-        # AZERTY: France and Belgium only.  Do NOT remap on lang == "fr" alone:
-        # fr_CA (Canadian French) ships QWERTY and would be wrongly mapped.
-        if country in ("FR", "BE"):
-            return {"Q": "A", "W": "Z", "A": "Q", "Z": "W"}
-        # QWERTZ: Germany, Austria, Switzerland, Czech, Slovak, Slovenian, Croatian
-        if country in ("DE", "AT", "CH") or lang in ("de", "cs", "sk", "sl", "hr"):
-            return {"Y": "Z", "Z": "Y"}
+        import prefs
+        return _REMAPS_BY_LAYOUT.get(prefs.keyboard_layout, {})
     except Exception:
-        pass
-    return {}
+        return {}
 
 
-LAYOUT_REMAP = _build_layout_remap()
+LAYOUT_REMAP = _remap_from_prefs()
 
 
 def _letter_to_qt_key(letter):
@@ -199,6 +197,28 @@ def _build_dispatch_tables():
 
 
 _DISPATCH_TABLE, _CHAINING_DISPATCH_TABLE, _QT_KEY_TO_LETTER = _build_dispatch_tables()
+
+
+def rebuild_layout():
+    """Re-derive LAYOUT_REMAP and dispatch tables from current prefs.
+
+    Called by PrefsDialog._on_accept() after the user changes the keyboard
+    layout pref, so the change applies live without a Nuke restart.
+
+    Also drops the cached overlay singleton so the next arm() rebuilds it
+    with cell labels reflecting the new layout — the overlay bakes its
+    glyphs at construction time, so an in-place update of dispatch tables
+    alone would leave stale labels on the panel.
+    """
+    global LAYOUT_REMAP, _DISPATCH_TABLE, _CHAINING_DISPATCH_TABLE, _QT_KEY_TO_LETTER, _overlay
+    LAYOUT_REMAP = _remap_from_prefs()
+    _DISPATCH_TABLE, _CHAINING_DISPATCH_TABLE, _QT_KEY_TO_LETTER = _build_dispatch_tables()
+    if _overlay is not None:
+        try:
+            _overlay.deleteLater()
+        except Exception:
+            pass
+        _overlay = None
 
 
 # ---------------------------------------------------------------------------

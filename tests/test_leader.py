@@ -20,6 +20,7 @@ What we verify:
 """
 
 import sys
+import types
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -28,7 +29,23 @@ from tests.stubs import make_stub_nuke_module
 if 'nuke' not in sys.modules:
     sys.modules['nuke'] = make_stub_nuke_module()
 
-import leader
+leader = None
+
+
+def setUpModule():
+    """Import leader against a stable in-memory prefs stub for this test file."""
+    prefs_stub = types.ModuleType('prefs')
+    prefs_stub.keyboard_layout = 'qwerty'
+    prefs_stub.plugin_enabled = True
+    sys.modules['prefs'] = prefs_stub
+    global leader
+    import leader as leader_module
+    leader = leader_module
+
+
+def tearDownModule():
+    sys.modules.pop('prefs', None)
+    sys.modules.pop('leader', None)
 
 
 class TestLeaderDispatchKey(unittest.TestCase):
@@ -211,6 +228,70 @@ class TestLayoutRemap(unittest.TestCase):
             self.assertEqual(leader.physical_letter_for('F'), 'F')
         finally:
             leader.LAYOUT_REMAP = original_remap
+
+
+class TestRemapFromPrefs(unittest.TestCase):
+    """_remap_from_prefs reads the layout pref and returns the right table."""
+
+    def test_qwerty_returns_empty_dict(self):
+        with patch.dict(sys.modules, {'prefs': MagicMock(keyboard_layout='qwerty')}):
+            self.assertEqual(leader._remap_from_prefs(), {})
+
+    def test_azerty_returns_azerty_table(self):
+        with patch.dict(sys.modules, {'prefs': MagicMock(keyboard_layout='azerty')}):
+            self.assertEqual(leader._remap_from_prefs(), leader._AZERTY_REMAP)
+
+    def test_qwertz_returns_qwertz_table(self):
+        with patch.dict(sys.modules, {'prefs': MagicMock(keyboard_layout='qwertz')}):
+            self.assertEqual(leader._remap_from_prefs(), leader._QWERTZ_REMAP)
+
+    def test_unknown_value_returns_empty_dict(self):
+        with patch.dict(sys.modules, {'prefs': MagicMock(keyboard_layout='dvorak')}):
+            self.assertEqual(leader._remap_from_prefs(), {})
+
+    def test_prefs_import_failure_returns_empty_dict(self):
+        # Force the import inside _remap_from_prefs to fail by injecting a sentinel
+        # that raises on attribute access.
+        class RaisingModule:
+            def __getattr__(self, _name):
+                raise RuntimeError("simulated prefs failure")
+        with patch.dict(sys.modules, {'prefs': RaisingModule()}):
+            self.assertEqual(leader._remap_from_prefs(), {})
+
+
+class TestRebuildLayout(unittest.TestCase):
+    """rebuild_layout re-derives LAYOUT_REMAP and dispatch tables from prefs."""
+
+    def setUp(self):
+        self._original_remap = leader.LAYOUT_REMAP
+        self._original_dispatch = leader._DISPATCH_TABLE
+        self._original_chaining = leader._CHAINING_DISPATCH_TABLE
+        self._original_qt_to_letter = leader._QT_KEY_TO_LETTER
+
+    def tearDown(self):
+        leader.LAYOUT_REMAP = self._original_remap
+        leader._DISPATCH_TABLE = self._original_dispatch
+        leader._CHAINING_DISPATCH_TABLE = self._original_chaining
+        leader._QT_KEY_TO_LETTER = self._original_qt_to_letter
+
+    def test_rebuild_applies_azerty(self):
+        from PySide6.QtCore import Qt
+        with patch.dict(sys.modules, {'prefs': MagicMock(keyboard_layout='azerty')}):
+            leader.rebuild_layout()
+        # On AZERTY, Q's binding moves to the physical A key.
+        self.assertIs(leader._DISPATCH_TABLE[Qt.Key.Key_A], leader._dispatch_set_input_to_b)
+        self.assertEqual(leader._QT_KEY_TO_LETTER[Qt.Key.Key_A], 'Q')
+        self.assertEqual(leader.LAYOUT_REMAP, leader._AZERTY_REMAP)
+
+    def test_rebuild_back_to_qwerty(self):
+        from PySide6.QtCore import Qt
+        # First switch to azerty, then back to qwerty.
+        with patch.dict(sys.modules, {'prefs': MagicMock(keyboard_layout='azerty')}):
+            leader.rebuild_layout()
+        with patch.dict(sys.modules, {'prefs': MagicMock(keyboard_layout='qwerty')}):
+            leader.rebuild_layout()
+        self.assertIs(leader._DISPATCH_TABLE[Qt.Key.Key_Q], leader._dispatch_set_input_to_b)
+        self.assertEqual(leader.LAYOUT_REMAP, {})
 
 
 class TestIsBindingEnabled(unittest.TestCase):
