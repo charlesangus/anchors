@@ -125,8 +125,9 @@ def _build_layout_remap():
         if not isinstance(locale_name, str):
             return {}
         lang, _, country = locale_name.partition("_")
-        # AZERTY: France, Belgium
-        if country in ("FR", "BE") or lang == "fr":
+        # AZERTY: France and Belgium only.  Do NOT remap on lang == "fr" alone:
+        # fr_CA (Canadian French) ships QWERTY and would be wrongly mapped.
+        if country in ("FR", "BE"):
             return {"Q": "A", "W": "Z", "A": "Q", "Z": "W"}
         # QWERTZ: Germany, Austria, Switzerland, Czech, Slovak, Slovenian, Croatian
         if country in ("DE", "AT", "CH") or lang in ("de", "cs", "sk", "sl", "hr"):
@@ -155,45 +156,45 @@ def physical_letter_for(canonical_letter):
 
 
 # ---------------------------------------------------------------------------
-# Dispatch tables — split into single-shot and chaining.
-# Keyed by Qt.Key codes that the OS will actually deliver on the user's
-# layout (i.e. post-remap).
+# Dispatch tables — derived from constants.LEADER_BINDINGS, the single source
+# of truth.  Keyed by Qt.Key codes that the OS will actually deliver on the
+# user's layout (i.e. post-remap).  The kind field on each binding picks
+# single-shot vs chaining.
 # ---------------------------------------------------------------------------
 
-_DISPATCH_PAIRS = (
-    ('Q', _dispatch_set_input_to_b),
-    ('W', _dispatch_set_input_to_a),
-    ('E', _dispatch_set_input_to_mask),
-    ('R', _dispatch_set_input_first_available),
-    ('F', _dispatch_anchor_find),
-    ('J', _dispatch_anchor_jump),
-    ('Z', _dispatch_anchor_back),
-    ('X', _dispatch_reconnect_all_links),
-    (',', _dispatch_open_prefs),
-)
-
-_CHAINING_PAIRS = (
-    ('L', _dispatch_cycle_links),
-)
+_DISPATCH_BY_LETTER = {
+    'Q': _dispatch_set_input_to_b,
+    'W': _dispatch_set_input_to_a,
+    'E': _dispatch_set_input_to_mask,
+    'R': _dispatch_set_input_first_available,
+    'F': _dispatch_anchor_find,
+    'J': _dispatch_anchor_jump,
+    'L': _dispatch_cycle_links,
+    'Z': _dispatch_anchor_back,
+    'X': _dispatch_reconnect_all_links,
+    ',': _dispatch_open_prefs,
+}
 
 
 def _build_dispatch_tables():
     """Return (single, chaining, qt_to_letter) — all three Qt.Key-keyed."""
+    from constants import LEADER_BINDINGS
     single = {}
     chaining = {}
     qt_to_letter = {}
-    for canonical_letter, fn in _DISPATCH_PAIRS:
+    for canonical_letter, _label, _row, _col, kind in LEADER_BINDINGS:
+        fn = _DISPATCH_BY_LETTER.get(canonical_letter)
+        if fn is None:
+            continue
         physical = physical_letter_for(canonical_letter)
         qt_key = _letter_to_qt_key(physical)
-        if qt_key is not None:
-            single[qt_key] = fn
-            qt_to_letter[qt_key] = canonical_letter
-    for canonical_letter, fn in _CHAINING_PAIRS:
-        physical = physical_letter_for(canonical_letter)
-        qt_key = _letter_to_qt_key(physical)
-        if qt_key is not None:
+        if qt_key is None:
+            continue
+        if kind == 'chaining':
             chaining[qt_key] = fn
-            qt_to_letter[qt_key] = canonical_letter
+        else:
+            single[qt_key] = fn
+        qt_to_letter[qt_key] = canonical_letter
     return single, chaining, qt_to_letter
 
 
@@ -207,6 +208,27 @@ _DISPATCH_TABLE, _CHAINING_DISPATCH_TABLE, _QT_KEY_TO_LETTER = _build_dispatch_t
 # ---------------------------------------------------------------------------
 
 
+def _selected_nodes_in_hit_group():
+    """Return nuke.selectedNodes() picked up inside the active panel's group.
+
+    Wrapping the read in ``with nuke.lastHitGroup():`` matches the rest of the
+    codebase (anchor_shortcut, select_anchor_and_create, …) so floating Group
+    panels see their own selection rather than the root selection.
+    """
+    try:
+        import nuke
+    except Exception:
+        return []
+    try:
+        hit_group = nuke.lastHitGroup()
+    except Exception:
+        hit_group = None
+    if hit_group is not None:
+        with hit_group:
+            return nuke.selectedNodes()
+    return nuke.selectedNodes()
+
+
 def _selected_non_link_target():
     """Return the currently-selected single non-link node, or None.
 
@@ -214,9 +236,8 @@ def _selected_non_link_target():
     input_sets receive exactly the same target the dispatchers will see.
     """
     try:
-        import nuke
         from link import is_link
-        selected = nuke.selectedNodes()
+        selected = _selected_nodes_in_hit_group()
         if len(selected) != 1:
             return None
         if is_link(selected[0]):
@@ -229,8 +250,7 @@ def _selected_non_link_target():
 def _selected_single_node():
     """Return the only selected node (of any kind), or None."""
     try:
-        import nuke
-        selected = nuke.selectedNodes()
+        selected = _selected_nodes_in_hit_group()
         if len(selected) == 1:
             return selected[0]
     except Exception:

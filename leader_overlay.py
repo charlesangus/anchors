@@ -22,8 +22,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-import nuke
-
 from constants import LEADER_BINDINGS
 
 
@@ -186,8 +184,9 @@ class ClickableKeyCell(QWidget):
             self._action_text_label.setStyleSheet("color: #888888; background-color: transparent;")
 
     def mousePressEvent(self, event):  # noqa: N802 — Qt naming
-        if not self._enabled:
-            return
+        # leader.dispatch_key already gates on _is_binding_enabled and disarms
+        # silently when the binding is disabled, so we forward every click
+        # (greyed cells included) and let the dispatcher decide.
         import leader
         leader.dispatch_key(self._canonical_letter)
 

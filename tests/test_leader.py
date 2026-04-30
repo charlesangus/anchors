@@ -7,12 +7,16 @@ routing logic and is what the overlay's click cells call — so covering
 dispatch_key covers the routing decisions for both keyboard and mouse paths.
 
 What we verify:
-  - Single-shot keys (Q/W/E/F/J/Z/X/comma) call _disarm() before their dispatch.
-  - Chaining key (L) does NOT disarm and only hides the overlay.
-  - R is dynamic: when can_push_up_last_link is True it chains; otherwise it
-    disarms and opens the picker.
-  - When R is at top (push_up returns False), _flash_and_disarm is invoked.
+  - Single-shot keys (Q/W/E/R/F/J/Z/X/comma) disarm leader mode first, then
+    invoke their entry in _DISPATCH_TABLE.
+  - The chaining key L hides the overlay through _hide_overlay_for_chaining
+    (so hideEvent does not re-disarm) and stays armed.
+  - Pressing a disabled binding (per _is_binding_enabled) silently disarms
+    without invoking the dispatcher.
+  - The selection-aware enable gates for J / L / Z behave as documented.
   - Unknown letters are silently ignored.
+  - The keyboard-layout remap rewrites the Qt.Key codes in the dispatch
+    tables so the user's physical-key muscle memory is preserved.
 """
 
 import sys

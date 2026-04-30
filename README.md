@@ -89,7 +89,7 @@ Press `Shift+A`, then one of the keys below:
 |---|---|
 | `Q` | Set B Input To… (opens picker; wires the new link to input 0 of the selected node, replacing whatever was there) |
 | `W` | Set A Input To… (input 1) |
-| `E` | Set Mask Input To… (resolves the mask input by name; mask is input 2 on Merge-style multi-input nodes, last input on others) |
+| `E` | Set Mask Input To… (input 2 on Merge-style multi-input nodes — `maxInputs() > 100` — last input on everything else) |
 | `R` | Set First Free Input To… (lowest free slot only — never overwrites existing wiring) |
 | `F` | Anchor Find (same as `Alt+A`) |
 | `J` | Anchor Jump (same as `Alt+J`) |
@@ -102,7 +102,7 @@ Cells grey out when their precondition isn't met for the current selection — e
 
 The overlay detects your keyboard layout via locale (AZERTY for `fr_FR` / `fr_BE`, QWERTZ for German/Swiss/Czech/Slovak/Slovenian/Croatian) and renders the letter that's actually printed on your physical key — so the `Q` cell shows `A` on AZERTY, while still triggering the same Set-B-Input action.
 
-When the plugin is disabled in Preferences, `Shift+A` still works but every anchor cell is greyed; only `,` (Preferences) stays active so you can re-enable.
+When the plugin is disabled in Preferences, the `Shift+A` shortcut is disabled along with every other gated anchor command. Re-enable from `Edit > Anchors > Anchor Preferences…`, which stays active in the menu.
 
 The existing `Alt+A`, `Alt+J`, `Alt+L`, `Alt+Z` shortcuts continue to work alongside the leader for muscle-memory parity.
 

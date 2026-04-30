@@ -32,8 +32,21 @@ def _selected_target_node():
 
     A link node is excluded so that pressing Q/W/E/R after creating a link
     (when the new link is now selected) does not re-target the link itself.
+
+    nuke.selectedNodes() is wrapped in a ``with nuke.lastHitGroup():`` block to
+    pick up the panel context (root vs an open Group panel) that was active
+    when the leader was armed — matches the pattern used by anchor_shortcut /
+    create_anchor / select_anchor_and_create.
     """
-    selected = nuke.selectedNodes()
+    try:
+        hit_group = nuke.lastHitGroup()
+    except Exception:
+        hit_group = None
+    if hit_group is not None:
+        with hit_group:
+            selected = nuke.selectedNodes()
+    else:
+        selected = nuke.selectedNodes()
     if len(selected) != 1:
         return None
     target = selected[0]
