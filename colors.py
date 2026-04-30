@@ -665,6 +665,7 @@ else:
             self._local_naming_template = prefs_module._user_naming_template
             self._local_naming_demo_filename = prefs_module._user_naming_demo_filename
             self._local_site_config_override = prefs_module.site_config_override
+            self._local_keyboard_layout = prefs_module.keyboard_layout
             self._pre_reset_naming_snapshot = None  # (regex_text, template_text) tuple or None
             import os as os_module
             self._publish_path = (
@@ -683,6 +684,23 @@ else:
             self._plugin_checkbox = QtWidgets.QCheckBox("Enable anchors plugin")
             self._plugin_checkbox.setChecked(self._local_plugin_enabled)
             outer_layout.addWidget(self._plugin_checkbox)
+
+            # Keyboard layout dropdown
+            keyboard_layout_row = QtWidgets.QHBoxLayout()
+            keyboard_layout_label = QtWidgets.QLabel("Keyboard layout:")
+            keyboard_layout_label.setFocusPolicy(Qt.NoFocus)
+            self._keyboard_layout_combobox = QtWidgets.QComboBox()
+            self._keyboard_layout_combobox.addItem("QWERTY", "qwerty")
+            self._keyboard_layout_combobox.addItem("AZERTY (FR/BE)", "azerty")
+            self._keyboard_layout_combobox.addItem("QWERTZ (DE/AT/CH/...)", "qwertz")
+            initial_layout_index = self._keyboard_layout_combobox.findData(self._local_keyboard_layout)
+            if initial_layout_index < 0:
+                initial_layout_index = 0
+            self._keyboard_layout_combobox.setCurrentIndex(initial_layout_index)
+            keyboard_layout_row.addWidget(keyboard_layout_label)
+            keyboard_layout_row.addWidget(self._keyboard_layout_combobox)
+            keyboard_layout_row.addStretch()
+            outer_layout.addLayout(keyboard_layout_row)
 
             # ---- Anchor Naming section ----
             naming_section_label = QtWidgets.QLabel("Anchor Naming")
@@ -1195,6 +1213,15 @@ else:
             prefs_module.site_config_override = self._local_site_config_override
             # Re-apply effective values so module vars reflect the new override state
             prefs_module._apply_effective_naming_values()
+            # Flush keyboard layout pref and rebuild the leader's dispatch tables
+            # so the change applies live without a Nuke restart.
+            self._local_keyboard_layout = self._keyboard_layout_combobox.currentData()
+            prefs_module.keyboard_layout = self._local_keyboard_layout
+            try:
+                import leader
+                leader.rebuild_layout()
+            except Exception:
+                pass
             # Persist to disk (save() reads _user_naming_* shadow vars — correct)
             prefs_module.save()
             # Recolor is applied immediately in _on_edit_color (on color picker confirm),

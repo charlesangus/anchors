@@ -46,3 +46,26 @@ DOT_ANCHOR_MIN_FONT_SIZE = 33
 USER_PALETTE_PATH = os.path.expanduser('~/.nuke/paste_hidden_user_palette.json')
 OLD_PREFS_PATH = os.path.expanduser('~/.nuke/paste_hidden_prefs.json')
 PREFS_PATH = os.path.expanduser('~/.nuke/anchors_prefs.json')
+
+# === Leader-key bindings — single source of truth for leader.py and leader_overlay.py. ===
+# Each entry: (key_letter, action_label, row, col, kind)
+#   kind: 'single' (disarm-then-dispatch) or 'chaining' (stay-armed)
+# The key_letter must be a single uppercase ASCII letter (or ',' for the comma key).
+# Row/col positions mirror physical QWERTY geometry so the grid reads like a
+# keyboard.  Column indices are the key's position in its physical row:
+#   Row 0 (Q-row): Q=0 W=1 E=2 R=3 T=4 Y=5 U=6 I=7 O=8 P=9
+#   Row 1 (A-row): A=0 S=1 D=2 F=3 G=4 H=5 J=6 K=7 L=8 ;=9
+#   Row 2 (Z-row): Z=0 X=1 C=2 V=3 B=4 N=5 M=6 ,=7 .=8 /=9
+# Empty cells are left blank in the overlay grid.
+LEADER_BINDINGS = (
+    ('Q', 'Set B Input',     0, 0, 'single'),
+    ('W', 'Set A Input',     0, 1, 'single'),
+    ('E', 'Set Mask Input',  0, 2, 'single'),
+    ('R', 'Set First Free',  0, 3, 'single'),
+    ('F', 'Anchor Find',     1, 3, 'single'),
+    ('J', 'Anchor Jump',     1, 6, 'single'),
+    ('L', 'Cycle Links',     1, 8, 'chaining'),
+    ('Z', 'Anchor Back',     2, 0, 'single'),
+    ('X', 'Reconnect All',   2, 1, 'single'),
+    (',', 'Preferences',     2, 7, 'single'),
+)

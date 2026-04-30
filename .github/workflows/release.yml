@@ -30,7 +30,8 @@ jobs:
       - name: Build release ZIP
         run: |
           mkdir anchors
-          cp anchor.py anchors.py api.py colors.py constants.py labels.py \
+          cp anchor.py anchors.py api.py colors.py constants.py \
+             input_sets.py labels.py leader.py leader_overlay.py \
              link.py menu.py migrations.py prefs.py tabtabtab_anchors.py \
              README.md LICENSE \
              anchors/

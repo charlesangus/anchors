@@ -34,12 +34,14 @@ anchors_menu = edit_menu.addMenu("Anchors")
 _gated_menu_items = []
 
 
-def _add_gated_command(menu, name, command, shortcut=None):
+def _add_gated_command(menu, name, command, shortcut=None, shortcut_context=None):
     """Register a menu command and track its item reference for enable/disable."""
+    kwargs = {}
     if shortcut is not None:
-        item = menu.addCommand(name, command, shortcut)
-    else:
-        item = menu.addCommand(name, command)
+        kwargs['shortcut'] = shortcut
+    if shortcut_context is not None:
+        kwargs['shortcutContext'] = shortcut_context
+    item = menu.addCommand(name, command, **kwargs)
     if item is not None:
         _gated_menu_items.append(item)
 
@@ -48,6 +50,8 @@ _add_gated_command(anchors_menu, "Create Anchor",       "anchor.create_anchor()"
 _add_gated_command(anchors_menu, "Rename Anchor",       "anchor.rename_selected_anchor()")
 _add_gated_command(anchors_menu, "Create Link",                "anchor.select_anchor_and_create()")
 _add_gated_command(anchors_menu, "Anchor",              "anchor.anchor_shortcut()",            "A")
+_add_gated_command(anchors_menu, "Leader Key",          "import leader; leader.arm()",         "+A",
+                   shortcut_context=2)
 _add_gated_command(anchors_menu, "Reconnect All Links", "anchor.reconnect_all_links()")
 _add_gated_command(anchors_menu, "Anchor Find", "anchor.select_anchor_and_navigate()", "alt+A")
 _add_gated_command(anchors_menu, "Anchor Jump", "anchor.jump_to_selected_anchor()", "alt+J")

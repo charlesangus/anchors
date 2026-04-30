@@ -60,6 +60,23 @@ _Anchors_ differentiates between three "tiers" of anchors:
 - `Alt+J` — with a Link node selected, jump straight to its source anchor.
 - `Alt+L` — with an anchor selected, cycle through each Link node that references it. Press again to advance to the next Link; after the last Link, returns to the anchor.
 
+## Leader Key — One Key for Every Anchor Action
+
+Press `Shift+A` to open a small floating panel that maps every anchor command to a single follow-up keystroke. The cells line up like a keyboard so you can see at a glance which key does what:
+
+- `Q` / `W` / `E` — wire a new Link into the selected node's **B**, **A**, or **Mask** input. Opens the anchor picker; whatever you pick lands at that input slot, replacing anything that was wired there.
+- `R` — wire a new Link into the **lowest free input** on the selected node. Won't overwrite existing wiring.
+- `F` — Anchor Find (same as `Alt+A`).
+- `J` — Jump to source anchor (same as `Alt+J`).
+- `L` — Cycle Links (same as `Alt+L`). **L is sticky**: keep pressing `L` to step through every link. Press anything else (or click) to exit.
+- `Z` — Anchor Back (same as `Alt+Z`).
+- `X` — Reconnect All Links.
+- `,` — Open Anchor Preferences.
+
+Cells go grey when the action doesn't apply to your current selection — e.g. `W` greys out on a single-input node, `J` greys unless a Link is selected. Pressing a greyed key just dismisses the panel without doing anything.
+
+Set your keyboard layout in Anchor Preferences (QWERTY / AZERTY / QWERTZ). The panel then matches it: on AZERTY the `Q` cell shows `A` (and pressing the physical A key fires it), on QWERTZ the `Z` cell shows `Y`, etc.
+
 ## Copy and Paste
 
 1. Select nodes and press `Ctrl+C` — input nodes (Read, Camera, etc.) are automatically converted to hidden-input proxies in the clipboard.
@@ -74,6 +91,7 @@ _Anchors_ differentiates between three "tiers" of anchors:
 | Shortcut | Action |
 |----------|--------|
 | `A` | Create anchor (node selected), open link picker (nothing selected), or rename anchor (anchor selected) |
+| `Shift+A` | Leader Key — opens the command overlay (Q/W/E set B/A/Mask input, R sets first free, F/J/L/Z navigate, X reconnect, `,` prefs) |
 | `Alt+A` | Open anchor navigation picker — jump DAG to any anchor or labelled backdrop |
 | `Alt+J` | Jump to source anchor (Link selected) |
 | `Alt+L` | Cycle through Link nodes pointing at the selected anchor |
