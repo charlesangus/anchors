@@ -17,6 +17,20 @@ except ImportError:
     from PySide2.QtCore import Qt
 
 
+# Search mode identifiers used by the space-prefix mapping preference.
+MODE_ANCHORED_FUZZY = "anchored_fuzzy"
+MODE_NON_ANCHORED_FUZZY = "non_anchored_fuzzy"
+MODE_CONSECUTIVE = "consecutive"
+
+VALID_MODES = {MODE_ANCHORED_FUZZY, MODE_NON_ANCHORED_FUZZY, MODE_CONSECUTIVE}
+
+DEFAULT_SPACE_MODE_ORDER = [
+    MODE_ANCHORED_FUZZY,       # 0 spaces (default)
+    MODE_NON_ANCHORED_FUZZY,   # 1 space
+    MODE_CONSECUTIVE,          # 2 spaces
+]
+
+
 class TabTabTabPlugin:
     def get_items(self):
         """Return list of {'menuobj': ..., 'menupath': str} dicts."""
@@ -51,6 +65,16 @@ class TabTabTabPlugin:
         Either element may be None to suppress that part of the colouring.
         """
         return (None, None)
+
+    def invalidate_cache(self):
+        """Optional hook called after the popup closes so the next get_items()
+        and get_color() return fresh data.
+
+        Override to drop any plugin-side caches (e.g., a recursive menu walk
+        or per-class colour memoisation). Default is a no-op for plugins that
+        don't cache.
+        """
+        pass
 
 
 def _normalize_qt_item_name(item):
@@ -281,7 +305,7 @@ class NodeWeights(object):
 
 
 class NodeModel(QtCore.QAbstractListModel):
-    def __init__(self, mlist, weights, num_items=18, filtertext="", icon_fn=None, color_fn=None):
+    def __init__(self, mlist, weights, num_items=18, filtertext="", icon_fn=None, color_fn=None, space_mode_order=None):
         super(NodeModel, self).__init__()
 
         self.weights = weights
@@ -291,6 +315,13 @@ class NodeModel(QtCore.QAbstractListModel):
         self._filtertext = filtertext
         self._icon_fn = icon_fn if icon_fn is not None else (lambda obj: None)
         self._color_fn = color_fn if color_fn is not None else (lambda obj: (None, None))
+
+        if (space_mode_order is not None
+                and len(space_mode_order) == len(DEFAULT_SPACE_MODE_ORDER)
+                and all(m in VALID_MODES for m in space_mode_order)):
+            self._space_mode_order = list(space_mode_order)
+        else:
+            self._space_mode_order = list(DEFAULT_SPACE_MODE_ORDER)
 
         # _items is the list of objects to be shown, update sets this
         self._items = []
@@ -311,22 +342,34 @@ class NodeModel(QtCore.QAbstractListModel):
         force_non_anchored = False
         force_consecutive = False
 
-        # Two leading spaces: non-fuzzy (consecutive substring) search, non-anchored
+        # Determine space-prefix level (0, 1, or 2 leading spaces)
         if filtertext.startswith('  '):
-            anchored = False
-            force_consecutive = True
+            space_level = 2
             filtertext = filtertext[2:]
-        # One leading space: non-anchored fuzzy search
         elif filtertext.startswith(' '):
-            anchored = False
+            space_level = 1
             filtertext = filtertext[1:]
         # * or [ prefix: non-anchored fuzzy (legacy shortcuts, unchanged)
         elif filtertext.startswith('*') or filtertext.startswith('['):
+            space_level = None
             anchored = False
             filtertext = filtertext.replace("*", "", 1)
             if filtertext.startswith('*'):
                 force_non_anchored = True
             filtertext = filtertext.replace("*", "")
+        else:
+            space_level = 0
+
+        # Apply mode from the configurable space-prefix mapping
+        if space_level is not None:
+            mode = self._space_mode_order[space_level]
+            if mode == MODE_ANCHORED_FUZZY:
+                anchored = True
+            elif mode == MODE_NON_ANCHORED_FUZZY:
+                anchored = False
+            elif mode == MODE_CONSECUTIVE:
+                anchored = False
+                force_consecutive = True
 
         scored_a = []
         scored_b = []
@@ -525,7 +568,7 @@ class _ItemDelegate(QtWidgets.QStyledItemDelegate):
 
 
 class TabTabTabWidget(QtWidgets.QDialog):
-    def __init__(self, plugin, parent=None, winflags=None):
+    def __init__(self, plugin, parent=None, winflags=None, space_mode_order=None):
         super(TabTabTabWidget, self).__init__(parent=parent)
         if winflags is not None:
             self.setWindowFlags(winflags)
@@ -542,7 +585,7 @@ class TabTabTabWidget(QtWidgets.QDialog):
         items = plugin.get_items()
 
         # List of stuff, and associated model
-        self.things_model = NodeModel(items, weights=self.weights, icon_fn=plugin.get_icon, color_fn=plugin.get_color)
+        self.things_model = NodeModel(items, weights=self.weights, icon_fn=plugin.get_icon, color_fn=plugin.get_color, space_mode_order=space_mode_order)
         self.things = QtWidgets.QListView()
         self.things.setModel(self.things_model)
         self.things.setUniformItemSizes(True)
@@ -669,6 +712,25 @@ class TabTabTabWidget(QtWidgets.QDialog):
         create previously created node (instead of the most popular)
         """
 
+        # Show the widget and focus the input *before* doing any heavy work.
+        # Reloading weights from disk and re-walking the host application's
+        # menus can take 100-400ms; if those run synchronously here, queued
+        # KeyPress events arrive before the line-edit is ready and the user's
+        # first character or two get lost (issue #3). Deferring via
+        # singleShot(0) lets Qt drain pending input events into the now-
+        # focused line-edit before the refresh blocks the GUI thread again.
+        self.input.selectAll()
+        super(TabTabTabWidget, self).show()
+        self.input.setFocus()
+
+        QtCore.QTimer.singleShot(0, self._refresh_after_show)
+
+    def _refresh_after_show(self):
+        """Reload weights and refresh items from the plugin.
+
+        Runs on the next event-loop tick after show() so the user's first
+        keystrokes land in the line-edit even though this work is slow.
+        """
         # Load the weights everytime the panel is shown, to prevent
         # overwritting weights from other instances
         self.weights.load()
@@ -679,16 +741,34 @@ class TabTabTabWidget(QtWidgets.QDialog):
         # Restore selection to the first item, since modelReset clears it
         self.move_selection(where="first")
 
-        # Select all text to allow overwriting
-        self.input.selectAll()
-        self.input.setFocus()
-
-        super(TabTabTabWidget, self).show()
-
     def close(self):
-        """Save weights when closing"""
+        """Save weights, close the dialog, and schedule a belt-and-suspenders
+        cache invalidation + refresh.
+
+        The refresh on show() is the primary freshness mechanism — it walks
+        the plugin's items every open via _refresh_after_show, using the
+        plugin's own cache to skip the walk when nothing has changed. That's
+        adequate for hosts whose indexed items rarely change at runtime
+        (e.g. Nuke's node menus). For hosts where the indexed set changes
+        often during a session (e.g. tabtabtab_anchors indexing live nodes
+        in the script), or where the plugin's cache-validity check might
+        miss something (e.g. a deeply nested submenu install that a shallow
+        fingerprint doesn't sample), this hook ensures the cache is forcibly
+        invalidated and rewalked between every close and the next open.
+        """
         self.weights.save()
         super(TabTabTabWidget, self).close()
+        QtCore.QTimer.singleShot(0, self._refresh_after_close)
+
+    def _refresh_after_close(self):
+        """Force a cache invalidation and a fresh walk in the background
+        after the popup closes. No-op if the user has already reopened the
+        popup before this fires — the show-time refresh will handle it.
+        """
+        if self.isVisible():
+            return
+        self.plugin.invalidate_cache()
+        self.things_model.refresh_items(self.plugin.get_items())
 
     def create(self):
         # Get selected item
@@ -715,10 +795,17 @@ class TabTabTabWidget(QtWidgets.QDialog):
 
 
 _tabtabtab_instance = None
+# Strong reference to a preloaded but never-yet-shown widget. Released
+# either on first show() (Qt's window registry takes over) or on
+# QApplication.aboutToQuit (whichever comes first), so the original
+# weakref-only lifetime pattern that avoids the on-exit segfault from
+# https://github.com/dbr/tabtabtab-nuke/issues/4 is restored before
+# host-application shutdown even if the user never opens the popup.
+_preloaded_instance = None
 
 
-def launch(plugin):
-    global _tabtabtab_instance
+def launch(plugin, space_mode_order=None):
+    global _tabtabtab_instance, _preloaded_instance
 
     if _tabtabtab_instance is not None:
         # TODO: Is there a better way of doing this? If a
@@ -726,14 +813,25 @@ def launch(plugin):
         # function and disappers instantly. This seems like a
         # reasonable "workaround"
         try:
+            # Update space mode order on reuse so pref changes take
+            # effect without restarting the host application.
+            if (space_mode_order is not None
+                    and len(space_mode_order) == len(DEFAULT_SPACE_MODE_ORDER)
+                    and all(m in VALID_MODES for m in space_mode_order)):
+                _tabtabtab_instance.things_model._space_mode_order = list(space_mode_order)
             _tabtabtab_instance.under_cursor()
             _tabtabtab_instance.show()
             _tabtabtab_instance.raise_()
+            # Once the widget has been shown, Qt holds it alive via its
+            # window registry. Drop the preload strong reference so we
+            # match the original lifetime model from here on.
+            _preloaded_instance = None
             return
         except ReferenceError:
             _tabtabtab_instance = None
+            _preloaded_instance = None
 
-    t = TabTabTabWidget(plugin, winflags=Qt.FramelessWindowHint)
+    t = TabTabTabWidget(plugin, winflags=Qt.FramelessWindowHint, space_mode_order=space_mode_order)
 
     # Make dialog appear under cursor, as Nuke's builtin one does
     t.under_cursor()
@@ -747,3 +845,63 @@ def launch(plugin):
     # https://github.com/dbr/tabtabtab-nuke/issues/4
     import weakref
     _tabtabtab_instance = weakref.proxy(t)
+
+
+def preload(plugin, space_mode_order=None):
+    """Eagerly construct the popup widget so the first user invocation hits
+    the warm reuse path inside launch().
+
+    Idempotent: returns immediately if an instance already exists (either
+    from a previous preload or because the user invoked the popup before
+    the deferred preload ran).
+
+    Construction is ~30-50ms (menu walk + initial NodeModel build). Running
+    that at host-plugin-load time blocks startup and may also race with
+    the host's own menu population, so prefer schedule_preload() which
+    defers via QTimer.singleShot(0, ...).
+    """
+    global _tabtabtab_instance, _preloaded_instance
+    if _tabtabtab_instance is not None:
+        return
+
+    t = TabTabTabWidget(plugin, winflags=Qt.FramelessWindowHint, space_mode_order=space_mode_order)
+    # Hold a strong reference until first show(); without this the proxy
+    # below would dangle the moment this function returns because Qt's
+    # window registry only tracks widgets that have been shown.
+    _preloaded_instance = t
+
+    # Defensively release the strong reference before the host application
+    # quits, even if the user never opens the popup. Holding an extra ref
+    # to the widget through Qt shutdown has caused segfaults historically
+    # (dbr/tabtabtab-nuke#4); aboutToQuit fires before Qt's cleanup pass,
+    # so dropping the ref here puts us back into the original weakref-
+    # only model in time.
+    app = QtWidgets.QApplication.instance()
+    if app is not None:
+        app.aboutToQuit.connect(_release_preloaded_instance)
+
+    import weakref
+    _tabtabtab_instance = weakref.proxy(t)
+
+
+def _release_preloaded_instance():
+    """aboutToQuit handler: drop strong + weak references to the preloaded
+    widget so Qt can tear it down without an extra Python reference
+    holding the wrapper alive past the C++ object's destruction.
+    """
+    global _preloaded_instance, _tabtabtab_instance
+    _preloaded_instance = None
+    _tabtabtab_instance = None
+
+
+def schedule_preload(plugin, space_mode_order=None):
+    """Defer preload() to the next event-loop tick.
+
+    Use this from the host's plugin entry point. Deferring guarantees
+    (a) that startup isn't blocked by widget construction and (b) that
+    the host's own menu population is complete before we walk it.
+    """
+    QtCore.QTimer.singleShot(
+        0,
+        lambda: preload(plugin, space_mode_order=space_mode_order),
+    )
