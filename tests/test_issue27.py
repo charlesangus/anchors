@@ -252,15 +252,20 @@ class TestCopyAnchorsDoesNotStampFqnnOnAnchors(unittest.TestCase):
 
             mock_nuke.selectedNodes.return_value = [anchor, non_anchor]
             mock_nuke.allNodes.return_value = []
+            captured = {}
+            mock_nuke.nodeCopy.side_effect = \
+                lambda *a, **k: captured.update(fqnn=anchor[KNOB_NAME].getText())
 
             from anchors import copy_anchors
             copy_anchors()
 
         self.assertEqual(
-            anchor[KNOB_NAME].getText(), '',
-            "Expected KNOB_NAME cleared to '' after copy_anchors in mixed selection, "
-            f"but got '{anchor[KNOB_NAME].getText()}'",
+            captured['fqnn'], '',
+            "Expected KNOB_NAME cleared to '' on the clipboard copy in mixed selection, "
+            f"but got '{captured['fqnn']}'",
         )
+        # Live original is left untouched — copy is non-destructive (issue #56).
+        self.assertEqual(anchor[KNOB_NAME].getText(), 'oldScript.Anchor_Foo')
 
     def test_group_qualified_anchor_pasted_cross_script_stays_as_anchor(self):
         """A Group-qualified anchor pasted cross-script must not be replaced with a link.

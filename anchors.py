@@ -1,5 +1,6 @@
 """Copy-cut-paste behaviour that re-connects hidden inputs."""
 
+import contextlib
 import os
 
 import nuke
@@ -19,7 +20,9 @@ from constants import (
     DOT_TYPE_KNOB_NAME,
     HIDDEN_INPUT_CLASSES,
     KNOB_NAME,
+    LINK_RECONNECT_KNOB_NAME,
     LOCAL_DOT_COLOR,
+    TAB_NAME,
 )
 from link import (
     add_input_knob,
@@ -58,6 +61,71 @@ def _legacy_stem_fqnn(input_node, script_stem):
     return f"{script_stem}.{get_fully_qualified_node_name(input_node)}"
 
 
+def _stamp_as_link_dot(node, input_node):
+    """Stamp *node* as a Link Dot pointing at *input_node* (an anchor).
+
+    Anchor-backed and cross-script capable.  Overrides tile_color to canonical
+    purple — setup_link_node() may apply a custom anchor color via
+    find_node_color(), which we do not want here.
+    """
+    add_input_knob(node, dot_type='link')
+    setup_link_node(input_node, node)
+    node['tile_color'].setValue(ANCHOR_DEFAULT_COLOR)
+
+
+def _stamp_as_local_dot(node, input_node, script_stem):
+    """Stamp *node* as a Local Dot pointing at *input_node* (a plain node).
+
+    Plain-node-backed and same-script only.  Restores the Local appearance
+    after setup_link_node() overwrites label/color.
+    """
+    stored_fqnn = _legacy_stem_fqnn(input_node, script_stem)
+    setup_link_node(input_node, node)
+    add_input_knob(node, dot_type='local')
+    _restore_local_dot_appearance(node, _source_label_for(input_node))
+    node[KNOB_NAME].setText(stored_fqnn)
+
+
+def _snapshot_node_state(node):
+    """Capture enough of *node*'s state to undo any stamping done before nodeCopy().
+
+    Records the current set of knob names (so knobs added by stamping can be
+    removed on restore) and the values of the appearance/custom knobs that the
+    stamping helpers may overwrite.
+    """
+    knob_names = set(node.knobs())
+    saved_values = {}
+    for knob_name in ('label', 'tile_color', 'note_font_size', 'hide_input',
+                      KNOB_NAME, DOT_TYPE_KNOB_NAME):
+        if knob_name in knob_names:
+            saved_values[knob_name] = node[knob_name].getValue()
+    return {'knob_names': knob_names, 'saved_values': saved_values}
+
+
+def _restore_node_state(node, snapshot):
+    """Revert *node* to the state captured by _snapshot_node_state().
+
+    Removes any knob added since the snapshot (TAB_NAME, KNOB_NAME,
+    DOT_TYPE_KNOB_NAME, LINK_RECONNECT_KNOB_NAME) and writes the saved values
+    back to the knobs that survive.  Keeps copy_anchors() non-destructive: the
+    clipboard already captured the stamped state, so the live original can be
+    returned to exactly how the user left it.
+    """
+    for knob_name in list(node.knobs()):
+        if knob_name not in snapshot['knob_names']:
+            with contextlib.suppress(Exception):
+                node.removeKnob(node[knob_name])
+    for knob_name, saved_value in snapshot['saved_values'].items():
+        if knob_name not in node.knobs():
+            continue
+        try:
+            node[knob_name].setValue(saved_value)
+        except TypeError:
+            # Integer knobs (e.g. tile_color) return a float from getValue() but
+            # require an int on setValue().
+            node[knob_name].setValue(int(saved_value))
+
+
 def _stamp_for_link(node, selected_nodes, script_stem):
     """Path L — existing link nodes: re-setup from the current live input so the
     clipboard copy always reflects fresh state.  Anchors that also carry a stale
@@ -73,13 +141,8 @@ def _stamp_for_link(node, selected_nodes, script_stem):
         add_input_knob(node, dot_type='link')
         setup_link_node(input_node, node)
     else:
-        # Local Dot: restore Local appearance after setup_link_node() overwrites
-        # label/color, matching the behaviour of Path B for non-link hidden-input nodes.
-        stored_fqnn = _legacy_stem_fqnn(input_node, script_stem)
-        setup_link_node(input_node, node)
-        add_input_knob(node, dot_type='local')
-        _restore_local_dot_appearance(node, _source_label_for(input_node))
-        node[KNOB_NAME].setText(stored_fqnn)
+        # Local Dot: matches the behaviour of Path B for non-link hidden-input nodes.
+        _stamp_as_local_dot(node, input_node, script_stem)
 
 
 def _stamp_for_hidden_dot(node, selected_nodes, script_stem):
@@ -93,19 +156,10 @@ def _stamp_for_hidden_dot(node, selected_nodes, script_stem):
         node[KNOB_NAME].setText(stored_fqnn)
     elif is_anchor(input_node):
         # Link Dot: anchor-backed, cross-script capable.
-        # Override tile_color to canonical purple — setup_link_node() may apply a
-        # custom anchor color via find_node_color(), which we do not want here.
-        add_input_knob(node, dot_type='link')
-        setup_link_node(input_node, node)
-        node['tile_color'].setValue(ANCHOR_DEFAULT_COLOR)
+        _stamp_as_link_dot(node, input_node)
     else:
         # Local Dot: plain-node-backed, same-script only.
-        # Restore Local appearance after setup_link_node() overwrites label/color.
-        stored_fqnn = _legacy_stem_fqnn(input_node, script_stem)
-        setup_link_node(input_node, node)
-        add_input_knob(node, dot_type='local')
-        _restore_local_dot_appearance(node, _source_label_for(input_node))
-        node[KNOB_NAME].setText(stored_fqnn)
+        _stamp_as_local_dot(node, input_node, script_stem)
 
 
 def _stamp_for_anchor(node, selection_is_all_anchors, cut):
@@ -143,6 +197,11 @@ def copy_anchors(cut=False):
         selected_nodes = nuke.selectedNodes()
         selection_is_all_anchors = bool(selected_nodes) and all(is_anchor(n) for n in selected_nodes)
         script_stem = _get_script_stem()
+        # Snapshot every selected node before stamping so the live originals can
+        # be restored afterwards.  The stamps only need to reach the clipboard
+        # (serialised by nodeCopy below); persisting them on the originals is the
+        # cause of issue #56, where copying alone mutated the node in the DAG.
+        snapshots = {node: _snapshot_node_state(node) for node in selected_nodes}
         for node in selected_nodes:
             if is_link(node) and not is_anchor(node):
                 _stamp_for_link(node, selected_nodes, script_stem)
@@ -153,6 +212,13 @@ def copy_anchors(cut=False):
 
         # now that we've stored the info we need on the nodes, do a regular copy
         nuke.nodeCopy(nukescripts.cut_paste_file())
+
+        # Restore the originals so copying is non-destructive (issue #56).  Skip
+        # on the cut path: those nodes are deleted immediately by cut_anchors(),
+        # so restoring them would be wasted work.
+        if not cut:
+            for node in selected_nodes:
+                _restore_node_state(node, snapshots[node])
 
 
 def cut_anchors():
@@ -171,6 +237,90 @@ def cut_anchors():
     copy_anchors(cut=True)
     for node in selected_nodes:
         nuke.delete(node)
+
+
+def _convert_hidden_dot_in_place(node, script_stem):
+    """Convert a freshly-hidden, wired Dot into a Local/Link dot in place.
+
+    No-op if the node is already marked (a link or anchor) or has no upstream
+    input.  This is the deliberate "manual link" gesture that previously relied
+    on the side effect of copy_anchors() stamping the original (issue #56).
+    """
+    if is_link(node) or is_anchor(node):
+        return
+    input_node = node.input(0)
+    if input_node is None:
+        return
+    if is_anchor(input_node):
+        _stamp_as_link_dot(node, input_node)
+    else:
+        _stamp_as_local_dot(node, input_node, script_stem)
+
+
+def toggle_input_visibility():
+    """Wrap Nuke's Edit > Node > Input On/Off (Alt+H).
+
+    Toggles hide_input on the selected nodes (the built-in effect).  When a wired
+    Dot/NoOp/PostageStamp has its input *hidden*, it is converted into a
+    Local/Link dot in place; when its input is *revealed* again, any link state is
+    cleared so it reverts to a plain node.  Mirrors how copy_anchors() wraps
+    nuke.nodeCopy(): the built-in toggle always runs (even when the plugin is
+    disabled); the stamping/clearing only happens when the plugin is enabled.
+    """
+    with nuke.lastHitGroup():
+        selected_nodes = nuke.selectedNodes()
+        script_stem = _get_script_stem()
+        for node in selected_nodes:
+            if 'hide_input' not in node.knobs():
+                continue
+            now_hidden = not node['hide_input'].value()
+            node['hide_input'].setValue(now_hidden)
+            if not prefs.plugin_enabled or node.Class() not in HIDDEN_INPUT_CLASSES:
+                continue
+            if now_hidden:
+                _convert_hidden_dot_in_place(node, script_stem)
+            else:
+                # Revealing the input reverts the dot to a plain node.
+                # _clear_link_state() self-guards: it only acts on marked dots.
+                _clear_link_state(node)
+
+
+def _clear_link_state(node):
+    """Strip the anchor/link stamping from *node*, reverting it to a plain node.
+
+    Removes the custom knobs (KNOB_NAME, DOT_TYPE_KNOB_NAME, TAB_NAME,
+    LINK_RECONNECT_KNOB_NAME), clears the "Local: …"/"Link: …" label and tile
+    colour, and reveals the input again.  No-op on anchors and on nodes that
+    carry no link state.  The input connection is left intact.
+    """
+    if is_anchor(node) or not is_link(node):
+        return
+    for knob_name in (DOT_TYPE_KNOB_NAME, KNOB_NAME, TAB_NAME, LINK_RECONNECT_KNOB_NAME):
+        with contextlib.suppress(Exception):
+            node.removeKnob(node[knob_name])
+    with contextlib.suppress(Exception):
+        node['label'].setValue('')
+    with contextlib.suppress(Exception):
+        node['tile_color'].setValue(0)
+    with contextlib.suppress(Exception):
+        # Revert the link-label font bump from setup_link_node() so the reverted
+        # dot drops below DOT_ANCHOR_MIN_FONT_SIZE and is not re-detected as an
+        # anchor once it is re-labelled.  Using the knob default avoids hardcoding
+        # a size; a freshly-created plain Dot round-trips exactly.
+        font_knob = node['note_font_size']
+        font_knob.setValue(font_knob.defaultValue())
+    with contextlib.suppress(Exception):
+        node['hide_input'].setValue(False)
+
+
+def clear_link_state():
+    """Revert the selected Local/Link dots to plain nodes (undo Input On/Off
+    conversion).  Anchors and unmarked nodes are left untouched."""
+    if not prefs.plugin_enabled:
+        return
+    with nuke.lastHitGroup():
+        for node in nuke.selectedNodes():
+            _clear_link_state(node)
 
 
 def _extract_display_name_from_fqnn(stored_fqnn):

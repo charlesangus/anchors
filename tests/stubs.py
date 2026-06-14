@@ -22,10 +22,13 @@ class StubKnob:
     It defaults to '' so that existing StubKnob(value) calls remain unchanged.
     """
 
-    def __init__(self, value='', knob_name=''):
+    def __init__(self, value='', knob_name='', default=None):
         self._value = value
         self._visible = True
         self._knob_name = knob_name
+        # Falls back to the initial value when no explicit default is given, so
+        # knobs created without a default behave sensibly under defaultValue().
+        self._default = value if default is None else default
 
     def name(self):
         return self._knob_name
@@ -41,6 +44,9 @@ class StubKnob:
 
     def value(self):
         return self._value
+
+    def defaultValue(self):
+        return self._default
 
     def setVisible(self, visible):
         self._visible = visible
@@ -107,7 +113,7 @@ class StubNode:
         self._knobs[knob.name()] = knob
 
     def removeKnob(self, knob):
-        pass
+        self._knobs.pop(knob.name(), None)
 
     def __getitem__(self, knob_name):
         if knob_name not in self._knobs:
@@ -142,7 +148,7 @@ def make_stub_nuke_module():
     stub.delete = MagicMock()
     stub.INVISIBLE = 0
     stub.NUKE_VERSION_MAJOR = 16  # critical: forces PySide6 path in anchor.py; do NOT use 14
-    stub.PyScript_Knob = MagicMock()
+    stub.PyScript_Knob = MagicMock(side_effect=lambda name, *args: StubKnob(knob_name=name))
     stub.String_Knob = MagicMock(side_effect=lambda name, *args: StubKnob(knob_name=name))
     stub.Tab_Knob = MagicMock(side_effect=lambda name, *args: StubKnob(knob_name=name))
     stub.Boolean_Knob = MagicMock(side_effect=lambda name, *args: StubKnob(knob_name=name))

@@ -116,13 +116,16 @@ class TestCopyLinkNodePathL(unittest.TestCase):
         mock_setup.assert_called_once_with(anchor, noop_link)
 
     def test_copy_local_dot_restores_local_appearance(self):
-        """Copying a Local Dot (input is a plain node NOT in the selection) calls
-        setup_link_node then restores Local label, LOCAL_DOT_COLOR, and dot_type='local'."""
+        """Copying a Local Dot (input is a plain node NOT in the selection) stamps the
+        Local label, LOCAL_DOT_COLOR, and dot_type='local' onto the clipboard copy,
+        then restores the live original (issue #56 — copy is non-destructive)."""
         from constants import DOT_TYPE_KNOB_NAME, LOCAL_DOT_COLOR
         plain = _make_plain_node('Merge1')
         plain.knobs()['label']._value = 'my merge'
         local_dot = _make_link_node(stored_fqnn='Merge1', node_class='Dot', name='Dot1')
         local_dot._input = plain
+
+        captured = {}
 
         with patch('anchors.nuke') as mock_nuke, \
              patch('anchors.nukescripts'), \
@@ -133,20 +136,35 @@ class TestCopyLinkNodePathL(unittest.TestCase):
 
             _patch_copy(mock_nuke, [local_dot], mock_prefs)
             mock_nuke.root.return_value.name.return_value = 'sourceScript.nk'
+            mock_nuke.nodeCopy.side_effect = lambda *a, **k: captured.update(
+                label=local_dot['label'].getValue(),
+                tile_color=local_dot['tile_color'].getValue(),
+                has_dot_type=DOT_TYPE_KNOB_NAME in local_dot.knobs(),
+                dot_type=(local_dot[DOT_TYPE_KNOB_NAME].getValue()
+                          if DOT_TYPE_KNOB_NAME in local_dot.knobs() else None),
+            )
 
             from anchors import copy_anchors
             copy_anchors()
 
         mock_setup.assert_called_once_with(plain, local_dot)
-        self.assertEqual(local_dot['label'].getValue(), 'Local: my merge')
-        self.assertEqual(local_dot['tile_color'].getValue(), LOCAL_DOT_COLOR)
-        self.assertIn(DOT_TYPE_KNOB_NAME, local_dot.knobs())
-        self.assertEqual(local_dot[DOT_TYPE_KNOB_NAME].getValue(), 'local')
+        # Clipboard copy carries the Local stamp...
+        self.assertEqual(captured['label'], 'Local: my merge')
+        self.assertEqual(captured['tile_color'], LOCAL_DOT_COLOR)
+        self.assertTrue(captured['has_dot_type'])
+        self.assertEqual(captured['dot_type'], 'local')
+        # ...while the live original is restored to its pre-copy state.
+        self.assertEqual(local_dot['label'].getValue(), 'Link: Foo')
+        self.assertEqual(local_dot['tile_color'].getValue(), 0)
+        self.assertNotIn(DOT_TYPE_KNOB_NAME, local_dot.knobs())
 
     def test_copy_link_dot_no_input_stamps_empty_fqnn(self):
-        """Copying a disconnected link node (input(0)=None) stamps KNOB_NAME=""."""
+        """Copying a disconnected link node (input(0)=None) stamps KNOB_NAME="" onto the
+        clipboard copy, then restores the original's KNOB_NAME (issue #56)."""
         link_dot = _make_link_node(stored_fqnn='Anchor_Foo', node_class='Dot')
         link_dot._input = None
+
+        captured = {}
 
         with patch('anchors.nuke') as mock_nuke, \
              patch('anchors.nukescripts'), \
@@ -156,19 +174,26 @@ class TestCopyLinkNodePathL(unittest.TestCase):
              patch('anchors.setup_link_node') as mock_setup:
 
             _patch_copy(mock_nuke, [link_dot], mock_prefs)
+            mock_nuke.nodeCopy.side_effect = \
+                lambda *a, **k: captured.update(fqnn=link_dot[KNOB_NAME].getText())
 
             from anchors import copy_anchors
             copy_anchors()
 
         mock_setup.assert_not_called()
-        self.assertEqual(link_dot[KNOB_NAME].getText(), "")
+        self.assertEqual(captured['fqnn'], "")
+        self.assertEqual(link_dot[KNOB_NAME].getText(), 'Anchor_Foo',
+                         "Live original KNOB_NAME must be restored after copy")
 
     def test_copy_link_dot_input_in_selection_stamps_empty_fqnn(self):
         """When a Link Dot and its anchor are both in the selection, KNOB_NAME is
-        stamped to "" so paste can re-setup from the pasted anchor copy."""
+        stamped to "" on the clipboard copy so paste can re-setup from the pasted
+        anchor copy; the live original is then restored (issue #56)."""
         anchor = _make_anchor_node('Anchor_Foo')
         link_dot = _make_link_node(stored_fqnn='Anchor_Foo', node_class='Dot')
         link_dot._input = anchor
+
+        captured = {}
 
         with patch('anchors.nuke') as mock_nuke, \
              patch('anchors.nukescripts'), \
@@ -179,12 +204,16 @@ class TestCopyLinkNodePathL(unittest.TestCase):
 
             # Both nodes in selection — anchor is input_node and also in selected_nodes.
             _patch_copy(mock_nuke, [link_dot, anchor], mock_prefs)
+            mock_nuke.nodeCopy.side_effect = \
+                lambda *a, **k: captured.update(fqnn=link_dot[KNOB_NAME].getText())
 
             from anchors import copy_anchors
             copy_anchors()
 
         mock_setup.assert_not_called()
-        self.assertEqual(link_dot[KNOB_NAME].getText(), "")
+        self.assertEqual(captured['fqnn'], "")
+        self.assertEqual(link_dot[KNOB_NAME].getText(), 'Anchor_Foo',
+                         "Live original KNOB_NAME must be restored after copy")
 
 
 # ---------------------------------------------------------------------------

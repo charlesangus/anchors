@@ -244,12 +244,15 @@ class TestCopyHiddenDotTypeBehavior(unittest.TestCase):
             mock_add_input_knob.assert_called_once_with(dot_node, dot_type='link')
 
     def test_copy_hidden_anchor_backed_dot_sets_tile_color_to_anchor_default_color(self):
-        """copy_anchors() on anchor-backed Dot must set tile_color to ANCHOR_DEFAULT_COLOR."""
+        """copy_anchors() on anchor-backed Dot must stamp tile_color ANCHOR_DEFAULT_COLOR
+        onto the clipboard copy, while leaving the live original unchanged (issue #56)."""
         from constants import ANCHOR_DEFAULT_COLOR
 
         dot_node = self._make_dot_node_with_hide_input()
         anchor_input_node = _make_stub_node(name='Anchor_MyFootage', node_class='NoOp')
         dot_node._input = anchor_input_node
+
+        captured = {}
 
         with patch('anchors.nuke') as mock_nuke, \
              patch('anchors.nukescripts') as mock_nukescripts, \
@@ -261,14 +264,21 @@ class TestCopyHiddenDotTypeBehavior(unittest.TestCase):
                    return_value='sourceScript.Anchor_MyFootage'):
 
             mock_nuke.selectedNodes.return_value = [dot_node]
+            # Capture the stamped state at the moment it is serialised to the clipboard.
+            mock_nuke.nodeCopy.side_effect = \
+                lambda *a, **k: captured.update(tile_color=dot_node['tile_color'].getValue())
 
             from anchors import copy_anchors
             copy_anchors()
 
             self.assertEqual(
-                dot_node['tile_color'].getValue(),
+                captured['tile_color'],
                 ANCHOR_DEFAULT_COLOR,
-                "Anchor-backed Dot tile_color must be set to ANCHOR_DEFAULT_COLOR (canonical purple)"
+                "Anchor-backed Dot tile_color on the clipboard copy must be ANCHOR_DEFAULT_COLOR (canonical purple)"
+            )
+            self.assertEqual(
+                dot_node['tile_color'].getValue(), 0,
+                "Live original tile_color must be restored after copy (non-destructive)"
             )
 
     def test_copy_hidden_plain_node_backed_dot_calls_add_input_knob_with_dot_type_local(self):
@@ -296,11 +306,14 @@ class TestCopyHiddenDotTypeBehavior(unittest.TestCase):
             mock_add_input_knob.assert_called_once_with(dot_node, dot_type='local')
 
     def test_copy_hidden_plain_node_backed_dot_sets_label_to_local_prefix(self):
-        """copy_anchors() on plain-node-backed Dot must set label to 'Local: {source name}'."""
+        """copy_anchors() on plain-node-backed Dot must stamp label 'Local: {source name}'
+        onto the clipboard copy, while leaving the live original unchanged (issue #56)."""
         dot_node = self._make_dot_node_with_hide_input()
         plain_input_node = _make_stub_node(name='Blur1', node_class='Blur',
                                            knobs_dict={'label': _make_knob('')})
         dot_node._input = plain_input_node
+
+        captured = {}
 
         with patch('anchors.nuke') as mock_nuke, \
              patch('anchors.nukescripts') as mock_nukescripts, \
@@ -313,18 +326,25 @@ class TestCopyHiddenDotTypeBehavior(unittest.TestCase):
 
             mock_nuke.selectedNodes.return_value = [dot_node]
             mock_nuke.root.return_value.name.return_value = 'sourceScript.nk'
+            mock_nuke.nodeCopy.side_effect = \
+                lambda *a, **k: captured.update(label=dot_node['label'].getValue())
 
             from anchors import copy_anchors
             copy_anchors()
 
             self.assertEqual(
-                dot_node['label'].getValue(),
+                captured['label'],
                 'Local: Blur1',
-                "Plain-node-backed Dot label must be set to 'Local: {source name}'"
+                "Plain-node-backed Dot label on the clipboard copy must be 'Local: {source name}'"
+            )
+            self.assertEqual(
+                dot_node['label'].getValue(), '',
+                "Live original label must be restored after copy (non-destructive)"
             )
 
     def test_copy_hidden_plain_node_backed_dot_sets_tile_color_to_local_dot_color(self):
-        """copy_anchors() on plain-node-backed Dot must set tile_color to LOCAL_DOT_COLOR."""
+        """copy_anchors() on plain-node-backed Dot must stamp tile_color LOCAL_DOT_COLOR
+        onto the clipboard copy, while leaving the live original unchanged (issue #56)."""
         from constants import LOCAL_DOT_COLOR
 
         dot_node = self._make_dot_node_with_hide_input()
@@ -332,6 +352,8 @@ class TestCopyHiddenDotTypeBehavior(unittest.TestCase):
                                            knobs_dict={'label': _make_knob('')})
         dot_node._input = plain_input_node
 
+        captured = {}
+
         with patch('anchors.nuke') as mock_nuke, \
              patch('anchors.nukescripts') as mock_nukescripts, \
              patch('anchors.is_link', return_value=False), \
@@ -343,19 +365,26 @@ class TestCopyHiddenDotTypeBehavior(unittest.TestCase):
 
             mock_nuke.selectedNodes.return_value = [dot_node]
             mock_nuke.root.return_value.name.return_value = 'sourceScript.nk'
+            mock_nuke.nodeCopy.side_effect = \
+                lambda *a, **k: captured.update(tile_color=dot_node['tile_color'].getValue())
 
             from anchors import copy_anchors
             copy_anchors()
 
             self.assertEqual(
-                dot_node['tile_color'].getValue(),
+                captured['tile_color'],
                 LOCAL_DOT_COLOR,
-                "Plain-node-backed Dot tile_color must be set to LOCAL_DOT_COLOR (burnt orange)"
+                "Plain-node-backed Dot tile_color on the clipboard copy must be LOCAL_DOT_COLOR (burnt orange)"
+            )
+            self.assertEqual(
+                dot_node['tile_color'].getValue(), 0,
+                "Live original tile_color must be restored after copy (non-destructive)"
             )
 
     def test_copy_hidden_plain_node_backed_dot_stores_script_qualified_fqnn(self):
-        """copy_anchors() on plain-node-backed Dot must store 'scriptStem.nodeFullName'
-        in KNOB_NAME so that paste can enforce the same-script guard."""
+        """copy_anchors() on plain-node-backed Dot must stamp 'scriptStem.nodeFullName'
+        into KNOB_NAME on the clipboard copy (so paste can enforce the same-script
+        guard), while leaving the live original unchanged (issue #56)."""
         from constants import KNOB_NAME
 
         dot_node = self._make_dot_node_with_hide_input()
@@ -363,6 +392,8 @@ class TestCopyHiddenDotTypeBehavior(unittest.TestCase):
                                            knobs_dict={'label': _make_knob('')})
         dot_node._input = plain_input_node
 
+        captured = {}
+
         with patch('anchors.nuke') as mock_nuke, \
              patch('anchors.nukescripts') as mock_nukescripts, \
              patch('anchors.is_link', return_value=False), \
@@ -374,14 +405,20 @@ class TestCopyHiddenDotTypeBehavior(unittest.TestCase):
 
             mock_nuke.selectedNodes.return_value = [dot_node]
             mock_nuke.root.return_value.name.return_value = 'sourceScript.nk'
+            mock_nuke.nodeCopy.side_effect = \
+                lambda *a, **k: captured.update(fqnn=dot_node[KNOB_NAME].getText())
 
             from anchors import copy_anchors
             copy_anchors()
 
             self.assertEqual(
-                dot_node[KNOB_NAME].getValue(),
+                captured['fqnn'],
                 'sourceScript.Blur1',
-                "Local Dot KNOB_NAME must be 'scriptStem.nodeFullName' after copy"
+                "Local Dot KNOB_NAME on the clipboard copy must be 'scriptStem.nodeFullName'"
+            )
+            self.assertEqual(
+                dot_node[KNOB_NAME].getText(), '',
+                "Live original KNOB_NAME must be restored after copy (non-destructive)"
             )
 
 
