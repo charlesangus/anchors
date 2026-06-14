@@ -34,6 +34,14 @@ ANCHOR_DEFAULT_COLOR = 0x6f3399ff
 # darkened burnt orange: R=122,G=58,B=0 (~30% darker than previous 0xB35A00FF)
 LOCAL_DOT_COLOR = 0x7A3A00FF
 
+# === Keyboard shortcut context. ===
+# Nuke's menu.addCommand() accepts a shortcutContext that scopes where a
+# keyboard shortcut fires: 0 = window, 1 = application, 2 = DAG (Node Graph).
+# Anchor functions are only meaningful in the Node Graph, so binding their
+# shortcuts to the DAG context stops them from intercepting keys in the Script
+# Editor, Viewer, or other panels (issue #54).
+DAG_SHORTCUT_CONTEXT = 2
+
 # === Font sizes and colours. ===
 DOT_LABEL_FONT_SIZE_LARGE = 111
 DOT_LABEL_FONT_SIZE_MEDIUM = 66
