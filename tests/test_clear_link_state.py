@@ -8,6 +8,8 @@ import unittest
 from unittest.mock import patch
 
 from constants import (
+    DOT_ANCHOR_MIN_FONT_SIZE,
+    DOT_LINK_LABEL_FONT_SIZE,
     DOT_TYPE_KNOB_NAME,
     KNOB_NAME,
     LINK_RECONNECT_KNOB_NAME,
@@ -16,9 +18,13 @@ from constants import (
 )
 from tests.stubs import StubKnob, StubNode
 
+# A plain Dot's font size sits below the anchor threshold; the link conversion
+# bumps it up to DOT_LINK_LABEL_FONT_SIZE (== DOT_ANCHOR_MIN_FONT_SIZE).
+PLAIN_DOT_FONT_DEFAULT = DOT_ANCHOR_MIN_FONT_SIZE - 22
 
-def _make_knob(value='', knob_name=''):
-    return StubKnob(value=value, knob_name=knob_name)
+
+def _make_knob(value='', knob_name='', default=None):
+    return StubKnob(value=value, knob_name=knob_name, default=default)
 
 
 def _make_local_dot():
@@ -30,6 +36,9 @@ def _make_local_dot():
         'label': _make_knob('Local: my merge'),
         'tile_color': _make_knob(LOCAL_DOT_COLOR),
         'hide_input': _make_knob(True, knob_name='hide_input'),
+        'note_font_size': _make_knob(DOT_LINK_LABEL_FONT_SIZE,
+                                     knob_name='note_font_size',
+                                     default=PLAIN_DOT_FONT_DEFAULT),
     })
 
 
@@ -98,6 +107,48 @@ class TestClearLinkState(unittest.TestCase):
 
         self.assertEqual(plain['label'].getValue(), 'just a note')
         self.assertEqual(plain['tile_color'].getValue(), 456)
+
+    def test_clear_resets_note_font_size_to_default(self):
+        """Clearing must drop the link-label font bump back to the knob default."""
+        dot = _make_local_dot()
+
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.prefs') as mock_prefs, \
+             patch('anchors.is_link', side_effect=lambda n: KNOB_NAME in n.knobs()), \
+             patch('anchors.is_anchor', return_value=False):
+
+            mock_prefs.plugin_enabled = True
+            mock_nuke.selectedNodes.return_value = [dot]
+
+            from anchors import clear_link_state
+            clear_link_state()
+
+        self.assertEqual(dot['note_font_size'].value(), PLAIN_DOT_FONT_DEFAULT)
+
+    def test_cleared_dot_is_not_an_anchor_after_relabel(self):
+        """Regression: a cleared dot must fall below the anchor font gate, so
+        re-labelling it does not make is_anchor() (the real predicate) return True."""
+        from link import is_anchor as real_is_anchor
+
+        dot = _make_local_dot()
+
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.prefs') as mock_prefs, \
+             patch('anchors.is_link', side_effect=lambda n: KNOB_NAME in n.knobs()), \
+             patch('anchors.is_anchor', return_value=False):
+
+            mock_prefs.plugin_enabled = True
+            mock_nuke.selectedNodes.return_value = [dot]
+
+            from anchors import clear_link_state
+            clear_link_state()
+
+        # The user re-labels the now-plain dot.
+        dot['label'].setValue('my note')
+        self.assertFalse(
+            real_is_anchor(dot),
+            "A cleared, re-labelled dot must remain a plain note, not an anchor",
+        )
 
     def test_clear_noop_when_plugin_disabled(self):
         dot = _make_local_dot()

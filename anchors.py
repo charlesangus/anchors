@@ -303,6 +303,13 @@ def _clear_link_state(node):
     with contextlib.suppress(Exception):
         node['tile_color'].setValue(0)
     with contextlib.suppress(Exception):
+        # Revert the link-label font bump from setup_link_node() so the reverted
+        # dot drops below DOT_ANCHOR_MIN_FONT_SIZE and is not re-detected as an
+        # anchor once it is re-labelled.  Using the knob default avoids hardcoding
+        # a size; a freshly-created plain Dot round-trips exactly.
+        font_knob = node['note_font_size']
+        font_knob.setValue(font_knob.defaultValue())
+    with contextlib.suppress(Exception):
         node['hide_input'].setValue(False)
 
 
