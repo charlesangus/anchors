@@ -164,6 +164,8 @@ For Dot anchors, applying or appending a label also propagates the change to all
 | `Shift+B` | Label (Small) |
 | `Ctrl+M` | Append Label |
 
+All anchor shortcuts are scoped to the **DAG (Node Graph) context** — they only fire when the Node Graph has focus. This keeps them from intercepting keys (e.g. `Ctrl+C/X/V`) while you're typing in the Script Editor, Viewer, or other panels.
+
 # Preferences
 
 `Edit > Anchors > Anchor Preferences...` opens a dialog with:
