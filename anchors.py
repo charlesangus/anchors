@@ -172,6 +172,10 @@ def _stamp_for_anchor(node, selection_is_all_anchors, cut):
         # back to the original anchor.  Skip when cutting: the originals will be
         # deleted, so paste can never resolve them and would leave the pasted
         # copies with stale link knobs.
+        # Issue #55 confirmed this paste-as-link behaviour is desired, not a
+        # misfeature: copying a selection of only anchors and pasting Links is
+        # intentional.  Only the hidden-input misclassification (scenarios C/D)
+        # was a bug; this path is deliberately preserved.
         add_input_knob(node, dot_type='link')
         node[KNOB_NAME].setText(get_fully_qualified_node_name(node))
     elif is_link(node):
@@ -203,12 +207,17 @@ def copy_anchors(cut=False):
         # cause of issue #56, where copying alone mutated the node in the DAG.
         snapshots = {node: _snapshot_node_state(node) for node in selected_nodes}
         for node in selected_nodes:
+            # is_anchor() is checked before the hidden-input-dot branch because
+            # anchors are NoOp/Dot nodes — both in HIDDEN_INPUT_CLASSES.  An anchor
+            # whose input wire is hidden (routine after Alt+H, or for Dot anchors)
+            # must be stamped as an anchor, never misrouted into _stamp_for_hidden_dot
+            # and turned into a Local/Link dot (issue #55, scenarios C and D).
             if is_link(node) and not is_anchor(node):
                 _stamp_for_link(node, selected_nodes, script_stem)
-            elif node.Class() in HIDDEN_INPUT_CLASSES and node['hide_input'].getValue():
-                _stamp_for_hidden_dot(node, selected_nodes, script_stem)
             elif is_anchor(node):
                 _stamp_for_anchor(node, selection_is_all_anchors, cut)
+            elif node.Class() in HIDDEN_INPUT_CLASSES and node['hide_input'].getValue():
+                _stamp_for_hidden_dot(node, selected_nodes, script_stem)
 
         # now that we've stored the info we need on the nodes, do a regular copy
         nuke.nodeCopy(nukescripts.cut_paste_file())
@@ -503,7 +512,11 @@ def paste_anchors():
                   and DOT_TYPE_KNOB_NAME in node.knobs()
                   and node[DOT_TYPE_KNOB_NAME].getValue() == 'link'):
                 _handle_pasted_anchor_as_link(node, final_selection)
-            elif node.Class() in HIDDEN_INPUT_CLASSES:
+            elif node.Class() in HIDDEN_INPUT_CLASSES and not is_anchor(node):
+                # `not is_anchor(node)` is a defensive, symmetric counterpart to the
+                # copy-loop ordering: an anchor must never enter the hidden-input
+                # reconnect path and be turned into a Local/Link dot.  Guards against
+                # stale clipboards stamped by the pre-issue-#55 code.
                 _handle_pasted_hidden_input(node)
 
         # it's possible we changed selection, reset it

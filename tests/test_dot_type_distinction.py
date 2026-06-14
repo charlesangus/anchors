@@ -230,7 +230,7 @@ class TestCopyHiddenDotTypeBehavior(unittest.TestCase):
         with patch('anchors.nuke') as mock_nuke, \
              patch('anchors.nukescripts') as mock_nukescripts, \
              patch('anchors.is_link', return_value=False), \
-             patch('anchors.is_anchor', return_value=True) as mock_is_anchor, \
+             patch('anchors.is_anchor', side_effect=lambda n: n is anchor_input_node) as mock_is_anchor, \
              patch('anchors.setup_link_node') as mock_setup_link_node, \
              patch('anchors.add_input_knob') as mock_add_input_knob, \
              patch('anchors.get_fully_qualified_node_name',
@@ -257,7 +257,7 @@ class TestCopyHiddenDotTypeBehavior(unittest.TestCase):
         with patch('anchors.nuke') as mock_nuke, \
              patch('anchors.nukescripts') as mock_nukescripts, \
              patch('anchors.is_link', return_value=False), \
-             patch('anchors.is_anchor', return_value=True), \
+             patch('anchors.is_anchor', side_effect=lambda n: n is anchor_input_node), \
              patch('anchors.setup_link_node'), \
              patch('anchors.add_input_knob'), \
              patch('anchors.get_fully_qualified_node_name',
