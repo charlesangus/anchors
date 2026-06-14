@@ -133,6 +133,9 @@ class TestCopyAnchorsAllAnchorSelection(unittest.TestCase):
              patch('anchors.get_fully_qualified_node_name', side_effect=lambda n: n.name()):
 
             _patch_copy(mock_nuke, [anchor_a, anchor_b], mock_prefs)
+            captured = {}
+            mock_nuke.nodeCopy.side_effect = lambda *a, **k: captured.update(
+                a=anchor_a[KNOB_NAME].getText(), b=anchor_b[KNOB_NAME].getText())
 
             from anchors import copy_anchors
             copy_anchors()
@@ -141,9 +144,13 @@ class TestCopyAnchorsAllAnchorSelection(unittest.TestCase):
         self.assertEqual(knobs_added.get(anchor_a.name()), 'link')
         self.assertEqual(knobs_added.get(anchor_b.name()), 'link')
 
-        # KNOB_NAME should be set to each anchor's own FQNN
-        self.assertEqual(anchor_a[KNOB_NAME].getText(), anchor_a.name())
-        self.assertEqual(anchor_b[KNOB_NAME].getText(), anchor_b.name())
+        # The clipboard copy carries each anchor's own FQNN in KNOB_NAME...
+        self.assertEqual(captured['a'], anchor_a.name())
+        self.assertEqual(captured['b'], anchor_b.name())
+        # ...while the live originals are restored (the stamp would otherwise leave
+        # them looking like stale links — issue #56 non-destructive copy).
+        self.assertNotIn(KNOB_NAME, anchor_a.knobs())
+        self.assertNotIn(KNOB_NAME, anchor_b.knobs())
 
     def test_all_anchor_selection_single_anchor_is_stamped(self):
         """A single anchor in the selection should also be stamped."""
@@ -165,12 +172,20 @@ class TestCopyAnchorsAllAnchorSelection(unittest.TestCase):
              patch('anchors.get_fully_qualified_node_name', side_effect=lambda n: n.name()):
 
             _patch_copy(mock_nuke, [anchor], mock_prefs)
+            captured = {}
+            mock_nuke.nodeCopy.side_effect = lambda *a, **k: captured.update(
+                fqnn=anchor[KNOB_NAME].getText(),
+                dot_type=anchor[DOT_TYPE_KNOB_NAME].getValue())
 
             from anchors import copy_anchors
             copy_anchors()
 
-        self.assertEqual(anchor[KNOB_NAME].getText(), anchor.name())
-        self.assertEqual(anchor[DOT_TYPE_KNOB_NAME].getValue(), 'link')
+        # The clipboard copy carries the anchor's own FQNN and dot_type='link'...
+        self.assertEqual(captured['fqnn'], anchor.name())
+        self.assertEqual(captured['dot_type'], 'link')
+        # ...while the live original is restored (issue #56 non-destructive copy).
+        self.assertNotIn(KNOB_NAME, anchor.knobs())
+        self.assertNotIn(DOT_TYPE_KNOB_NAME, anchor.knobs())
 
 
 class TestCopyAnchorsMixedSelection(unittest.TestCase):
@@ -225,12 +240,17 @@ class TestCopyAnchorsMixedSelection(unittest.TestCase):
              patch('anchors.is_anchor', side_effect=lambda n: n.name().startswith(ANCHOR_PREFIX)):
 
             _patch_copy(mock_nuke, [stale_anchor, plain], mock_prefs)
+            captured = {}
+            mock_nuke.nodeCopy.side_effect = \
+                lambda *a, **k: captured.update(fqnn=stale_anchor[KNOB_NAME].getValue())
 
             from anchors import copy_anchors
             copy_anchors()
 
-        # Stale KNOB_NAME must have been cleared
-        self.assertEqual(stale_anchor[KNOB_NAME].getValue(), '')
+        # The clipboard copy carries no spurious reference (KNOB_NAME cleared)...
+        self.assertEqual(captured['fqnn'], '')
+        # ...while the live original is left untouched (issue #56 non-destructive copy).
+        self.assertEqual(stale_anchor[KNOB_NAME].getValue(), 'OldScript.Anchor_Foo')
 
 
 # ---------------------------------------------------------------------------

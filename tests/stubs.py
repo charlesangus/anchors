@@ -107,7 +107,7 @@ class StubNode:
         self._knobs[knob.name()] = knob
 
     def removeKnob(self, knob):
-        pass
+        self._knobs.pop(knob.name(), None)
 
     def __getitem__(self, knob_name):
         if knob_name not in self._knobs:
@@ -142,7 +142,7 @@ def make_stub_nuke_module():
     stub.delete = MagicMock()
     stub.INVISIBLE = 0
     stub.NUKE_VERSION_MAJOR = 16  # critical: forces PySide6 path in anchor.py; do NOT use 14
-    stub.PyScript_Knob = MagicMock()
+    stub.PyScript_Knob = MagicMock(side_effect=lambda name, *args: StubKnob(knob_name=name))
     stub.String_Knob = MagicMock(side_effect=lambda name, *args: StubKnob(knob_name=name))
     stub.Tab_Knob = MagicMock(side_effect=lambda name, *args: StubKnob(knob_name=name))
     stub.Boolean_Knob = MagicMock(side_effect=lambda name, *args: StubKnob(knob_name=name))

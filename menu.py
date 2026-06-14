@@ -11,6 +11,9 @@ edit_menu = menu.findItem("Edit")
 menu.addCommand("Edit/Copy",  "anchors.copy_anchors()",  "^C")
 menu.addCommand("Edit/Cut",   "anchors.cut_anchors()",   "^X")
 menu.addCommand("Edit/Paste", "anchors.paste_anchors()", "^V")
+# Wrap the built-in Input On/Off so hiding a wired Dot's input stamps it into a
+# Local/Link dot in place (issue #56 — replaces the old copy-time side effect).
+menu.addCommand("Edit/Node/Input On/Off", "anchors.toggle_input_visibility()", "alt+h")
 
 def _find_item_index(parent_menu, item_name):
     for position, menu_item in enumerate(parent_menu.items()):
@@ -49,6 +52,7 @@ def _add_gated_command(menu, name, command, shortcut=None, shortcut_context=None
 _add_gated_command(anchors_menu, "Create Anchor",       "anchor.create_anchor()")
 _add_gated_command(anchors_menu, "Rename Anchor",       "anchor.rename_selected_anchor()")
 _add_gated_command(anchors_menu, "Create Link",                "anchor.select_anchor_and_create()")
+_add_gated_command(anchors_menu, "Clear Link State",    "anchors.clear_link_state()")
 _add_gated_command(anchors_menu, "Anchor",              "anchor.anchor_shortcut()",            "A")
 _add_gated_command(anchors_menu, "Leader Key",          "import leader; leader.arm()",         "+A",
                    shortcut_context=2)
