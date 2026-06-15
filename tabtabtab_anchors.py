@@ -705,11 +705,12 @@ class TabTabTabWidget(QtWidgets.QDialog):
         self.things_model.set_filter(text)
 
     def show(self):
-        """Select all the text in the input (which persists between
-        show()'s)
+        """Always open with a blank input field.
 
-        Allows typing over previously created text, and [tab][tab] to
-        create previously created node (instead of the most popular)
+        The input text persists between show()'s (create() stamps the
+        last-created node's name into it). We clear it on every show so the
+        anchor picker / navigate popups always present an empty field rather
+        than the previous text, per user preference.
         """
 
         # Show the widget and focus the input *before* doing any heavy work.
@@ -719,7 +720,7 @@ class TabTabTabWidget(QtWidgets.QDialog):
         # first character or two get lost (issue #3). Deferring via
         # singleShot(0) lets Qt drain pending input events into the now-
         # focused line-edit before the refresh blocks the GUI thread again.
-        self.input.selectAll()
+        self.input.clear()
         super(TabTabTabWidget, self).show()
         self.input.setFocus()
 
