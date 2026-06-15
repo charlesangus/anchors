@@ -318,16 +318,37 @@ class TestNavigateToBackdrop(unittest.TestCase):
         nukescripts.clear_selection_recursive.reset_mock()
 
     def test_navigate_to_backdrop_selects_and_zooms(self):
-        """navigate_to_backdrop() calls backdrop['selected'].setValue(True) and nuke.zoom()."""
+        """navigate_to_backdrop() selects the backdrop and fits it with zoomToFitSelected()."""
         selected_knob = MagicMock()
         stub_backdrop = MagicMock()
         stub_backdrop.__getitem__ = MagicMock(return_value=selected_knob)
 
+        import nuke as nuke_stub
+        nuke_stub.zoom.reset_mock()
+
         anchor.navigate_to_backdrop(stub_backdrop)
 
         selected_knob.setValue.assert_called_with(True)
+        nuke_stub.zoomToFitSelected.assert_called_once()
+
+    def test_navigate_to_backdrop_does_not_force_fixed_zoom(self):
+        """navigate_to_backdrop() must fit the backdrop, not jump to a fixed zoom scale.
+
+        The old implementation called nuke.zoom(1.0, center), which zoomed in too
+        far on large backdrops; the fit must come from zoomToFitSelected() instead.
+        """
+        selected_knob = MagicMock()
+        stub_backdrop = MagicMock()
+        stub_backdrop.__getitem__ = MagicMock(return_value=selected_knob)
+
         import nuke as nuke_stub
-        nuke_stub.zoom.assert_called()
+        nuke_stub.zoom.reset_mock()
+
+        anchor.navigate_to_backdrop(stub_backdrop)
+
+        zoom_setter_calls = [c for c in nuke_stub.zoom.call_args_list if c.args]
+        self.assertEqual(zoom_setter_calls, [],
+                         msg="navigate_to_backdrop must not set an absolute zoom scale")
 
     def test_navigate_to_backdrop_clears_selection_before_and_after(self):
         """navigate_to_backdrop() calls nukescripts.clear_selection_recursive at least twice."""
