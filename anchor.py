@@ -998,15 +998,17 @@ def cycle_next_link():
 def navigate_to_backdrop(backdrop_node):
     """Zoom the DAG to fit *backdrop_node*.
 
-    Uses nuke.zoom() rather than nuke.zoomToFitSelected() so that the
-    currently focused DAG panel (which may be a Group's internal panel)
-    is targeted instead of always zooming the root DAG.
+    Selects the backdrop and uses nuke.zoomToFitSelected() so the zoom scale
+    adapts to the backdrop's size.  The previous implementation used
+    nuke.zoom(1.0, center), which always jumped to 100% zoom regardless of
+    backdrop size and so zoomed in too far on large backdrops.  Navigation is
+    dispatched after the picker closes (see _anchor_navigate_invoke), so the
+    focused DAG panel is the active one by the time this runs — matching how
+    navigate_to_anchor already relies on zoomToFitSelected.
     """
     nukescripts.clear_selection_recursive()
     backdrop_node['selected'].setValue(True)
-    center_x = backdrop_node.xpos() + backdrop_node.screenWidth() // 2
-    center_y = backdrop_node.ypos() + backdrop_node.screenHeight() // 2
-    nuke.zoom(1.0, [center_x, center_y])
+    nuke.zoomToFitSelected()
     nukescripts.clear_selection_recursive()
 
 
