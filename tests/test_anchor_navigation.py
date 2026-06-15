@@ -500,10 +500,23 @@ class TestNavigateToAnchorZoom(unittest.TestCase):
         _ensure_qt_stubs_support_mock_attributes()
         importlib.reload(anchor)
         import nuke as nuke_stub
-        nuke_stub.zoomToFitSelected.reset_mock()
+        # reset_mock(side_effect=True) clears any side_effect leaked by a prior
+        # test; the margin tests below assign side_effects on these shared mocks.
+        nuke_stub.zoomToFitSelected.reset_mock(side_effect=True)
         nuke_stub.selectedNodes.reset_mock()
+        nuke_stub.zoom.reset_mock(side_effect=True)
+        nuke_stub.zoom.return_value = 1.0
+        nuke_stub.center.reset_mock(side_effect=True)
+        nuke_stub.center.return_value = [0.0, 0.0]
         import nukescripts
         nukescripts.clear_selection_recursive.reset_mock()
+
+    def tearDown(self):
+        """Restore shared zoom/fit mocks so side_effects don't leak to other classes."""
+        import nuke as nuke_stub
+        nuke_stub.zoom = MagicMock(return_value=1.0)
+        nuke_stub.center = MagicMock(return_value=[0.0, 0.0])
+        nuke_stub.zoomToFitSelected.reset_mock(side_effect=True)
 
     def _make_anchor_node(self, xpos=0, ypos=0):
         """Return a StubNode acting as an anchor with a 'selected' knob."""
@@ -602,6 +615,50 @@ class TestNavigateToAnchorZoom(unittest.TestCase):
             anchor.navigate_to_anchor(anchor_node)
 
         self.assertEqual(selected_at_zoom_time, [True])
+
+    def test_zooms_out_for_margin_after_fit(self):
+        """After fitting, zoom is re-applied at fitted_scale * margin factor (issue #61)."""
+        import nuke as nuke_stub
+        from constants import MODULE_ZOOM_MARGIN_FACTOR
+        anchor_node = self._make_anchor_node()
+
+        fitted_scale = 2.0
+        fitted_center = [100.0, 200.0]
+        nuke_stub.zoom = MagicMock(return_value=fitted_scale)
+        nuke_stub.center = MagicMock(return_value=fitted_center)
+
+        with patch('anchor.upstream_ignoring_hidden', return_value=set()):
+            anchor.navigate_to_anchor(anchor_node)
+
+        setter_calls = [c for c in nuke_stub.zoom.call_args_list if c.args]
+        self.assertEqual(len(setter_calls), 1,
+                         msg="navigate_to_anchor must re-apply zoom exactly once for the margin")
+        applied_scale, applied_center = setter_calls[0].args
+        self.assertAlmostEqual(applied_scale, fitted_scale * MODULE_ZOOM_MARGIN_FACTOR)
+        self.assertEqual(applied_center, fitted_center)
+
+    def test_margin_zoom_out_happens_after_fit(self):
+        """The margin zoom-out must run after zoomToFitSelected, not before."""
+        import nuke as nuke_stub
+        anchor_node = self._make_anchor_node()
+
+        call_order = []
+
+        def record_zoom(*args, **kwargs):
+            call_order.append('zoom')
+            return 1.0  # the fitted scale read back by navigate_to_anchor
+
+        nuke_stub.zoom = MagicMock(side_effect=record_zoom)
+        nuke_stub.center = MagicMock(return_value=[0.0, 0.0])
+        nuke_stub.zoomToFitSelected.side_effect = lambda: call_order.append('fit')
+
+        with patch('anchor.upstream_ignoring_hidden', return_value=set()):
+            anchor.navigate_to_anchor(anchor_node)
+
+        self.assertEqual(call_order[0], 'fit',
+                         msg="zoomToFitSelected must run before the margin zoom-out")
+        self.assertEqual(call_order[-1], 'zoom',
+                         msg="the margin zoom-out must be the final framing call")
 
 
 # ---------------------------------------------------------------------------
