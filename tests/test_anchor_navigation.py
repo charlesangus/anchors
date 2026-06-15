@@ -518,22 +518,27 @@ class TestNavigateToAnchorZoom(unittest.TestCase):
         nuke_stub.center = MagicMock(return_value=[0.0, 0.0])
         nuke_stub.zoomToFitSelected.reset_mock(side_effect=True)
 
-    def _make_anchor_node(self, xpos=0, ypos=0):
+    def _make_anchor_node(self, xpos=0, ypos=0, node_class='NoOp'):
         """Return a StubNode acting as an anchor with a 'selected' knob."""
         import nuke as nuke_stub
-        from constants import ANCHOR_PREFIX
+        from constants import ANCHOR_PREFIX, DOT_ANCHOR_PREFIX
+        prefix = DOT_ANCHOR_PREFIX if node_class == 'Dot' else ANCHOR_PREFIX
         knobs = {
             'selected': nuke_stub.StubKnob(False),
             'label': nuke_stub.StubKnob('TestAnchor'),
             'anchor': nuke_stub.StubKnob('anchor'),
         }
         return nuke_stub.StubNode(
-            name=ANCHOR_PREFIX + 'TestAnchor',
-            node_class='NoOp',
+            name=prefix + 'TestAnchor',
+            node_class=node_class,
             xpos=xpos,
             ypos=ypos,
             knobs_dict=knobs,
         )
+
+    def _make_dot_anchor_node(self, xpos=0, ypos=0):
+        """Return a StubNode acting as a labelled-dot anchor (issue #61 target)."""
+        return self._make_anchor_node(xpos=xpos, ypos=ypos, node_class='Dot')
 
     def _make_upstream_node(self, name='UpstreamNode', xpos=0, ypos=0):
         """Return a StubNode acting as an upstream node with a 'selected' knob."""
@@ -617,10 +622,10 @@ class TestNavigateToAnchorZoom(unittest.TestCase):
         self.assertEqual(selected_at_zoom_time, [True])
 
     def test_zooms_out_for_margin_after_fit(self):
-        """After fitting, zoom is re-applied at fitted_scale * margin factor (issue #61)."""
+        """For a Dot anchor, zoom is re-applied at fitted_scale * margin factor (issue #61)."""
         import nuke as nuke_stub
         from constants import MODULE_ZOOM_MARGIN_FACTOR
-        anchor_node = self._make_anchor_node()
+        anchor_node = self._make_dot_anchor_node()
 
         fitted_scale = 2.0
         fitted_center = [100.0, 200.0]
@@ -638,9 +643,9 @@ class TestNavigateToAnchorZoom(unittest.TestCase):
         self.assertEqual(applied_center, fitted_center)
 
     def test_margin_zoom_out_happens_after_fit(self):
-        """The margin zoom-out must run after zoomToFitSelected, not before."""
+        """For a Dot anchor, the margin zoom-out must run after zoomToFitSelected."""
         import nuke as nuke_stub
-        anchor_node = self._make_anchor_node()
+        anchor_node = self._make_dot_anchor_node()
 
         call_order = []
 
@@ -659,6 +664,26 @@ class TestNavigateToAnchorZoom(unittest.TestCase):
                          msg="zoomToFitSelected must run before the margin zoom-out")
         self.assertEqual(call_order[-1], 'zoom',
                          msg="the margin zoom-out must be the final framing call")
+
+    def test_no_margin_zoom_out_for_non_dot_anchor(self):
+        """A non-Dot anchor must keep the tight fit — no post-fit margin zoom-out (issue #61).
+
+        The margin is scoped to labelled-dot modules; applying it to other anchor
+        types over-zoomed framings that were already correct.
+        """
+        import nuke as nuke_stub
+        anchor_node = self._make_anchor_node(node_class='NoOp')
+
+        nuke_stub.zoom = MagicMock(return_value=2.0)
+        nuke_stub.center = MagicMock(return_value=[10.0, 20.0])
+
+        with patch('anchor.upstream_ignoring_hidden', return_value=set()):
+            anchor.navigate_to_anchor(anchor_node)
+
+        nuke_stub.zoomToFitSelected.assert_called_once()
+        setter_calls = [c for c in nuke_stub.zoom.call_args_list if c.args]
+        self.assertEqual(setter_calls, [],
+                         msg="non-Dot anchors must not trigger a margin zoom-out")
 
 
 # ---------------------------------------------------------------------------
