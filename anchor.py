@@ -31,6 +31,7 @@ from constants import (
     DOT_LABEL_FONT_SIZE_LARGE,
     DOT_LABEL_FONT_SIZE_MEDIUM,
     KNOB_NAME,
+    MODULE_ZOOM_MARGIN_FACTOR,
     NODE_LABEL_FONT_SIZE_LARGE,
 )
 from link import (
@@ -1039,6 +1040,13 @@ def navigate_to_anchor(anchor_node):
         node["selected"].setValue(True)
 
     nuke.zoomToFitSelected()
+
+    # zoomToFitSelected() frames the module edge-to-edge with no padding, which
+    # reads as too tight (issue #61). Nuke's API has no fit margin, so zoom out
+    # slightly from the fitted framing to leave a margin around the module.
+    fitted_scale = nuke.zoom()
+    fitted_center = nuke.center()
+    nuke.zoom(fitted_scale * MODULE_ZOOM_MARGIN_FACTOR, fitted_center)
 
     nukescripts.clear_selection_recursive()
     for node in saved_selection:
