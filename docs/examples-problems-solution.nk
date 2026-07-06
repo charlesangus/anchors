@@ -1,0 +1,1320 @@
+#! /usr/local/Nuke16.0v6/libnuke-16.0.6.so -nx
+version 16.0 v6
+define_window_layout_xml {<?xml version="1.0" encoding="UTF-8"?>
+<layout version="1.0">
+    <window x="0" y="0" w="1919" h="1052" screen="0">
+        <splitter orientation="1">
+            <split size="40"/>
+            <dock id="" hideTitles="1" activePageId="Toolbar.1">
+                <page id="Toolbar.1"/>
+            </dock>
+            <split size="1256" stretch="1"/>
+            <splitter orientation="2">
+                <split size="593"/>
+                <dock id="" activePageId="Viewer.1">
+                    <page id="Viewer.1"/>
+                </dock>
+                <split size="417"/>
+                <dock id="" activePageId="DAG.1" focus="true">
+                    <page id="DAG.1"/>
+                    <page id="Curve Editor.1"/>
+                    <page id="DopeSheet.1"/>
+                </dock>
+            </splitter>
+            <split size="615"/>
+            <dock id="" activePageId="Properties.1">
+                <page id="Properties.1"/>
+                <page id="Scenegraph.1"/>
+                <page id="uk.co.thefoundry.scripteditor.1"/>
+                <page id="com.nukediff.MergePanel"/>
+            </dock>
+        </splitter>
+    </window>
+</layout>
+}
+Root {
+ inputs 0
+ name docs/examples-problems-solution.nk
+ format "2048 1556 0 0 2048 1556 1 2K_Super_35(full-ap)"
+ proxy_type scale
+ proxy_format "1024 778 0 0 1024 778 1 1K_Super_35(full-ap)"
+ colorManagement Nuke
+ workingSpaceLUT linear
+ monitorLut sRGB
+ monitorOutLUT rec709
+ int8Lut sRGB
+ int16Lut sRGB
+ logLut Cineon
+ floatLut linear
+}
+BackdropNode {
+ inputs 0
+ name BackdropNode1
+ label "screenshot: problem-repeated-reads"
+ xpos -267
+ ypos -1765
+ bdwidth 1582
+ bdheight 3207
+}
+BackdropNode {
+ inputs 0
+ name BackdropNode2
+ label "screenshot: problem-the-big-box"
+ xpos 1383
+ ypos -1759
+ bdwidth 1582
+ bdheight 3207
+}
+BackdropNode {
+ inputs 0
+ name BackdropNode3
+ label "screenshot: solution-anchors"
+ xpos 3162
+ ypos -1363
+ bdwidth 1396
+ bdheight 2797
+}
+Roto {
+ inputs 0
+ output alpha
+ curves {{{v x3f99999a}
+  {f 0}
+  {n
+   {layer Root
+    {f 0}
+    {t x44800000 x44428000}
+    {a pt1x 0 pt1y 0 pt2x 0 pt2y 0 pt3x 0 pt3y 0 pt4x 0 pt4y 0 ptex00 0 ptex01 0 ptex02 0 ptex03 0 ptex10 0 ptex11 0 ptex12 0 ptex13 0 ptex20 0 ptex21 0 ptex22 0 ptex23 0 ptex30 0 ptex31 0 ptex32 0 ptex33 0 ptof1x 0 ptof1y 0 ptof2x 0 ptof2y 0 ptof3x 0 ptof3y 0 ptof4x 0 ptof4y 0 pterr 0 ptrefset 0 ptmot x40800000 ptref 0}}}}}
+ toolbox {createBezier {
+  { createBezier str 1 ssx 1 ssy 1 sf 1 sb 1 tt 4 }
+  { createBezierCusped str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createBSpline str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createEllipse str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createRectangle str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createRectangleCusped str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createOpenSpline str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { brush str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { eraser src 2 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { clone src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { reveal src 3 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { dodge src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { burn src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { blur src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { sharpen src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { smear src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+} }
+ toolbar_brush_hardness 0.200000003
+ toolbar_source_transform_scale {1 1}
+ toolbar_source_transform_center {1024 778}
+ name Roto1
+ xpos 823
+ ypos 563
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Dot {
+ name Anchor_Dot_core_alpha1
+ tile_color 0x6f3399ff
+ label "core alpha"
+ note_font_size 33
+ xpos 857
+ ypos 703
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Read {
+ inputs 0
+ origset true
+ name plate1
+ xpos 611
+ ypos 539
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Copy {
+ inputs 2
+ from0 rgba.alpha
+ to0 rgba.alpha
+ name Copy2
+ xpos 611
+ ypos 689
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Premult {
+ name Premult2
+ xpos 611
+ ypos 757
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Dot {
+ name Anchor_Dot_core1
+ tile_color 0x6f3399ff
+ label core
+ note_font_size 66
+ xpos 645
+ ypos 859
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Read {
+ inputs 0
+ origset true
+ name plate3
+ xpos 453
+ ypos -117
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+IBKGizmoV3 {
+ name IBKGizmoV3_1
+ selected false
+ xpos 453
+ ypos 58
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Dot {
+ name Anchor_Dot_key_alpha1
+ tile_color 0x6f3399ff
+ label "key alpha"
+ note_font_size 33
+ xpos 484
+ ypos 201
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Read {
+ inputs 0
+ origset true
+ name plate2
+ xpos 237
+ ypos -108
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Copy {
+ inputs 2
+ from0 rgba.alpha
+ to0 rgba.alpha
+ name Copy3
+ xpos 237
+ ypos 187
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Premult {
+ name Premult3
+ xpos 237
+ ypos 256
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Dot {
+ name Anchor_Dot_key1
+ tile_color 0x6f3399ff
+ label key
+ note_font_size 66
+ xpos 271
+ ypos 380
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Merge2 {
+ inputs 2
+ name Merge4
+ xpos 237
+ ypos 845
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Dot {
+ name Anchor_Dot_plate_over_cg
+ tile_color 0x6f3399ff
+ label fg
+ note_font_size 111
+ xpos 271
+ ypos 1039
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Read {
+ inputs 0
+ origset true
+ name cg1
+ xpos 478
+ ypos -735
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Read {
+ inputs 0
+ origset true
+ name cg4
+ xpos 894
+ ypos -1177
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Cryptomatte {
+ pickerAdd {0 0 0 0 0 0 0 0}
+ name Cryptomatte1
+ xpos 894
+ ypos -1064
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Dot {
+ name Dot11
+ xpos 928
+ ypos -1013
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Read {
+ inputs 0
+ origset true
+ name cg
+ xpos 244
+ ypos -1504
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Unpremult {
+ name Unpremult1
+ xpos 244
+ ypos -1354
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+set N42af1110 [stack 0]
+Dot {
+ name Dot12
+ xpos 695
+ ypos -1346
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+add_layer {lpe_sun lpe_sun.red lpe_sun.green lpe_sun.blue lpe_sun.alpha}
+Shuffle2 {
+ fromInput1 {
+  {0}
+  B
+ }
+ in1 lpe_sun
+ fromInput2 {
+  {0}
+  B
+ }
+ mappings "4 lpe_sun.red 0 0 rgba.red 0 0 lpe_sun.green 0 1 rgba.green 0 1 lpe_sun.blue 0 2 rgba.blue 0 2 lpe_sun.alpha 0 3 rgba.alpha 0 3"
+ name Shuffle1
+ xpos 661
+ ypos -1249
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Grade {
+ inputs 1+1
+ name Grade1
+ xpos 661
+ ypos -1021
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Dot {
+ name Dot14
+ xpos 695
+ ypos -883
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Read {
+ inputs 0
+ origset true
+ name cg5
+ xpos 480
+ ypos -1185
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Cryptomatte {
+ pickerAdd {0 0 0 0 0 0 0 0}
+ name Cryptomatte2
+ xpos 480
+ ypos -1074
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Dot {
+ name Dot13
+ xpos 514
+ ypos -1022
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+push $N42af1110
+add_layer {lpe_sky lpe_sky.red lpe_sky.green lpe_sky.blue lpe_sky.alpha}
+Shuffle2 {
+ fromInput1 {
+  {0}
+  B
+ }
+ in1 lpe_sky
+ fromInput2 {
+  {0}
+  B
+ }
+ mappings "4 lpe_sky.red 0 0 rgba.red 0 0 lpe_sky.green 0 1 rgba.green 0 1 lpe_sky.blue 0 2 rgba.blue 0 2 lpe_sky.alpha 0 3 rgba.alpha 0 3"
+ name Shuffle2
+ xpos 244
+ ypos -1248
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Grade {
+ inputs 1+1
+ name Grade2
+ xpos 244
+ ypos -1030
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Merge2 {
+ inputs 2
+ operation plus
+ name Merge2
+ xpos 244
+ ypos -897
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Grade {
+ name Grade3
+ xpos 244
+ ypos -829
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Copy {
+ inputs 2
+ from0 rgba.alpha
+ to0 rgba.alpha
+ name Copy1
+ xpos 244
+ ypos -717
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Premult {
+ name Premult1
+ xpos 244
+ ypos -649
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Dot {
+ name Anchor_Dot_cg
+ tile_color 0x6f3399ff
+ label cg
+ note_font_size 111
+ xpos 278
+ ypos -429
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Read {
+ inputs 0
+ origset true
+ name plate
+ xpos -108
+ ypos -1665
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Merge2 {
+ inputs 2
+ name Merge1
+ xpos -108
+ ypos -443
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Merge2 {
+ inputs 2
+ name Merge3
+ xpos -108
+ ypos 1025
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Write {
+ in_colorspace scene_linear
+ out_colorspace scene_linear
+ ocioColorspace scene_linear
+ display default
+ view sRGB
+ name Write1
+ xpos -108
+ ypos 1310
+ addUserKnob {20 node_layout_tab l "Node Layout" +INVISIBLE}
+ addUserKnob {1 node_layout_state l "Node Layout State" +INVISIBLE}
+ node_layout_state "\{\"scheme\": \"normal\", \"mode\": \"vertical\", \"h_scale\": 1.5625, \"v_scale\": 1.5625, \"freeze_group\": null\}"
+}
+Roto {
+ inputs 0
+ output alpha
+ curves {{{v x3f99999a}
+  {f 0}
+  {n
+   {layer Root
+    {f 0}
+    {t x44800000 x44428000}
+    {a pt1x 0 pt1y 0 pt2x 0 pt2y 0 pt3x 0 pt3y 0 pt4x 0 pt4y 0 ptex00 0 ptex01 0 ptex02 0 ptex03 0 ptex10 0 ptex11 0 ptex12 0 ptex13 0 ptex20 0 ptex21 0 ptex22 0 ptex23 0 ptex30 0 ptex31 0 ptex32 0 ptex33 0 ptof1x 0 ptof1y 0 ptof2x 0 ptof2y 0 ptof3x 0 ptof3y 0 ptof4x 0 ptof4y 0 pterr 0 ptrefset 0 ptmot x40800000 ptref 0}}}}}
+ toolbox {createBezier {
+  { createBezier str 1 ssx 1 ssy 1 sf 1 sb 1 tt 4 }
+  { createBezierCusped str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createBSpline str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createEllipse str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createRectangle str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createRectangleCusped str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createOpenSpline str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { brush str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { eraser src 2 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { clone src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { reveal src 3 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { dodge src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { burn src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { blur src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { sharpen src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { smear src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+} }
+ toolbar_brush_hardness 0.200000003
+ toolbar_source_transform_scale {1 1}
+ toolbar_source_transform_center {1024 778}
+ name Roto2
+ xpos 2182
+ ypos 816
+}
+Dot {
+ name Anchor_Dot_core_alpha2
+ tile_color 0x6f3399ff
+ label "core alpha"
+ note_font_size 33
+ xpos 2216
+ ypos 908
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_Dot_core_alpha1
+ addUserKnob {1 anchors_dot_type +HIDDEN}
+ anchors_dot_type link
+}
+Read {
+ inputs 0
+ origset true
+ name plate7
+ xpos 1502
+ ypos -1694
+}
+Dot {
+ name Dot26
+ xpos 1536
+ ypos -1543
+}
+set N42d3ffb0 [stack 0]
+Dot {
+ name Dot27
+ xpos 2571
+ ypos -1543
+}
+Dot {
+ name Dot25
+ xpos 2571
+ ypos 445
+}
+Dot {
+ name Dot29
+ xpos 2080
+ ypos 445
+}
+set N42d53230 [stack 0]
+Copy {
+ inputs 2
+ from0 rgba.alpha
+ to0 rgba.alpha
+ name Copy4
+ xpos 2046
+ ypos 894
+}
+Premult {
+ name Premult4
+ xpos 2046
+ ypos 940
+}
+Dot {
+ name Anchor_Dot_core2
+ tile_color 0x6f3399ff
+ label core
+ note_font_size 66
+ xpos 2080
+ ypos 1008
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_Dot_core1
+ addUserKnob {1 anchors_dot_type +HIDDEN}
+ anchors_dot_type link
+}
+push $N42d53230
+Dot {
+ name Dot28
+ xpos 1895
+ ypos 445
+}
+set N42d7e550 [stack 0]
+IBKGizmoV3 {
+ name IBKGizmoV3_2
+ selected false
+ xpos 1861
+ ypos 574
+}
+Dot {
+ name Anchor_Dot_key_alpha2
+ tile_color 0x6f3399ff
+ label "key alpha"
+ note_font_size 33
+ xpos 1895
+ ypos 666
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_Dot_key_alpha1
+ addUserKnob {1 anchors_dot_type +HIDDEN}
+ anchors_dot_type link
+}
+push $N42d7e550
+Dot {
+ name Dot24
+ xpos 1757
+ ypos 445
+}
+Copy {
+ inputs 2
+ from0 rgba.alpha
+ to0 rgba.alpha
+ name Copy5
+ xpos 1723
+ ypos 652
+}
+Premult {
+ name Premult5
+ xpos 1723
+ ypos 698
+}
+Dot {
+ name Anchor_Dot_key2
+ tile_color 0x6f3399ff
+ label key
+ note_font_size 66
+ xpos 1757
+ ypos 774
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_Dot_key1
+ addUserKnob {1 anchors_dot_type +HIDDEN}
+ anchors_dot_type link
+}
+Merge2 {
+ inputs 2
+ name Merge5
+ xpos 1723
+ ypos 994
+}
+Dot {
+ name Anchor_Dot_cg1
+ tile_color 0x6f3399ff
+ label fg
+ note_font_size 111
+ xpos 1757
+ ypos 1123
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+Read {
+ inputs 0
+ origset true
+ name cg6
+ xpos 1728
+ ypos -719
+}
+Dot {
+ name Dot20
+ xpos 1762
+ ypos -533
+}
+set N42e767f0 [stack 0]
+Dot {
+ name Dot19
+ xpos 1912
+ ypos -533
+}
+set N42e7cd10 [stack 0]
+Dot {
+ name Dot21
+ xpos 2178
+ ypos -533
+}
+set N42e83430 [stack 0]
+Dot {
+ name Dot23
+ xpos 2295
+ ypos -533
+}
+Dot {
+ name Dot22
+ xpos 2295
+ ypos 18
+}
+push $N42e83430
+Cryptomatte {
+ pickerAdd {0 0 0 0 0 0 0 0}
+ name Cryptomatte3
+ xpos 2144
+ ypos -214
+}
+Dot {
+ name Dot10
+ xpos 2178
+ ypos -180
+}
+push $N42e767f0
+Unpremult {
+ name Unpremult2
+ xpos 1728
+ ypos -401
+}
+set N42eb2f10 [stack 0]
+Dot {
+ name Dot15
+ xpos 2028
+ ypos -393
+}
+Shuffle2 {
+ fromInput1 {
+  {0}
+  B
+ }
+ in1 lpe_sun
+ fromInput2 {
+  {0}
+  B
+ }
+ mappings "4 lpe_sun.red 0 0 rgba.red 0 0 lpe_sun.green 0 1 rgba.green 0 1 lpe_sun.blue 0 2 rgba.blue 0 2 lpe_sun.alpha 0 3 rgba.alpha 0 3"
+ name Shuffle3
+ xpos 1994
+ ypos -334
+}
+Grade {
+ inputs 1+1
+ name Grade4
+ xpos 1994
+ ypos -188
+}
+Dot {
+ name Dot16
+ xpos 2028
+ ypos -97
+}
+push $N42e7cd10
+Cryptomatte {
+ pickerAdd {0 0 0 0 0 0 0 0}
+ name Cryptomatte4
+ xpos 1878
+ ypos -220
+}
+Dot {
+ name Dot17
+ xpos 1912
+ ypos -186
+}
+push $N42eb2f10
+Shuffle2 {
+ fromInput1 {
+  {0}
+  B
+ }
+ in1 lpe_sky
+ fromInput2 {
+  {0}
+  B
+ }
+ mappings "4 lpe_sky.red 0 0 rgba.red 0 0 lpe_sky.green 0 1 rgba.green 0 1 lpe_sky.blue 0 2 rgba.blue 0 2 lpe_sky.alpha 0 3 rgba.alpha 0 3"
+ name Shuffle4
+ xpos 1728
+ ypos -333
+}
+Grade {
+ inputs 1+1
+ name Grade5
+ xpos 1728
+ ypos -194
+}
+Merge2 {
+ inputs 2
+ operation plus
+ name Merge6
+ xpos 1728
+ ypos -111
+}
+Grade {
+ name Grade6
+ xpos 1728
+ ypos -65
+}
+Copy {
+ inputs 2
+ from0 rgba.alpha
+ to0 rgba.alpha
+ name Copy6
+ xpos 1728
+ ypos 4
+}
+Premult {
+ name Premult6
+ xpos 1728
+ ypos 50
+}
+Dot {
+ name Dot18
+ label cg
+ note_font_size 111
+ xpos 1762
+ ypos 194
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+push $N42d3ffb0
+Merge2 {
+ inputs 2
+ name Merge7
+ xpos 1502
+ ypos 180
+}
+Merge2 {
+ inputs 2
+ name Merge8
+ xpos 1502
+ ypos 1109
+}
+Write {
+ in_colorspace scene_linear
+ out_colorspace scene_linear
+ ocioColorspace scene_linear
+ display default
+ view sRGB
+ name Write2
+ xpos 1502
+ ypos 1290
+}
+Roto {
+ inputs 0
+ output alpha
+ curves {{{v x3f99999a}
+  {f 0}
+  {n
+   {layer Root
+    {f 0}
+    {t x44800000 x44428000}
+    {a pt1x 0 pt1y 0 pt2x 0 pt2y 0 pt3x 0 pt3y 0 pt4x 0 pt4y 0 ptex00 0 ptex01 0 ptex02 0 ptex03 0 ptex10 0 ptex11 0 ptex12 0 ptex13 0 ptex20 0 ptex21 0 ptex22 0 ptex23 0 ptex30 0 ptex31 0 ptex32 0 ptex33 0 ptof1x 0 ptof1y 0 ptof2x 0 ptof2y 0 ptof3x 0 ptof3y 0 ptof4x 0 ptof4y 0 pterr 0 ptrefset 0 ptmot x40800000 ptref 0}}}}}
+ toolbox {createBezier {
+  { createBezier str 1 ssx 1 ssy 1 sf 1 sb 1 tt 4 }
+  { createBezierCusped str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createBSpline str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createEllipse str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createRectangle str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createRectangleCusped str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createOpenSpline str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { brush str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { eraser src 2 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { clone src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { reveal src 3 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { dodge src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { burn src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { blur src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { sharpen src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { smear src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+} }
+ toolbar_brush_hardness 0.200000003
+ toolbar_source_transform_scale {1 1}
+ toolbar_source_transform_center {1024 778}
+ name Roto3
+ xpos 4003
+ ypos 843
+}
+Dot {
+ name Anchor_Dot_core_alpha
+ tile_color 0x6f3399ff
+ label "core alpha"
+ note_font_size 33
+ xpos 4037
+ ypos 935
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+Read {
+ inputs 0
+ origset true
+ name plate8
+ xpos 3394
+ ypos -1225
+}
+NoOp {
+ name Anchor_plate
+ tile_color 0xad870000
+ label plate
+ xpos 3394
+ ypos -1126
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_child_links l "Reconnect Child Links" -STARTLINE T "import anchor\nanchor.reconnect_anchor_node(nuke.thisNode())"}
+ addUserKnob {22 anchors_rename_anchor l Rename -STARTLINE T "import anchor\nanchor.rename_anchor(nuke.thisNode())"}
+ addUserKnob {22 anchors_set_anchor_color l "Set Color" -STARTLINE T "import anchor\nanchor.set_anchor_color(nuke.thisNode())"}
+}
+set N4308dae0 [stack 0]
+NoOp {
+ name NoOp7
+ tile_color 0xad870000
+ label "Link: plate"
+ xpos 3867
+ ypos 799
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_plate
+}
+Copy {
+ inputs 2
+ from0 rgba.alpha
+ to0 rgba.alpha
+ name Copy7
+ xpos 3867
+ ypos 921
+}
+Premult {
+ name Premult7
+ xpos 3867
+ ypos 967
+}
+Dot {
+ name Anchor_Dot_core
+ tile_color 0x6f3399ff
+ label core
+ note_font_size 66
+ xpos 3901
+ ypos 1078
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+push $N4308dae0
+NoOp {
+ name NoOp6
+ tile_color 0xad870000
+ label "Link: plate"
+ xpos 3753
+ ypos 388
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_plate
+}
+IBKGizmoV3 {
+ name IBKGizmoV3_3
+ selected false
+ xpos 3753
+ ypos 499
+}
+Dot {
+ name Anchor_Dot_key_alpha
+ tile_color 0x6f3399ff
+ label "key alpha"
+ note_font_size 33
+ xpos 3785
+ ypos 591
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+push $N4308dae0
+NoOp {
+ name NoOp5
+ tile_color 0xad870000
+ label "Link: plate"
+ xpos 3615
+ ypos 386
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_plate
+}
+Copy {
+ inputs 2
+ from0 rgba.alpha
+ to0 rgba.alpha
+ name Copy8
+ xpos 3615
+ ypos 577
+}
+Premult {
+ name Premult8
+ xpos 3615
+ ypos 623
+}
+Dot {
+ name Anchor_Dot_key
+ tile_color 0x6f3399ff
+ label key
+ note_font_size 66
+ xpos 3649
+ ypos 699
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+Merge2 {
+ inputs 2
+ name Merge9
+ xpos 3615
+ ypos 1064
+}
+Dot {
+ name Anchor_Dot_plate_over_cg1
+ tile_color 0x6f3399ff
+ label fg
+ note_font_size 111
+ xpos 3649
+ ypos 1193
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+Read {
+ inputs 0
+ origset true
+ name cg7
+ xpos 3620
+ ypos -1222
+}
+NoOp {
+ name Anchor_cg
+ tile_color 0x55bfffff
+ label cg
+ xpos 3620
+ ypos -1126
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_child_links l "Reconnect Child Links" -STARTLINE T "import anchor\nanchor.reconnect_anchor_node(nuke.thisNode())"}
+ addUserKnob {22 anchors_rename_anchor l Rename -STARTLINE T "import anchor\nanchor.rename_anchor(nuke.thisNode())"}
+ addUserKnob {22 anchors_set_anchor_color l "Set Color" -STARTLINE T "import anchor\nanchor.set_anchor_color(nuke.thisNode())"}
+}
+set N431bc7e0 [stack 0]
+NoOp {
+ name NoOp4
+ tile_color 0x55bfffff
+ label "Link: cg"
+ xpos 3802
+ ypos 4
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_cg
+}
+push $N431bc7e0
+NoOp {
+ name NoOp3
+ tile_color 0x55bfffff
+ label "Link: cg"
+ xpos 4036
+ ypos -281
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_cg
+}
+Cryptomatte {
+ pickerAdd {0 0 0 0 0 0 0 0}
+ name Cryptomatte5
+ xpos 4036
+ ypos -220
+}
+Dot {
+ name Dot34
+ xpos 4070
+ ypos -186
+}
+push $N431bc7e0
+NoOp {
+ name NoOp1
+ tile_color 0x55bfffff
+ label "Link: cg"
+ xpos 3620
+ ypos -546
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_cg
+}
+Unpremult {
+ name Unpremult3
+ xpos 3620
+ ypos -497
+}
+Dot {
+ name Anchor_Dot_cg_unpremult
+ tile_color 0x6f3399ff
+ label "cg unpremult"
+ note_font_size 33
+ xpos 3654
+ ypos -430
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+set N432000f0 [stack 0]
+Dot {
+ name Dot4
+ tile_color 0x6f3399ff
+ label "Link: cg unpremult"
+ note_font_size 33
+ xpos 3920
+ ypos -430
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_Dot_cg_unpremult
+}
+Shuffle2 {
+ fromInput1 {
+  {0}
+  B
+ }
+ in1 lpe_sun
+ fromInput2 {
+  {0}
+  B
+ }
+ mappings "4 lpe_sun.red 0 0 rgba.red 0 0 lpe_sun.green 0 1 rgba.green 0 1 lpe_sun.blue 0 2 rgba.blue 0 2 lpe_sun.alpha 0 3 rgba.alpha 0 3"
+ name Shuffle5
+ xpos 3886
+ ypos -340
+}
+Grade {
+ inputs 1+1
+ name Grade7
+ xpos 3886
+ ypos -194
+}
+Dot {
+ name Dot36
+ xpos 3920
+ ypos -103
+}
+push $N431bc7e0
+NoOp {
+ name NoOp2
+ tile_color 0x55bfffff
+ label "Link: cg"
+ xpos 3770
+ ypos -290
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_cg
+}
+Cryptomatte {
+ pickerAdd {0 0 0 0 0 0 0 0}
+ name Cryptomatte6
+ xpos 3770
+ ypos -226
+}
+Dot {
+ name Dot37
+ xpos 3804
+ ypos -192
+}
+push $N432000f0
+Shuffle2 {
+ fromInput1 {
+  {0}
+  B
+ }
+ in1 lpe_sky
+ fromInput2 {
+  {0}
+  B
+ }
+ mappings "4 lpe_sky.red 0 0 rgba.red 0 0 lpe_sky.green 0 1 rgba.green 0 1 lpe_sky.blue 0 2 rgba.blue 0 2 lpe_sky.alpha 0 3 rgba.alpha 0 3"
+ name Shuffle6
+ xpos 3620
+ ypos -339
+}
+Grade {
+ inputs 1+1
+ name Grade8
+ xpos 3620
+ ypos -200
+}
+Merge2 {
+ inputs 2
+ operation plus
+ name Merge10
+ xpos 3620
+ ypos -117
+}
+Grade {
+ name Grade9
+ xpos 3620
+ ypos -71
+}
+Copy {
+ inputs 2
+ from0 rgba.alpha
+ to0 rgba.alpha
+ name Copy9
+ xpos 3620
+ ypos -2
+}
+Premult {
+ name Premult9
+ xpos 3620
+ ypos 44
+}
+Dot {
+ name Anchor_Dot_cg2
+ tile_color 0x6f3399ff
+ label cg
+ note_font_size 111
+ xpos 3654
+ ypos 188
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+push $N4308dae0
+NoOp {
+ name NoOp8
+ tile_color 0xad870000
+ label "Link: plate"
+ xpos 3394
+ ypos -851
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_plate
+}
+Merge2 {
+ inputs 2
+ name Merge11
+ xpos 3394
+ ypos 174
+}
+Merge2 {
+ inputs 2
+ name Merge12
+ xpos 3394
+ ypos 1179
+}
+Write {
+ in_colorspace scene_linear
+ out_colorspace scene_linear
+ ocioColorspace scene_linear
+ display default
+ view sRGB
+ name Write3
+ xpos 3394
+ ypos 1339
+}

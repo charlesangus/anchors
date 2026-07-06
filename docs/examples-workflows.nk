@@ -1,0 +1,1599 @@
+#! /usr/local/Nuke16.0v6/libnuke-16.0.6.so -nx
+#write_info Write3 file:"" format:"2048 1556 1" chans:":rgba.red:rgba.green:rgba.blue:" framerange:"1 100" fps:"0" colorspace:"default" datatype:"unknown" transfer:"unknown" views:"main" colorManagement:"Nuke"
+version 16.0 v6
+define_window_layout_xml {<?xml version="1.0" encoding="UTF-8"?>
+<layout version="1.0">
+    <window x="0" y="0" w="1919" h="1052" screen="0">
+        <splitter orientation="1">
+            <split size="40"/>
+            <dock id="" hideTitles="1" activePageId="Toolbar.1">
+                <page id="Toolbar.1"/>
+            </dock>
+            <split size="1256" stretch="1"/>
+            <splitter orientation="2">
+                <split size="593"/>
+                <dock id="" activePageId="Viewer.1">
+                    <page id="Viewer.1"/>
+                </dock>
+                <split size="417"/>
+                <dock id="" activePageId="DAG.1" focus="true">
+                    <page id="DAG.1"/>
+                    <page id="Curve Editor.1"/>
+                    <page id="DopeSheet.1"/>
+                </dock>
+            </splitter>
+            <split size="615"/>
+            <dock id="" activePageId="Properties.1">
+                <page id="Properties.1"/>
+                <page id="Scenegraph.1"/>
+                <page id="uk.co.thefoundry.scripteditor.1"/>
+                <page id="com.nukediff.MergePanel"/>
+            </dock>
+        </splitter>
+    </window>
+</layout>
+}
+Root {
+ inputs 0
+ name docs/examples-workflows.nk
+ format "2048 1556 0 0 2048 1556 1 2K_Super_35(full-ap)"
+ proxy_type scale
+ proxy_format "1024 778 0 0 1024 778 1 1K_Super_35(full-ap)"
+ colorManagement Nuke
+ workingSpaceLUT linear
+ monitorLut sRGB
+ monitorOutLUT rec709
+ int8Lut sRGB
+ int16Lut sRGB
+ logLut Cineon
+ floatLut linear
+}
+BackdropNode {
+ inputs 0
+ name BackdropNode1
+ tile_color 0xad8700ff
+ label plates
+ note_font_size 33
+ xpos 3377
+ ypos -2598
+ appearance Border
+ bdwidth 432
+ bdheight 288
+}
+BackdropNode {
+ inputs 0
+ name BackdropNode10
+ tile_color 0xadadadff
+ label "screenshot: easy-expansion"
+ note_font_size 33
+ xpos 6845
+ ypos -190
+ appearance Border
+ bdwidth 1340
+ bdheight 1364
+}
+BackdropNode {
+ inputs 0
+ name BackdropNode11
+ tile_color 0xadadadff
+ label "screenshot: easy-reuse"
+ note_font_size 33
+ xpos 8716
+ ypos -180
+ appearance Border
+ bdwidth 1325
+ bdheight 1345
+}
+BackdropNode {
+ inputs 0
+ name BackdropNode12
+ tile_color 0xadadadff
+ label "screenshot: jump-to-source"
+ note_font_size 33
+ xpos 3828
+ ypos -2650
+ appearance Border
+ bdwidth 338
+ bdheight 373
+}
+BackdropNode {
+ inputs 0
+ name BackdropNode14
+ tile_color 0xadadadff
+ label "screenshot: anchor"
+ note_font_size 33
+ xpos 7290
+ ypos -1468
+ appearance Border
+ bdwidth 338
+ bdheight 373
+}
+BackdropNode {
+ inputs 0
+ name BackdropNode15
+ tile_color 0xadadadff
+ label "screenshot: dot-anchors"
+ note_font_size 33
+ xpos 3537
+ ypos 772
+ appearance Border
+ bdwidth 751
+ bdheight 524
+}
+BackdropNode {
+ inputs 0
+ name BackdropNode2
+ tile_color 0x55bfffff
+ label cg
+ note_font_size 33
+ xpos 3855
+ ypos -2597
+ appearance Border
+ bdwidth 512
+ bdheight 295
+}
+BackdropNode {
+ inputs 0
+ name BackdropNode4
+ tile_color 0x6413ff
+ label cam
+ note_font_size 33
+ xpos 3368
+ ypos -2253
+ appearance Border
+ bdwidth 495
+ bdheight 293
+}
+BackdropNode {
+ inputs 0
+ name BackdropNode5
+ tile_color 0x6413ff
+ label geo
+ note_font_size 33
+ xpos 3911
+ ypos -2251
+ appearance Border
+ bdwidth 495
+ bdheight 293
+}
+BackdropNode {
+ inputs 0
+ name BackdropNode6
+ tile_color 0x55bfffff
+ label dmp
+ note_font_size 33
+ xpos 4412
+ ypos -2594
+ appearance Border
+ bdwidth 495
+ bdheight 293
+}
+BackdropNode {
+ inputs 0
+ name BackdropNode7
+ tile_color 0xadadadff
+ label "screenshot: input-block"
+ note_font_size 33
+ xpos 3271
+ ypos -2769
+ appearance Border
+ bdwidth 1796
+ bdheight 915
+}
+BackdropNode {
+ inputs 0
+ name BackdropNode8
+ tile_color 0xadadadff
+ label "screenshot: jump-target"
+ note_font_size 33
+ xpos 3799
+ ypos -1577
+ appearance Border
+ bdwidth 676
+ bdheight 704
+}
+BackdropNode {
+ inputs 0
+ name BackdropNode9
+ tile_color 0xadadadff
+ label "screenshot: example-script"
+ note_font_size 33
+ xpos 2971
+ ypos -3049
+ appearance Border
+ bdwidth 2450
+ bdheight 4795
+}
+Read {
+ inputs 0
+ origset true
+ name plate1
+ xpos 3655
+ ypos -2508
+}
+NoOp {
+ name Anchor_plates_bg
+ tile_color 0xeec42fff
+ label plates_bg
+ xpos 3655
+ ypos -2408
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_child_links l "Reconnect Child Links" -STARTLINE T "import anchor\nanchor.reconnect_anchor_node(nuke.thisNode())"}
+ addUserKnob {22 anchors_rename_anchor l Rename -STARTLINE T "import anchor\nanchor.rename_anchor(nuke.thisNode())"}
+ addUserKnob {22 anchors_set_anchor_color l "Set Color" -STARTLINE T "import anchor\nanchor.set_anchor_color(nuke.thisNode())"}
+}
+Read {
+ inputs 0
+ origset true
+ name cg1
+ xpos 4202
+ ypos -2520
+}
+NoOp {
+ name Anchor_cg_fx
+ tile_color 0x8ee4ff
+ label cg_fx
+ xpos 4202
+ ypos -2423
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_child_links l "Reconnect Child Links" -STARTLINE T "import anchor\nanchor.reconnect_anchor_node(nuke.thisNode())"}
+ addUserKnob {22 anchors_rename_anchor l Rename -STARTLINE T "import anchor\nanchor.rename_anchor(nuke.thisNode())"}
+ addUserKnob {22 anchors_set_anchor_color l "Set Color" -STARTLINE T "import anchor\nanchor.set_anchor_color(nuke.thisNode())"}
+}
+Roto {
+ inputs 0
+ output alpha
+ curves {{{v x3f99999a}
+  {f 0}
+  {n
+   {layer Root
+    {f 0}
+    {t x44800000 x44428000}
+    {a pt1x 0 pt1y 0 pt2x 0 pt2y 0 pt3x 0 pt3y 0 pt4x 0 pt4y 0 ptex00 0 ptex01 0 ptex02 0 ptex03 0 ptex10 0 ptex11 0 ptex12 0 ptex13 0 ptex20 0 ptex21 0 ptex22 0 ptex23 0 ptex30 0 ptex31 0 ptex32 0 ptex33 0 ptof1x 0 ptof1y 0 ptof2x 0 ptof2y 0 ptof3x 0 ptof3y 0 ptof4x 0 ptof4y 0 pterr 0 ptrefset 0 ptmot x40800000 ptref 0}}}}}
+ toolbox {createBezier {
+  { createBezier str 1 ssx 1 ssy 1 sf 1 sb 1 tt 4 }
+  { createBezierCusped str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createBSpline str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createEllipse str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createRectangle str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createRectangleCusped str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createOpenSpline str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { brush str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { eraser src 2 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { clone src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { reveal src 3 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { dodge src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { burn src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { blur src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { sharpen src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { smear src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+} }
+ toolbar_brush_hardness 0.200000003
+ toolbar_source_transform_scale {1 1}
+ toolbar_source_transform_center {1024 778}
+ name Roto3
+ xpos 4003
+ ypos 840
+}
+Dot {
+ name Anchor_Dot_core_alpha
+ tile_color 0x6f3399ff
+ label "core alpha"
+ note_font_size 33
+ xpos 4037
+ ypos 935
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+Read {
+ inputs 0
+ origset true
+ name plate8
+ xpos 3473
+ ypos -2508
+}
+NoOp {
+ name Anchor_plates_fg
+ tile_color 0xeec42fff
+ label plates_fg
+ xpos 3473
+ ypos -2410
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_child_links l "Reconnect Child Links" -STARTLINE T "import anchor\nanchor.reconnect_anchor_node(nuke.thisNode())"}
+ addUserKnob {22 anchors_rename_anchor l Rename -STARTLINE T "import anchor\nanchor.rename_anchor(nuke.thisNode())"}
+ addUserKnob {22 anchors_set_anchor_color l "Set Color" -STARTLINE T "import anchor\nanchor.set_anchor_color(nuke.thisNode())"}
+}
+set N21801200 [stack 0]
+NoOp {
+ name NoOp7
+ tile_color 0xeec42fff
+ label "Link: plates_fg"
+ xpos 3867
+ ypos 715
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_plates_fg
+}
+Copy {
+ inputs 2
+ from0 rgba.alpha
+ to0 rgba.alpha
+ name Copy7
+ xpos 3867
+ ypos 921
+}
+Premult {
+ name Premult7
+ xpos 3867
+ ypos 967
+}
+Dot {
+ name Anchor_Dot_core
+ tile_color 0x6f3399ff
+ label core
+ note_font_size 66
+ xpos 3901
+ ypos 1078
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+push $N21801200
+NoOp {
+ name NoOp6
+ tile_color 0xeec42fff
+ label "Link: plates_fg"
+ xpos 3753
+ ypos 388
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_plates_fg
+}
+IBKGizmoV3 {
+ name IBKGizmoV3_3
+ selected false
+ xpos 3753
+ ypos 499
+}
+Dot {
+ name Anchor_Dot_key_alpha
+ tile_color 0x6f3399ff
+ label "key alpha"
+ note_font_size 33
+ xpos 3785
+ ypos 591
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+push $N21801200
+NoOp {
+ name NoOp5
+ tile_color 0xeec42fff
+ label "Link: plates_fg"
+ xpos 3615
+ ypos 386
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_plates_fg
+}
+Copy {
+ inputs 2
+ from0 rgba.alpha
+ to0 rgba.alpha
+ name Copy8
+ xpos 3615
+ ypos 577
+}
+Premult {
+ name Premult8
+ xpos 3615
+ ypos 623
+}
+Dot {
+ name Anchor_Dot_key
+ tile_color 0x6f3399ff
+ label key
+ note_font_size 66
+ xpos 3649
+ ypos 699
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+Merge2 {
+ inputs 2
+ name Merge9
+ xpos 3615
+ ypos 1064
+}
+Dot {
+ name Anchor_Dot_plate_over_cg1
+ tile_color 0x6f3399ff
+ label fg
+ note_font_size 111
+ xpos 3649
+ ypos 1193
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+Read {
+ inputs 0
+ origset true
+ name cg7
+ xpos 3974
+ ypos -2519
+}
+NoOp {
+ name Anchor_cg_env
+ tile_color 0x8ee4ff
+ label cg_env
+ xpos 3974
+ ypos -2418
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_child_links l "Reconnect Child Links" -STARTLINE T "import anchor\nanchor.reconnect_anchor_node(nuke.thisNode())"}
+ addUserKnob {22 anchors_rename_anchor l Rename -STARTLINE T "import anchor\nanchor.rename_anchor(nuke.thisNode())"}
+ addUserKnob {22 anchors_set_anchor_color l "Set Color" -STARTLINE T "import anchor\nanchor.set_anchor_color(nuke.thisNode())"}
+}
+set N21ca0570 [stack 0]
+NoOp {
+ name NoOp4
+ tile_color 0x8ee4ff
+ label "Link: cg_env"
+ xpos 3802
+ ypos -89
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_cg_env
+}
+push $N21ca0570
+NoOp {
+ name NoOp3
+ tile_color 0x8ee4ff
+ label "Link: cg_env"
+ xpos 4036
+ ypos -374
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_cg_env
+}
+Cryptomatte {
+ pickerAdd {0 0 0 0 0 0 0 0}
+ name Cryptomatte5
+ xpos 4036
+ ypos -313
+}
+Dot {
+ name Dot34
+ xpos 4070
+ ypos -279
+}
+push $N21ca0570
+NoOp {
+ name NoOp1
+ tile_color 0x8ee4ff
+ label "Link: cg_env"
+ xpos 3620
+ ypos -639
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_cg_env
+}
+Unpremult {
+ name Unpremult3
+ xpos 3620
+ ypos -590
+}
+Dot {
+ name Anchor_Dot_cg_unpremult
+ tile_color 0x6f3399ff
+ label "cg unpremult"
+ note_font_size 33
+ xpos 3654
+ ypos -523
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+set N219816b0 [stack 0]
+Dot {
+ name Dot4
+ tile_color 0x6f3399ff
+ label "Link: cg unpremult"
+ note_font_size 33
+ xpos 3920
+ ypos -523
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_Dot_cg_unpremult
+}
+add_layer {lpe_sun lpe_sun.red lpe_sun.green lpe_sun.blue lpe_sun.alpha}
+Shuffle2 {
+ fromInput1 {
+  {0}
+  B
+ }
+ in1 lpe_sun
+ fromInput2 {
+  {0}
+  B
+ }
+ mappings "4 lpe_sun.red 0 0 rgba.red 0 0 lpe_sun.green 0 1 rgba.green 0 1 lpe_sun.blue 0 2 rgba.blue 0 2 lpe_sun.alpha 0 3 rgba.alpha 0 3"
+ name Shuffle5
+ xpos 3886
+ ypos -433
+}
+Grade {
+ inputs 1+1
+ name Grade7
+ xpos 3886
+ ypos -287
+}
+Dot {
+ name Dot36
+ xpos 3920
+ ypos -196
+}
+push $N21ca0570
+NoOp {
+ name NoOp2
+ tile_color 0x8ee4ff
+ label "Link: cg_env"
+ xpos 3770
+ ypos -383
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_cg_env
+}
+Cryptomatte {
+ pickerAdd {0 0 0 0 0 0 0 0}
+ name Cryptomatte6
+ xpos 3770
+ ypos -319
+}
+Dot {
+ name Dot37
+ xpos 3804
+ ypos -285
+}
+push $N219816b0
+add_layer {lpe_sky lpe_sky.red lpe_sky.green lpe_sky.blue lpe_sky.alpha}
+Shuffle2 {
+ fromInput1 {
+  {0}
+  B
+ }
+ in1 lpe_sky
+ fromInput2 {
+  {0}
+  B
+ }
+ mappings "4 lpe_sky.red 0 0 rgba.red 0 0 lpe_sky.green 0 1 rgba.green 0 1 lpe_sky.blue 0 2 rgba.blue 0 2 lpe_sky.alpha 0 3 rgba.alpha 0 3"
+ name Shuffle6
+ xpos 3620
+ ypos -432
+}
+Grade {
+ inputs 1+1
+ name Grade8
+ xpos 3620
+ ypos -293
+}
+Merge2 {
+ inputs 2
+ operation plus
+ name Merge10
+ xpos 3620
+ ypos -210
+}
+Grade {
+ name Grade9
+ xpos 3620
+ ypos -164
+}
+Copy {
+ inputs 2
+ from0 rgba.alpha
+ to0 rgba.alpha
+ name Copy9
+ xpos 3620
+ ypos -95
+}
+Premult {
+ name Premult9
+ xpos 3620
+ ypos -49
+}
+Dot {
+ name Anchor_Dot_cg2
+ tile_color 0x6f3399ff
+ label cg
+ note_font_size 111
+ xpos 3654
+ ypos 95
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+Camera3 {
+ inputs 0
+ name Camera1
+ xpos 3506
+ ypos -2153
+}
+NoOp {
+ name Anchor_cam_main
+ tile_color 0x10c432ff
+ label cam_main
+ xpos 3496
+ ypos -2087
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_child_links l "Reconnect Child Links" -STARTLINE T "import anchor\nanchor.reconnect_anchor_node(nuke.thisNode())"}
+ addUserKnob {22 anchors_rename_anchor l Rename -STARTLINE T "import anchor\nanchor.rename_anchor(nuke.thisNode())"}
+ addUserKnob {22 anchors_set_anchor_color l "Set Color" -STARTLINE T "import anchor\nanchor.set_anchor_color(nuke.thisNode())"}
+}
+set N228d9cf0 [stack 0]
+NoOp {
+ name NoOp9
+ tile_color 0x10c432ff
+ label "Link: cam_main"
+ xpos 4026
+ ypos -1172
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_cam_main
+}
+Camera3 {
+ inputs 0
+ name Camera2
+ xpos 3694
+ ypos -2156
+}
+NoOp {
+ name Anchor_cam_projection
+ tile_color 0x10c432ff
+ label cam_projection
+ xpos 3684
+ ypos -2076
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_child_links l "Reconnect Child Links" -STARTLINE T "import anchor\nanchor.reconnect_anchor_node(nuke.thisNode())"}
+ addUserKnob {22 anchors_rename_anchor l Rename -STARTLINE T "import anchor\nanchor.rename_anchor(nuke.thisNode())"}
+ addUserKnob {22 anchors_set_anchor_color l "Set Color" -STARTLINE T "import anchor\nanchor.set_anchor_color(nuke.thisNode())"}
+}
+NoOp {
+ name NoOp12
+ tile_color 0x10c432ff
+ label "Link: cam_projection"
+ xpos 4193
+ ypos -1405
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_cam_projection
+}
+Read {
+ inputs 0
+ origset true
+ name cg2
+ xpos 4533
+ ypos -2520
+}
+NoOp {
+ name Anchor_dmp_bg
+ tile_color 0x8ee4ff
+ label dmp_bg
+ xpos 4533
+ ypos -2419
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_child_links l "Reconnect Child Links" -STARTLINE T "import anchor\nanchor.reconnect_anchor_node(nuke.thisNode())"}
+ addUserKnob {22 anchors_rename_anchor l Rename -STARTLINE T "import anchor\nanchor.rename_anchor(nuke.thisNode())"}
+ addUserKnob {22 anchors_set_anchor_color l "Set Color" -STARTLINE T "import anchor\nanchor.set_anchor_color(nuke.thisNode())"}
+}
+NoOp {
+ name NoOp11
+ tile_color 0x8ee4ff
+ label "Link: dmp_bg"
+ xpos 4040
+ ypos -1410
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_dmp_bg
+}
+Project3D2 {
+ inputs 2
+ name Project3D1
+ xpos 4040
+ ypos -1320
+}
+ReadGeo2 {
+ inputs 0
+ name ReadGeo1
+ xpos 3999
+ ypos -2155
+}
+NoOp {
+ name Anchor_geo_projection
+ tile_color 0x10c432ff
+ label geo_projection
+ xpos 3999
+ ypos -2086
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_child_links l "Reconnect Child Links" -STARTLINE T "import anchor\nanchor.reconnect_anchor_node(nuke.thisNode())"}
+ addUserKnob {22 anchors_rename_anchor l Rename -STARTLINE T "import anchor\nanchor.rename_anchor(nuke.thisNode())"}
+ addUserKnob {22 anchors_set_anchor_color l "Set Color" -STARTLINE T "import anchor\nanchor.set_anchor_color(nuke.thisNode())"}
+}
+NoOp {
+ name NoOp10
+ tile_color 0x10c432ff
+ label "Link: geo_projection"
+ xpos 3889
+ ypos -1413
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_geo_projection
+}
+ApplyMaterial {
+ inputs 2
+ name ApplyMaterial1
+ xpos 3889
+ ypos -1272
+}
+push 0
+ScanlineRender {
+ inputs 3
+ conservative_shader_sampling false
+ motion_vectors_type distance
+ name ScanlineRender1
+ xpos 3889
+ ypos -1167
+}
+Dot {
+ name Anchor_Dot_dmp_bg
+ tile_color 0x6f3399ff
+ label "dmp bg"
+ note_font_size 111
+ xpos 3923
+ ypos -1036
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+push $N21801200
+NoOp {
+ name NoOp8
+ tile_color 0xeec42fff
+ label "Link: plates_fg"
+ xpos 3394
+ ypos -1641
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_plates_fg
+}
+Merge2 {
+ inputs 2
+ name Merge1
+ xpos 3394
+ ypos -1050
+}
+Merge2 {
+ inputs 2
+ name Merge11
+ xpos 3394
+ ypos 81
+}
+Merge2 {
+ inputs 2
+ name Merge12
+ xpos 3394
+ ypos 1179
+}
+Write {
+ ocioColorspace scene_linear
+ display default
+ view sRGB
+ name Write3
+ xpos 3394
+ ypos 1441
+}
+Roto {
+ inputs 0
+ output alpha
+ curves {{{v x3f99999a}
+  {f 0}
+  {n
+   {layer Root
+    {f 0}
+    {t x44800000 x44428000}
+    {a pt1x 0 pt1y 0 pt2x 0 pt2y 0 pt3x 0 pt3y 0 pt4x 0 pt4y 0 ptex00 0 ptex01 0 ptex02 0 ptex03 0 ptex10 0 ptex11 0 ptex12 0 ptex13 0 ptex20 0 ptex21 0 ptex22 0 ptex23 0 ptex30 0 ptex31 0 ptex32 0 ptex33 0 ptof1x 0 ptof1y 0 ptof2x 0 ptof2y 0 ptof3x 0 ptof3y 0 ptof4x 0 ptof4y 0 pterr 0 ptrefset 0 ptmot x40800000 ptref 0}}}}}
+ toolbox {createBezier {
+  { createBezier str 1 ssx 1 ssy 1 sf 1 sb 1 tt 4 }
+  { createBezierCusped str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createBSpline str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createEllipse str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createRectangle str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createRectangleCusped str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createOpenSpline str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { brush str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { eraser src 2 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { clone src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { reveal src 3 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { dodge src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { burn src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { blur src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { sharpen src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { smear src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+} }
+ toolbar_brush_hardness 0.200000003
+ toolbar_source_transform_scale {1 1}
+ toolbar_source_transform_center {1024 778}
+ name Roto1
+ xpos 7308
+ ypos 651
+}
+Dot {
+ name Anchor_Dot_core_alpha1
+ tile_color 0x6f3399ff
+ label "core alpha"
+ note_font_size 33
+ xpos 7342
+ ypos 746
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+push $N21801200
+NoOp {
+ name NoOp13
+ tile_color 0xeec42fff
+ label "Link: plates_fg"
+ xpos 7172
+ ypos 610
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_plates_fg
+}
+Copy {
+ inputs 2
+ from0 rgba.alpha
+ to0 rgba.alpha
+ name Copy1
+ xpos 7172
+ ypos 732
+}
+Premult {
+ name Premult1
+ xpos 7172
+ ypos 778
+}
+Dot {
+ name Anchor_Dot_core1
+ tile_color 0x6f3399ff
+ label core
+ note_font_size 66
+ xpos 7206
+ ypos 889
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+push $N228d9cf0
+NoOp {
+ name NoOp18
+ tile_color 0x10c432ff
+ label "Link: cam_main"
+ xpos 7488
+ ypos 231
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_cam_main
+}
+push $N228d9cf0
+NoOp {
+ name NoOp16
+ tile_color 0x10c432ff
+ label "Link: cam_main"
+ xpos 7531
+ ypos 16
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_cam_main
+}
+FrameHold {
+ firstFrame 1
+ name FrameHold1
+ xpos 7531
+ ypos 50
+}
+push $N21801200
+NoOp {
+ name NoOp17
+ tile_color 0xeec42fff
+ label "Link: plates_fg"
+ xpos 7369
+ ypos -27
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_plates_fg
+}
+RotoPaint {
+ curves {{{v x3f99999a}
+  {f 0}
+  {n
+   {layer Root
+    {f 0}
+    {t x44800000 x44428000}
+    {a pt1x 0 pt1y 0 pt2x 0 pt2y 0 pt3x 0 pt3y 0 pt4x 0 pt4y 0 ptex00 0 ptex01 0 ptex02 0 ptex03 0 ptex10 0 ptex11 0 ptex12 0 ptex13 0 ptex20 0 ptex21 0 ptex22 0 ptex23 0 ptex30 0 ptex31 0 ptex32 0 ptex33 0 ptof1x 0 ptof1y 0 ptof2x 0 ptof2y 0 ptof3x 0 ptof3y 0 ptof4x 0 ptof4y 0 pterr 0 ptrefset 0 ptmot x40800000 ptref 0}}}}}
+ toolbox {selectAll {
+  { selectAll str 1 ssx 1 ssy 1 sf 1 }
+  { createBezier str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createBezierCusped str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createBSpline str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createEllipse str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createRectangle str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createRectangleCusped str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createOpenSpline str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { brush str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { eraser src 2 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { clone src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { reveal src 3 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { dodge src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { burn src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { blur src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { sharpen src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { smear src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+} }
+ toolbar_source_transform_center {1024 778}
+ name RotoPaint1
+ xpos 7369
+ ypos 7
+}
+FrameHold {
+ firstFrame 1
+ name FrameHold2
+ xpos 7369
+ ypos 53
+}
+Project3D2 {
+ inputs 2
+ name Project3D2
+ xpos 7369
+ ypos 95
+}
+Card2 {
+ control_points {3 3 3 6 
+
+1 {-0.5 -0.5 0} 0 {0.1666666865 0 0} 0 {0 0 0} 0 {0 0.1666666865 0} 0 {0 0 0} 0 {0 0 0} 
+1 {0 -0.5 0} 0 {0.1666666716 0 0} 0 {-0.1666666716 0 0} 0 {0 0.1666666865 0} 0 {0 0 0} 0 {0.5 0 0} 
+1 {0.5 -0.5 0} 0 {0 0 0} 0 {-0.1666666865 0 0} 0 {0 0.1666666865 0} 0 {0 0 0} 0 {1 0 0} 
+1 {-0.5 0 0} 0 {0.1666666865 0 0} 0 {0 0 0} 0 {0 0.1666666716 0} 0 {0 -0.1666666716 0} 0 {0 0.5 0} 
+1 {0 0 0} 0 {0.1666666716 0 0} 0 {-0.1666666716 0 0} 0 {0 0.1666666716 0} 0 {0 -0.1666666716 0} 0 {0.5 0.5 0} 
+1 {0.5 0 0} 0 {0 0 0} 0 {-0.1666666865 0 0} 0 {0 0.1666666716 0} 0 {0 -0.1666666716 0} 0 {1 0.5 0} 
+1 {-0.5 0.5 0} 0 {0.1666666865 0 0} 0 {0 0 0} 0 {0 0 0} 0 {0 -0.1666666865 0} 0 {0 1 0} 
+1 {0 0.5 0} 0 {0.1666666716 0 0} 0 {-0.1666666716 0 0} 0 {0 0 0} 0 {0 -0.1666666865 0} 0 {0.5 1 0} 
+1 {0.5 0.5 0} 0 {0 0 0} 0 {-0.1666666865 0 0} 0 {0 0 0} 0 {0 -0.1666666865 0} 0 {1 1 0} }
+ name Card1
+ xpos 7369
+ ypos 149
+}
+push 0
+ScanlineRender {
+ inputs 3
+ conservative_shader_sampling false
+ motion_vectors_type distance
+ name ScanlineRender2
+ xpos 7369
+ ypos 236
+}
+Dot {
+ name Anchor_Dot_cleanscreen
+ tile_color 0x6f3399ff
+ label cleanscreen
+ note_font_size 33
+ xpos 7403
+ ypos 313
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+set N21a440f0 [stack 0]
+push $N21801200
+NoOp {
+ name NoOp14
+ tile_color 0xeec42fff
+ label "Link: plates_fg"
+ xpos 7058
+ ypos 199
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_plates_fg
+}
+IBKGizmoV3 {
+ inputs 2
+ name IBKGizmoV3_1
+ selected false
+ xpos 7058
+ ypos 310
+}
+Dot {
+ name Anchor_Dot_key_alpha1
+ tile_color 0x6f3399ff
+ label "key alpha"
+ note_font_size 33
+ xpos 7090
+ ypos 402
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+push $N21801200
+NoOp {
+ name NoOp15
+ tile_color 0xeec42fff
+ label "Link: plates_fg"
+ xpos 6920
+ ypos 197
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_plates_fg
+}
+Copy {
+ inputs 2
+ from0 rgba.alpha
+ to0 rgba.alpha
+ name Copy2
+ xpos 6920
+ ypos 388
+}
+Premult {
+ name Premult2
+ xpos 6920
+ ypos 434
+}
+Dot {
+ name Anchor_Dot_key1
+ tile_color 0x6f3399ff
+ label key
+ note_font_size 66
+ xpos 6954
+ ypos 510
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+Merge2 {
+ inputs 2
+ name Merge2
+ xpos 6920
+ ypos 875
+}
+Dot {
+ name Anchor_Dot_plate_over_cg2
+ tile_color 0x6f3399ff
+ label fg
+ note_font_size 111
+ xpos 6954
+ ypos 1004
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+push 0
+Merge2 {
+ inputs 2
+ name Merge3
+ xpos 6580
+ ypos 990
+}
+Roto {
+ inputs 0
+ output alpha
+ curves {{{v x3f99999a}
+  {f 0}
+  {n
+   {layer Root
+    {f 0}
+    {t x44800000 x44428000}
+    {a pt1x 0 pt1y 0 pt2x 0 pt2y 0 pt3x 0 pt3y 0 pt4x 0 pt4y 0 ptex00 0 ptex01 0 ptex02 0 ptex03 0 ptex10 0 ptex11 0 ptex12 0 ptex13 0 ptex20 0 ptex21 0 ptex22 0 ptex23 0 ptex30 0 ptex31 0 ptex32 0 ptex33 0 ptof1x 0 ptof1y 0 ptof2x 0 ptof2y 0 ptof3x 0 ptof3y 0 ptof4x 0 ptof4y 0 pterr 0 ptrefset 0 ptmot x40800000 ptref 0}}}}}
+ toolbox {createBezier {
+  { createBezier str 1 ssx 1 ssy 1 sf 1 sb 1 tt 4 }
+  { createBezierCusped str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createBSpline str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createEllipse str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createRectangle str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createRectangleCusped str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createOpenSpline str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { brush str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { eraser src 2 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { clone src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { reveal src 3 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { dodge src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { burn src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { blur src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { sharpen src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { smear src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+} }
+ toolbar_brush_hardness 0.200000003
+ toolbar_source_transform_scale {1 1}
+ toolbar_source_transform_center {1024 778}
+ name Roto2
+ xpos 9323
+ ypos 1301
+}
+Dot {
+ name Anchor_Dot_core_alpha2
+ tile_color 0x6f3399ff
+ label "core alpha"
+ note_font_size 33
+ xpos 9357
+ ypos 1396
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+push $N21801200
+NoOp {
+ name NoOp19
+ tile_color 0xeec42fff
+ label "Link: plates_fg"
+ xpos 9187
+ ypos 1260
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_plates_fg
+}
+Copy {
+ inputs 2
+ from0 rgba.alpha
+ to0 rgba.alpha
+ name Copy3
+ xpos 9187
+ ypos 1382
+}
+Premult {
+ name Premult3
+ xpos 9187
+ ypos 1428
+}
+Dot {
+ name Anchor_Dot_core2
+ tile_color 0x6f3399ff
+ label core
+ note_font_size 66
+ xpos 9221
+ ypos 1539
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+Roto {
+ inputs 0
+ output alpha
+ curves {{{v x3f99999a}
+  {f 0}
+  {n
+   {layer Root
+    {f 0}
+    {t x44800000 x44428000}
+    {a pt1x 0 pt1y 0 pt2x 0 pt2y 0 pt3x 0 pt3y 0 pt4x 0 pt4y 0 ptex00 0 ptex01 0 ptex02 0 ptex03 0 ptex10 0 ptex11 0 ptex12 0 ptex13 0 ptex20 0 ptex21 0 ptex22 0 ptex23 0 ptex30 0 ptex31 0 ptex32 0 ptex33 0 ptof1x 0 ptof1y 0 ptof2x 0 ptof2y 0 ptof3x 0 ptof3y 0 ptof4x 0 ptof4y 0 pterr 0 ptrefset 0 ptmot x40800000 ptref 0}}}}}
+ toolbox {createBezier {
+  { createBezier str 1 ssx 1 ssy 1 sf 1 sb 1 tt 4 }
+  { createBezierCusped str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createBSpline str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createEllipse str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createRectangle str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createRectangleCusped str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createOpenSpline str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { brush str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { eraser src 2 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { clone src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { reveal src 3 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { dodge src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { burn src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { blur src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { sharpen src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { smear src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+} }
+ toolbar_brush_hardness 0.200000003
+ toolbar_source_transform_scale {1 1}
+ toolbar_source_transform_center {1024 778}
+ name Roto4
+ xpos 8807
+ ypos 878
+}
+Dot {
+ name Dot2
+ xpos 8841
+ ypos 977
+}
+push $N21a440f0
+Dot {
+ name Dot1
+ tile_color 0x6f3399ff
+ label "Link: cleanscreen"
+ note_font_size 33
+ xpos 9471
+ ypos 758
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_Dot_cleanscreen
+}
+NoOp {
+ inputs 0
+ name NoOp25
+ tile_color 0xeec42fff
+ label "Link: plates_fg"
+ xpos 9275
+ ypos 644
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_plates_fg
+}
+IBKGizmoV3 {
+ inputs 2
+ name IBKGizmoV3_4
+ selected false
+ xpos 9275
+ ypos 755
+}
+Dot {
+ name Anchor_Dot_key_alpha3
+ tile_color 0x6f3399ff
+ label "key alpha"
+ note_font_size 33
+ xpos 9307
+ ypos 847
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+NoOp {
+ inputs 0
+ name NoOp26
+ tile_color 0xeec42fff
+ label "Link: plates_fg"
+ xpos 9137
+ ypos 642
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_plates_fg
+}
+Copy {
+ inputs 2
+ from0 rgba.alpha
+ to0 rgba.alpha
+ name Copy5
+ xpos 9137
+ ypos 833
+}
+Premult {
+ name Premult5
+ xpos 9137
+ ypos 879
+}
+Dot {
+ name Anchor_Dot_key3
+ tile_color 0x6f3399ff
+ label key
+ note_font_size 66
+ xpos 9171
+ ypos 977
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+push $N228d9cf0
+NoOp {
+ name NoOp20
+ tile_color 0x10c432ff
+ label "Link: cam_main"
+ xpos 9503
+ ypos 288
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_cam_main
+}
+push $N228d9cf0
+NoOp {
+ name NoOp21
+ tile_color 0x10c432ff
+ label "Link: cam_main"
+ xpos 9546
+ ypos 73
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_cam_main
+}
+FrameHold {
+ firstFrame 1
+ name FrameHold3
+ xpos 9546
+ ypos 107
+}
+push $N21801200
+NoOp {
+ name NoOp22
+ tile_color 0xeec42fff
+ label "Link: plates_fg"
+ xpos 9384
+ ypos 30
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_plates_fg
+}
+RotoPaint {
+ curves {{{v x3f99999a}
+  {f 0}
+  {n
+   {layer Root
+    {f 0}
+    {t x44800000 x44428000}
+    {a pt1x 0 pt1y 0 pt2x 0 pt2y 0 pt3x 0 pt3y 0 pt4x 0 pt4y 0 ptex00 0 ptex01 0 ptex02 0 ptex03 0 ptex10 0 ptex11 0 ptex12 0 ptex13 0 ptex20 0 ptex21 0 ptex22 0 ptex23 0 ptex30 0 ptex31 0 ptex32 0 ptex33 0 ptof1x 0 ptof1y 0 ptof2x 0 ptof2y 0 ptof3x 0 ptof3y 0 ptof4x 0 ptof4y 0 pterr 0 ptrefset 0 ptmot x40800000 ptref 0}}}}}
+ toolbox {selectAll {
+  { selectAll str 1 ssx 1 ssy 1 sf 1 }
+  { createBezier str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createBezierCusped str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createBSpline str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createEllipse str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createRectangle str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createRectangleCusped str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { createOpenSpline str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { brush str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { eraser src 2 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { clone src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { reveal src 3 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { dodge src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { burn src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { blur src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { sharpen src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+  { smear src 1 str 1 ssx 1 ssy 1 sf 1 sb 1 }
+} }
+ toolbar_source_transform_center {1024 778}
+ name RotoPaint2
+ xpos 9384
+ ypos 64
+}
+FrameHold {
+ firstFrame 1
+ name FrameHold4
+ xpos 9384
+ ypos 110
+}
+Project3D2 {
+ inputs 2
+ name Project3D3
+ xpos 9384
+ ypos 152
+}
+Card2 {
+ control_points {3 3 3 6 
+
+1 {-0.5 -0.5 0} 0 {0.1666666865 0 0} 0 {0 0 0} 0 {0 0.1666666865 0} 0 {0 0 0} 0 {0 0 0} 
+1 {0 -0.5 0} 0 {0.1666666716 0 0} 0 {-0.1666666716 0 0} 0 {0 0.1666666865 0} 0 {0 0 0} 0 {0.5 0 0} 
+1 {0.5 -0.5 0} 0 {0 0 0} 0 {-0.1666666865 0 0} 0 {0 0.1666666865 0} 0 {0 0 0} 0 {1 0 0} 
+1 {-0.5 0 0} 0 {0.1666666865 0 0} 0 {0 0 0} 0 {0 0.1666666716 0} 0 {0 -0.1666666716 0} 0 {0 0.5 0} 
+1 {0 0 0} 0 {0.1666666716 0 0} 0 {-0.1666666716 0 0} 0 {0 0.1666666716 0} 0 {0 -0.1666666716 0} 0 {0.5 0.5 0} 
+1 {0.5 0 0} 0 {0 0 0} 0 {-0.1666666865 0 0} 0 {0 0.1666666716 0} 0 {0 -0.1666666716 0} 0 {1 0.5 0} 
+1 {-0.5 0.5 0} 0 {0.1666666865 0 0} 0 {0 0 0} 0 {0 0 0} 0 {0 -0.1666666865 0} 0 {0 1 0} 
+1 {0 0.5 0} 0 {0.1666666716 0 0} 0 {-0.1666666716 0 0} 0 {0 0 0} 0 {0 -0.1666666865 0} 0 {0.5 1 0} 
+1 {0.5 0.5 0} 0 {0 0 0} 0 {-0.1666666865 0 0} 0 {0 0 0} 0 {0 -0.1666666865 0} 0 {1 1 0} }
+ name Card2
+ xpos 9384
+ ypos 206
+}
+push 0
+ScanlineRender {
+ inputs 3
+ conservative_shader_sampling false
+ motion_vectors_type distance
+ name ScanlineRender3
+ xpos 9384
+ ypos 293
+}
+Dot {
+ name Anchor_Dot_cleanscreen1
+ tile_color 0x6f3399ff
+ label cleanscreen
+ note_font_size 33
+ xpos 9418
+ ypos 370
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+push $N21801200
+NoOp {
+ name NoOp23
+ tile_color 0xeec42fff
+ label "Link: plates_fg"
+ xpos 9073
+ ypos 256
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_plates_fg
+}
+IBKGizmoV3 {
+ inputs 2
+ name IBKGizmoV3_2
+ selected false
+ xpos 9073
+ ypos 367
+}
+Dot {
+ name Anchor_Dot_key_alpha2
+ tile_color 0x6f3399ff
+ label "key alpha"
+ note_font_size 33
+ xpos 9105
+ ypos 459
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+push $N21801200
+NoOp {
+ name NoOp24
+ tile_color 0xeec42fff
+ label "Link: plates_fg"
+ xpos 8935
+ ypos 254
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_plates_fg
+}
+Copy {
+ inputs 2
+ from0 rgba.alpha
+ to0 rgba.alpha
+ name Copy4
+ xpos 8935
+ ypos 445
+}
+Premult {
+ name Premult4
+ xpos 8935
+ ypos 491
+}
+Dot {
+ name Anchor_Dot_key2
+ tile_color 0x6f3399ff
+ label key
+ note_font_size 66
+ xpos 8969
+ ypos 567
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+Keymix {
+ inputs 3
+ name Keymix1
+ xpos 8935
+ ypos 969
+}
+Merge2 {
+ inputs 2
+ name Merge4
+ xpos 8935
+ ypos 1525
+}
+Dot {
+ name Anchor_Dot_plate_over_cg3
+ tile_color 0x6f3399ff
+ label fg
+ note_font_size 111
+ xpos 8969
+ ypos 1654
+ addUserKnob {20 User}
+ addUserKnob {6 anchors_dot_anchor l "Dot Anchor" -STARTLINE +HIDDEN}
+ anchors_dot_anchor true
+}
+push 0
+Merge2 {
+ inputs 2
+ name Merge5
+ xpos 8595
+ ypos 1640
+}
+Read {
+ inputs 0
+ origset true
+ name plate2
+ xpos 7422
+ ypos -1324
+}
+NoOp {
+ name Anchor_plates_fg1
+ tile_color 0xeec42fff
+ label plates_fg1
+ xpos 7422
+ ypos -1226
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_child_links l "Reconnect Child Links" -STARTLINE T "import anchor\nanchor.reconnect_anchor_node(nuke.thisNode())"}
+ addUserKnob {22 anchors_rename_anchor l Rename -STARTLINE T "import anchor\nanchor.rename_anchor(nuke.thisNode())"}
+ addUserKnob {22 anchors_set_anchor_color l "Set Color" -STARTLINE T "import anchor\nanchor.set_anchor_color(nuke.thisNode())"}
+}

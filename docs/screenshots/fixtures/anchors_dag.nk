@@ -1,0 +1,555 @@
+#! /usr/local/Nuke16.0v6/libnuke-16.0.6.so -nx
+version 16.0 v6
+Root {
+ inputs 0
+ name docs/screenshots/fixtures/anchors_dag.nk
+ format "2048 1556 0 0 2048 1556 1 2K_Super_35(full-ap)"
+ proxy_type scale
+ proxy_format "1024 778 0 0 1024 778 1 1K_Super_35(full-ap)"
+ colorManagement Nuke
+ workingSpaceLUT linear
+ monitorLut sRGB
+ monitorOutLUT rec709
+ int8Lut sRGB
+ int16Lut sRGB
+ logLut Cineon
+ floatLut linear
+}
+BackdropNode {
+ inputs 0
+ name Copy_a_block_with_two_links
+ label "screenshot:reconnect before"
+ note_font_size 30
+ xpos -45
+ ypos 2020
+ bdwidth 370
+ bdheight 533
+}
+BackdropNode {
+ inputs 0
+ name Pasted_links_reconnect_themselves
+ label "screenshot:reconnect after"
+ note_font_size 30
+ xpos 515
+ ypos 2220
+ bdwidth 370
+ bdheight 333
+}
+Read {
+ inputs 0
+ in_colorspace scene_linear
+ out_colorspace scene_linear
+ name Plate
+ xpos 0
+ postage_stamp false
+}
+set N2ac9eb20 [stack 0]
+Dot {
+ name Dot1
+ xpos 60
+ ypos 20
+}
+Dot {
+ name Dot2
+ xpos 420
+ ypos 20
+}
+Dot {
+ name Dot3
+ xpos 420
+ ypos 360
+}
+Dot {
+ name Dot4
+ xpos 300
+ ypos 360
+}
+Keyer {
+ name Key
+ xpos 280
+ ypos 470
+}
+push $N2ac9eb20
+Grade {
+ name Grade
+ xpos 0
+ ypos 130
+}
+Merge2 {
+ inputs 2
+ name Comp
+ xpos 0
+ ypos 360
+}
+Write {
+ in_colorspace scene_linear
+ out_colorspace scene_linear
+ ocioColorspace scene_linear
+ display default
+ view sRGB
+ name Write
+ xpos 0
+ ypos 470
+}
+Read {
+ inputs 0
+ in_colorspace scene_linear
+ out_colorspace scene_linear
+ name Plate1
+ xpos 900
+ postage_stamp false
+}
+PostageStamp {
+ name Stamp
+ xpos 900
+ ypos 150
+ hide_input true
+}
+PostageStamp {
+ inputs 0
+ name Pasted_Stamp
+ xpos 1120
+ ypos 150
+}
+Read {
+ inputs 0
+ in_colorspace scene_linear
+ out_colorspace scene_linear
+ name Beauty
+ xpos 1800
+ postage_stamp false
+}
+NoOp {
+ name Anchor_Beauty
+ tile_color 0xcccccc00
+ label Beauty
+ xpos 1800
+ ypos 20
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_child_links l "Reconnect Child Links" -STARTLINE T "import anchor\nanchor.reconnect_anchor_node(nuke.thisNode())"}
+ addUserKnob {22 anchors_rename_anchor l Rename -STARTLINE T "import anchor\nanchor.rename_anchor(nuke.thisNode())"}
+ addUserKnob {22 anchors_set_anchor_color l "Set Color" -STARTLINE T "import anchor\nanchor.set_anchor_color(nuke.thisNode())"}
+}
+Read {
+ inputs 0
+ in_colorspace scene_linear
+ out_colorspace scene_linear
+ name Plate2
+ xpos 0
+ ypos 1000
+ postage_stamp false
+}
+NoOp {
+ name Anchor_Plate
+ tile_color 0xcccccc00
+ label Plate
+ xpos 0
+ ypos 1020
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_child_links l "Reconnect Child Links" -STARTLINE T "import anchor\nanchor.reconnect_anchor_node(nuke.thisNode())"}
+ addUserKnob {22 anchors_rename_anchor l Rename -STARTLINE T "import anchor\nanchor.rename_anchor(nuke.thisNode())"}
+ addUserKnob {22 anchors_set_anchor_color l "Set Color" -STARTLINE T "import anchor\nanchor.set_anchor_color(nuke.thisNode())"}
+}
+set N2bb2ab20 [stack 0]
+NoOp {
+ name Link_Plate
+ tile_color 0xcccccc00
+ label "Link: Plate"
+ xpos 470
+ ypos 1110
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_Plate
+}
+Keyer {
+ name Key1
+ xpos 470
+ ypos 1250
+}
+Read {
+ inputs 0
+ in_colorspace scene_linear
+ out_colorspace scene_linear
+ name CG
+ xpos 230
+ ypos 980
+ postage_stamp false
+}
+Premult {
+ name Premult_CG
+ xpos 230
+ ypos 1110
+}
+push $N2bb2ab20
+Merge2 {
+ inputs 2
+ name Merge_CG
+ xpos 0
+ ypos 1330
+}
+Merge2 {
+ inputs 2
+ name Merge_Key
+ xpos 0
+ ypos 1470
+}
+Write {
+ in_colorspace scene_linear
+ out_colorspace scene_linear
+ ocioColorspace scene_linear
+ display default
+ view sRGB
+ name Write1
+ xpos 0
+ ypos 1600
+}
+Read {
+ inputs 0
+ in_colorspace scene_linear
+ out_colorspace scene_linear
+ name Beauty1
+ xpos 900
+ ypos 1000
+ postage_stamp false
+}
+NoOp {
+ name Anchor_Beauty1
+ tile_color 0x6f3399ff
+ label Beauty1
+ xpos 900
+ ypos 1020
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_child_links l "Reconnect Child Links" -STARTLINE T "import anchor\nanchor.reconnect_anchor_node(nuke.thisNode())"}
+ addUserKnob {22 anchors_rename_anchor l Rename -STARTLINE T "import anchor\nanchor.rename_anchor(nuke.thisNode())"}
+ addUserKnob {22 anchors_set_anchor_color l "Set Color" -STARTLINE T "import anchor\nanchor.set_anchor_color(nuke.thisNode())"}
+}
+Read {
+ inputs 0
+ in_colorspace scene_linear
+ out_colorspace scene_linear
+ name Reflection
+ xpos 1050
+ ypos 1000
+ postage_stamp false
+}
+NoOp {
+ name Anchor_Reflection
+ tile_color 0x3399ffff
+ label Reflection
+ xpos 1050
+ ypos 1020
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_child_links l "Reconnect Child Links" -STARTLINE T "import anchor\nanchor.reconnect_anchor_node(nuke.thisNode())"}
+ addUserKnob {22 anchors_rename_anchor l Rename -STARTLINE T "import anchor\nanchor.rename_anchor(nuke.thisNode())"}
+ addUserKnob {22 anchors_set_anchor_color l "Set Color" -STARTLINE T "import anchor\nanchor.set_anchor_color(nuke.thisNode())"}
+}
+Read {
+ inputs 0
+ in_colorspace scene_linear
+ out_colorspace scene_linear
+ name Matte
+ xpos 1200
+ ypos 1000
+ postage_stamp false
+}
+NoOp {
+ name Anchor_Matte
+ tile_color 0x33cc66ff
+ label Matte
+ xpos 1200
+ ypos 1020
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_child_links l "Reconnect Child Links" -STARTLINE T "import anchor\nanchor.reconnect_anchor_node(nuke.thisNode())"}
+ addUserKnob {22 anchors_rename_anchor l Rename -STARTLINE T "import anchor\nanchor.rename_anchor(nuke.thisNode())"}
+ addUserKnob {22 anchors_set_anchor_color l "Set Color" -STARTLINE T "import anchor\nanchor.set_anchor_color(nuke.thisNode())"}
+}
+Read {
+ inputs 0
+ in_colorspace scene_linear
+ out_colorspace scene_linear
+ name Depth
+ xpos 1350
+ ypos 1000
+ postage_stamp false
+}
+NoOp {
+ name Anchor_Depth
+ tile_color 0xcc6633ff
+ label Depth
+ xpos 1350
+ ypos 1020
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_child_links l "Reconnect Child Links" -STARTLINE T "import anchor\nanchor.reconnect_anchor_node(nuke.thisNode())"}
+ addUserKnob {22 anchors_rename_anchor l Rename -STARTLINE T "import anchor\nanchor.rename_anchor(nuke.thisNode())"}
+ addUserKnob {22 anchors_set_anchor_color l "Set Color" -STARTLINE T "import anchor\nanchor.set_anchor_color(nuke.thisNode())"}
+}
+Read {
+ inputs 0
+ in_colorspace scene_linear
+ out_colorspace scene_linear
+ name HeroPlate
+ xpos 1800
+ ypos 1000
+ postage_stamp false
+}
+NoOp {
+ name Anchor_HeroPlate
+ tile_color 0x5c4444ff
+ label HeroPlate
+ xpos 1800
+ ypos 1020
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_child_links l "Reconnect Child Links" -STARTLINE T "import anchor\nanchor.reconnect_anchor_node(nuke.thisNode())"}
+ addUserKnob {22 anchors_rename_anchor l Rename -STARTLINE T "import anchor\nanchor.rename_anchor(nuke.thisNode())"}
+ addUserKnob {22 anchors_set_anchor_color l "Set Color" -STARTLINE T "import anchor\nanchor.set_anchor_color(nuke.thisNode())"}
+}
+Grade {
+ name Hero_Grade
+ xpos 1800
+ ypos 1200
+}
+Read {
+ inputs 0
+ in_colorspace scene_linear
+ out_colorspace scene_linear
+ name Defocus
+ xpos 200
+ ypos 2100
+ postage_stamp false
+}
+NoOp {
+ name Anchor_Defocus
+ tile_color 0xcccccc00
+ label Defocus
+ xpos 200
+ ypos 2120
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_child_links l "Reconnect Child Links" -STARTLINE T "import anchor\nanchor.reconnect_anchor_node(nuke.thisNode())"}
+ addUserKnob {22 anchors_rename_anchor l Rename -STARTLINE T "import anchor\nanchor.rename_anchor(nuke.thisNode())"}
+ addUserKnob {22 anchors_set_anchor_color l "Set Color" -STARTLINE T "import anchor\nanchor.set_anchor_color(nuke.thisNode())"}
+}
+set N2bd7d810 [stack 0]
+NoOp {
+ name Link_Defocus
+ tile_color 0xcccccc00
+ label "Link: Defocus"
+ xpos 200
+ ypos 2300
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_Defocus
+}
+Read {
+ inputs 0
+ in_colorspace scene_linear
+ out_colorspace scene_linear
+ name Roto
+ xpos 0
+ ypos 2100
+ postage_stamp false
+}
+NoOp {
+ name Anchor_Roto
+ tile_color 0xcccccc00
+ label Roto
+ xpos 0
+ ypos 2120
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_child_links l "Reconnect Child Links" -STARTLINE T "import anchor\nanchor.reconnect_anchor_node(nuke.thisNode())"}
+ addUserKnob {22 anchors_rename_anchor l Rename -STARTLINE T "import anchor\nanchor.rename_anchor(nuke.thisNode())"}
+ addUserKnob {22 anchors_set_anchor_color l "Set Color" -STARTLINE T "import anchor\nanchor.set_anchor_color(nuke.thisNode())"}
+}
+set N2bd486d0 [stack 0]
+NoOp {
+ name Link_Roto
+ tile_color 0xcccccc00
+ label "Link: Roto"
+ xpos 0
+ ypos 2300
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_Roto
+}
+Merge2 {
+ inputs 2
+ name Block_Merge
+ xpos 0
+ ypos 2430
+}
+push $N2bd7d810
+NoOp {
+ name Link_Defocus1
+ tile_color 0xcccccc00
+ label "Link: Defocus"
+ xpos 760
+ ypos 2300
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_Defocus
+}
+push $N2bd486d0
+NoOp {
+ name Link_Roto1
+ tile_color 0xcccccc00
+ label "Link: Roto"
+ xpos 560
+ ypos 2300
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_Roto
+}
+Merge2 {
+ inputs 2
+ name Block_Merge1
+ xpos 560
+ ypos 2430
+}
+Read {
+ inputs 0
+ in_colorspace scene_linear
+ out_colorspace scene_linear
+ name BG
+ xpos 1100
+ ypos 2100
+ postage_stamp false
+}
+NoOp {
+ name Anchor_BG
+ tile_color 0xcccccc00
+ label BG
+ xpos 1100
+ ypos 2120
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_child_links l "Reconnect Child Links" -STARTLINE T "import anchor\nanchor.reconnect_anchor_node(nuke.thisNode())"}
+ addUserKnob {22 anchors_rename_anchor l Rename -STARTLINE T "import anchor\nanchor.rename_anchor(nuke.thisNode())"}
+ addUserKnob {22 anchors_set_anchor_color l "Set Color" -STARTLINE T "import anchor\nanchor.set_anchor_color(nuke.thisNode())"}
+}
+NoOp {
+ name Link_BG
+ tile_color 0xcccccc00
+ label "Link: BG"
+ xpos 1320
+ ypos 2210
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_BG
+}
+Read {
+ inputs 0
+ in_colorspace scene_linear
+ out_colorspace scene_linear
+ name Matte1
+ xpos 1800
+ ypos 2100
+ postage_stamp false
+}
+NoOp {
+ name Anchor_Matte1
+ tile_color 0xcccccc00
+ label Matte1
+ xpos 1800
+ ypos 2120
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_child_links l "Reconnect Child Links" -STARTLINE T "import anchor\nanchor.reconnect_anchor_node(nuke.thisNode())"}
+ addUserKnob {22 anchors_rename_anchor l Rename -STARTLINE T "import anchor\nanchor.rename_anchor(nuke.thisNode())"}
+ addUserKnob {22 anchors_set_anchor_color l "Set Color" -STARTLINE T "import anchor\nanchor.set_anchor_color(nuke.thisNode())"}
+}
+set N2be5ca60 [stack 0]
+Dot {
+ name LinkDot1
+ tile_color 0x6f3399ff
+ label "Link: Matte1"
+ note_font_size 33
+ xpos 1860
+ ypos 2250
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_Matte1
+}
+push $N2be5ca60
+Dot {
+ name LinkDot2
+ tile_color 0x6f3399ff
+ label "Link: Matte1"
+ note_font_size 33
+ xpos 2000
+ ypos 2250
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_Matte1
+}
+Read {
+ inputs 0
+ in_colorspace scene_linear
+ out_colorspace scene_linear
+ name Spill
+ xpos 0
+ ypos 3000
+ postage_stamp false
+}
+NoOp {
+ name Anchor_Spill
+ tile_color 0xcccccc00
+ label Spill
+ xpos 0
+ ypos 3020
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_child_links l "Reconnect Child Links" -STARTLINE T "import anchor\nanchor.reconnect_anchor_node(nuke.thisNode())"}
+ addUserKnob {22 anchors_rename_anchor l Rename -STARTLINE T "import anchor\nanchor.rename_anchor(nuke.thisNode())"}
+ addUserKnob {22 anchors_set_anchor_color l "Set Color" -STARTLINE T "import anchor\nanchor.set_anchor_color(nuke.thisNode())"}
+}
+set N2beaa3c0 [stack 0]
+Dot {
+ name SpillDot
+ tile_color 0x6f3399ff
+ label "Link: Spill"
+ note_font_size 33
+ xpos 60
+ ypos 3150
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_Spill
+}
+push $N2beaa3c0
+Dot {
+ name SpillDot1
+ tile_color 0xcccccc00
+ label "Link: Spill"
+ note_font_size 33
+ selected true
+ xpos 200
+ ypos 3150
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_Spill
+}

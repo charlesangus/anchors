@@ -158,3 +158,21 @@ cython_debug/
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
+
+# Anchors documentation pipeline
+# The docs are generated LOCALLY and committed — CI does not build them. Both the
+# screenshots in docs/img/*.png and the user-guide PDF (docs/anchors-user-guide.pdf)
+# are checked in so GitHub renders the Markdown and the release can bundle the PDF.
+# Only ignore Nuke's autosave/backup spill from the hand-crafted .nk sources.
+docs/screenshots/fixtures/*.nk~
+docs/screenshots/fixtures/*.autosave
+docs/*.nk~
+docs/*.autosave
+
+# Internal planning notes — never part of the deliverable, never pushed.
+docs/plans/
+
+# Local dev / session artifacts — never committed.
+.claude/
+# Self-referential dev symlink used so the repo imports as `anchors` on NUKE_PATH.
+/anchors
