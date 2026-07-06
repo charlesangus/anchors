@@ -1,0 +1,60 @@
+[
+  {
+    "name": "leader_overlay",
+    "steps": [
+      { "type": "click", "target": { "object_name": "@dag" } },
+      { "type": "keys", "keys": ["Shift+A"] },
+      { "type": "wait", "duration": 0.8 },
+      { "type": "screenshot",
+        "target": { "object_name": "LeaderKeyOverlay", "class_name": "LeaderKeyOverlay" },
+        "filename": "leader-overlay.png" },
+      { "type": "keys", "keys": ["Esc"] }
+    ]
+  },
+  {
+    "name": "navigate_picker",
+    "steps": [
+      { "type": "click", "target": { "object_name": "@dag" } },
+      { "type": "keys", "keys": ["Alt+A"] },
+      { "type": "wait", "duration": 1.0 },
+      { "type": "screenshot",
+        "target": { "object_name": "TabTabTabWidget", "class_name": "TabTabTabWidget" },
+        "filename": "anchor-navigate-picker.png" },
+      { "type": "keys", "keys": ["Esc"] }
+    ]
+  },
+  {
+    "name": "link_picker",
+    "steps": [
+      { "type": "click", "target": { "object_name": "@dag" } },
+      { "type": "keys", "keys": ["A"] },
+      { "type": "wait", "duration": 1.0 },
+      { "type": "screenshot",
+        "target": { "object_name": "TabTabTabWidget", "class_name": "TabTabTabWidget" },
+        "filename": "link-creation-picker.png" },
+      { "type": "keys", "keys": ["Esc"] }
+    ]
+  },
+  {
+    "name": "color_palette",
+    "steps": [
+      { "type": "keys", "keys": ["F6"] },
+      { "type": "wait", "duration": 1.0 },
+      { "type": "screenshot",
+        "target": { "object_name": "ColorPaletteDialog", "class_name": "ColorPaletteDialog" },
+        "filename": "anchor-color-picker.png" },
+      { "type": "keys", "keys": ["Esc"] }
+    ]
+  },
+  {
+    "name": "create_dialog",
+    "steps": [
+      { "type": "keys", "keys": ["F7"] },
+      { "type": "wait", "duration": 1.0 },
+      { "type": "screenshot",
+        "target": { "object_name": "ColorPaletteDialog", "class_name": "ColorPaletteDialog" },
+        "filename": "anchor-create-dialog.png" },
+      { "type": "keys", "keys": ["Esc"] }
+    ]
+  }
+]

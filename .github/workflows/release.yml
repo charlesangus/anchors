@@ -35,6 +35,9 @@ jobs:
              link.py menu.py migrations.py prefs.py tabtabtab_anchors.py \
              README.md LICENSE \
              anchors/
+          # The user guide PDF is generated locally and committed (docs are not
+          # built in CI); bundle it with the plugin.
+          cp docs/anchors-user-guide.pdf anchors/
           touch "anchors/${GITHUB_REF_NAME}"
           zip -r "anchors-${GITHUB_REF_NAME}.zip" anchors/
 

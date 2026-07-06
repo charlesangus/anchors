@@ -1,0 +1,97 @@
+% Pandoc template that builds the anchors docs with the studio training-document
+% class (training_doc.cls) and its logo. Images are rendered inline (placed
+% exactly where written) rather than as floating figures.
+%
+% Used by the Makefile: pandoc --template=docs/latex/template.tex ...
+% The class handles fonts (fontspec on xelatex), geometry, headers, lists, and
+% the custom \maketitle (logo + title + department/author), so this template only
+% adds the packages the pandoc body relies on.
+
+\documentclass[$for(classoption)$$classoption$$sep$,$endfor$]{training_doc}
+
+% --- Packages the pandoc body needs (the class already provides fontspec,
+% --- geometry, graphicx, adjustbox, amsmath, amssymb, lists, headers, title) ---
+\usepackage{xcolor}
+\usepackage{fancyvrb}
+\IfFileExists{framed.sty}{\usepackage{framed}}{}
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\usepackage{longtable,booktabs,array}
+\usepackage{calc}
+
+% Syntax-highlighting macros emitted by pandoc (defines Shaded / Highlighting).
+$if(highlighting-macros)$
+$highlighting-macros$
+$endif$
+
+% Scale images down to the text width by default (never overflow the margins),
+% while still allowing explicit \includegraphics[width=...] overrides.
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+
+% Render images as genuinely non-floating, numbered figures placed exactly where
+% they are written in the source. We deliberately do NOT use the float package or
+% an [H] specifier: a float is a float and will drift at least some of the time.
+% Instead each pandoc figure becomes an in-place block whose caption uses
+% \captionof (from the caption package the class loads), so it still increments
+% the figure counter and is cross-referenceable with \ref, but never floats.
+\captionsetup{font=small,labelfont=bf}
+\makeatletter
+\renewenvironment{figure}[1][]{%
+  \par\medskip
+  \begin{minipage}{\linewidth}%
+  \centering
+  % Setting \@captype lets the normal \caption work outside a float (exactly what
+  % \captionof does internally): the figure counter still advances and \ref works,
+  % but the block never floats.
+  \def\@captype{figure}%
+}{%
+  \end{minipage}%
+  \par\medskip
+}
+\makeatother
+
+% Resolve the logo (docs/latex/) and the screenshots (docs/img/) regardless of
+% the build working directory.
+\graphicspath{{docs/latex/}{docs/}{./}}
+
+% Hyperlinks and PDF bookmarks.
+\usepackage{hyperref}
+\hypersetup{
+$if(title)$  pdftitle={$title$},$endif$
+$if(author)$  pdfauthor={$for(author)$$author$$sep$; $endfor$},$endif$
+  colorlinks=true,
+  linkcolor=[HTML]{6F3399},
+  urlcolor=[HTML]{2C6FBB},
+  citecolor=[HTML]{2C6FBB},
+  breaklinks=true}
+
+% Defensive definitions for constructs the pandoc body may emit.
+\providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\providecommand{\passthrough}[1]{#1}
+\setlength{\emergencystretch}{3em}
+
+% Document metadata -> the class's custom \maketitle. The subtitle is mapped to
+% the class's \department command, which prints beside the author under the title.
+$if(title)$\title{$title$}$endif$
+$if(subtitle)$\department{$subtitle$}$endif$
+$if(author)$\author{$for(author)$$author$$sep$, $endfor$}$endif$
+
+\begin{document}
+
+$if(title)$\maketitle$endif$
+
+$if(toc)$
+{
+\hypersetup{linkcolor=black}
+\setcounter{tocdepth}{$if(toc-depth)$$toc-depth$$else$3$endif$}
+\tableofcontents
+\bigskip
+}
+$endif$
+
+$body$
+
+\end{document}
