@@ -99,7 +99,7 @@ and a keymix built entirely from links to the sources you already anchored `(Fig
 
 ## Finding your way
 
-One feature we haven't touched on is **Anchor Dots**. Dots at the output of a module are the best way of labelling a module (sticky notes can get lost as the script is epanded/reorganized because they're not wired in, backdrops create busy work expanding the backdrop as you add nodes).
+One feature we haven't touched on is **Anchor Dots**. Dots at the output of a module are the best way of labelling a module (sticky notes can get lost as the script is expanded/reorganized because they're not wired in, backdrops create busy work expanding the backdrop as you add nodes).
 
 Anchors takes advantage of and enables that workflow in two ways. One, Shift-B/N/M respectively label a Dot with a small/medium/large label (perfect for labelling modules/sub-modules/sub-sub-modules and making clear that hierarchy). Two, Dots labelled in this way are **Anchor Dots** - they get a special colour and operate the same as regular Anchors in your script.
 
@@ -108,7 +108,7 @@ As a script fills with links, the anchors become navigation landmarks. Press
 the graph zooms straight to the one you choose `(Figure \ref{fig:jump-target})`{=latex}. With a link selected,
 **`Alt`+`J`** jumps to its source anchor `(Figure \ref{fig:jump-source})`{=latex}.
 
-After jumping with **`Alt-A`** or **Alt-J**, **`Alt`+`Z`** jumps you back
+After jumping with **`Alt`+`A`** or **`Alt`+`J`**, **`Alt`+`Z`** jumps you back
 to where you were.
 
 This enables a wonderfully quick way of getting around your script. As you document your work with labelled dots, you're also creating a map of the script for quick navigation.
@@ -199,7 +199,7 @@ The plugin overrides the standard clipboard shortcuts (scoped to the Node Graph)
   - **Across scripts:** links reconnect by the anchor's display name if a matching
     anchor exists in the destination.
   - **Local Dots:** reconnect by identity, same-script only.
-  - **Pasting only anchors:** If you copy *ony* Anchors, each pasted anchor is replaced by a Link pointing
+  - **Pasting only anchors:** If you copy *only* Anchors, each pasted anchor is replaced by a Link pointing
     back to the original, so you do not get duplicate anchors.
 
 ![A reusable block containing two Links, before copying.](img/reconnect_before.png){#fig:paste-before}

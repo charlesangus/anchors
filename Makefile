@@ -109,4 +109,4 @@ $(PDF): $(DOCS_DIR)/user-guide.md $(PDF_ASSETS)
 > TEXINPUTS="$(PDF_TEXINPUTS)" $(PANDOC) $< -o $@ $(PANDOC_PDF_FLAGS)
 
 clean:
-> rm -f $(SHOTS_DIR)/fixtures/*.nk~ $(SHOTS_DIR)/fixtures/*.autosave $(DOCS_DIR)/*.nk~ 2>/dev/null || true
+> rm -f $(SHOTS_DIR)/fixtures/*.nk~ $(SHOTS_DIR)/fixtures/*.autosave $(DOCS_DIR)/*.nk~ $(DOCS_DIR)/*.autosave 2>/dev/null || true
