@@ -176,8 +176,9 @@ These are handy for re-using sections of a module within the module. If you're r
 
 ## Creating links
 
-Every new anchor already arrives with a link beneath it (see **Anchors** above).
-To create further links to an existing anchor:
+Unless you have switched the preference off, every new anchor already arrives
+with a link beneath it (see **Anchors** above). To create further links to an
+existing anchor:
 
 With **nothing selected**, press **`A`** to open the Anchor selection menu. It lists every
 anchor `(Figure \ref{fig:link-picker})`{=latex} in the script with its colour; choose one and a link is created at the

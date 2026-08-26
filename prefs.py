@@ -5,7 +5,10 @@ Writes via explicit save() call only — called by Phase 7 PrefsDialog on accept
 
 Module-level variables (read these directly after import):
     plugin_enabled          bool  — True if the plugin is active
-    auto_create_link        bool  — True if creating an anchor also creates a link
+    auto_create_link        bool  — True if the interactive Create Anchor command
+                                    also creates a link below the new anchor
+                                    (the api.create_anchor() Python API is
+                                    unaffected and always creates just the anchor)
     custom_colors           list  — list of 0xRRGGBBAA color ints
 """
 
@@ -18,7 +21,7 @@ from constants import OLD_PREFS_PATH, PREFS_PATH, USER_PALETTE_PATH
 # Defaults — overwritten by _load() at module import time
 # ---------------------------------------------------------------------------
 plugin_enabled = True
-auto_create_link = True         # create a Link below every newly created anchor
+auto_create_link = True         # interactive Create Anchor also creates a Link below the anchor
 custom_colors = []
 naming_regex = ""
 naming_template = ""
