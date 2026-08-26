@@ -108,6 +108,13 @@ As a script fills with links, the anchors become navigation landmarks. Press
 the graph zooms straight to the one you choose `(Figure \ref{fig:jump-target})`{=latex}. With a link selected,
 **`Alt`+`J`** jumps to its source anchor `(Figure \ref{fig:jump-source})`{=latex}.
 
+Either way the graph frames the anchor together with the tree feeding it, so you
+land on the whole module. When you would rather an anchor were *only* a landmark —
+a bookmark part-way down a long spine, say — tick **Jump to anchor only** in its
+properties panel and jumps to it centre on the anchor itself and leave its tree
+alone. The box is unticked on every existing anchor, so nothing changes until you
+ask for it.
+
 After jumping with **`Alt`+`A`** or **`Alt`+`J`**, **`Alt`+`Z`** jumps you back
 to where you were.
 
@@ -128,11 +135,13 @@ The standard anchor. Select a node and press **`A`** (or **Edit > Anchors >
 Create Anchor**). A `NoOp` anchor is created beneath the node, wired to it, and
 named from the source `(Figure \ref{fig:create-anchor})`{=latex}.
 
-Each NoOp anchor's properties panel carries three buttons:
+Each NoOp anchor's properties panel carries three buttons and a checkbox:
 
 - **Reconnect Child Links** — rewire every link that points at this anchor.
 - **Rename** — rename the anchor and update all of its links automatically.
 - **Set Color** — open the colour palette and recolour the anchor and its links.
+- **Jump to anchor only** — when ticked, jumping to this anchor frames the anchor
+  by itself instead of the tree above it.
 
 By convention, "true" Anchors are used for the inputs of the script, not for sections within the script.
 
@@ -152,6 +161,7 @@ selecting it and pressing a label key:
 Any Dot whose label is **33 pt or larger** is treated as an anchor and appears in
 the navigation picker. Dot anchors are always the default purple and propagate
 their label to any links pointing at them `(Figure \ref{fig:dot-anchors})`{=latex}.
+They carry the same **Jump to anchor only** checkbox as NoOp anchors.
 
 By convention, **Dot Anchors** are used *within the script*, never for input sources.
 
@@ -221,6 +231,11 @@ copy. For a plain paste with no reconnection magic, use **Paste (old)**
 | `Alt`+`J` | **Anchor Jump** — with a Link selected, jump to its source anchor. |
 | `Alt`+`L` | **Cycle Links** — with an anchor selected, step through each of its links. Keep pressing `L` to advance; any other key stops. |
 | `Alt`+`Z` | **Anchor Back** — return to the viewport position from before the last jump. |
+
+Both **Anchor Find** and **Anchor Jump** frame the anchor and the tree feeding it.
+Tick **Jump to anchor only** on an anchor to make jumps to it land on the anchor
+alone — useful for anchors that are navigation landmarks rather than the head of a
+module. The setting lives on the anchor, so it applies however you jump to it.
 
 ![The navigation picker (Alt+A).](img/anchor-navigate-picker.png){#fig:nav-picker}
 
