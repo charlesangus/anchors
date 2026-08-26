@@ -1043,15 +1043,14 @@ def navigate_to_anchor(anchor_node):
 
     nuke.zoomToFitSelected()
 
-    # A labelled-dot module (the nodes above a Dot anchor) frames too tight with
-    # zoomToFitSelected, which has no padding parameter (issue #61). Zoom out
-    # slightly from the fitted framing to leave a margin around the module. Only
-    # Dot anchors get this margin; other anchor types keep the tight fit they had
-    # before, matching the framing that already worked for them.
-    if anchor_node.Class() == 'Dot':
-        fitted_scale = nuke.zoom()
-        fitted_center = nuke.center()
-        nuke.zoom(fitted_scale * MODULE_ZOOM_MARGIN_FACTOR, fitted_center)
+    # zoomToFitSelected frames the module edge-to-edge, which has no padding
+    # parameter and crops the anchor and outermost nodes at the viewport edge
+    # (issue #73). Zoom out slightly from the fitted framing to leave a margin
+    # around the module, for every anchor type — matching the margin that
+    # navigate_to_backdrop already gets for free from the backdrop's own bounds.
+    fitted_scale = nuke.zoom()
+    fitted_center = nuke.center()
+    nuke.zoom(fitted_scale * MODULE_ZOOM_MARGIN_FACTOR, fitted_center)
 
     nukescripts.clear_selection_recursive()
     for node in saved_selection:

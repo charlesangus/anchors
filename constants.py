@@ -36,11 +36,12 @@ LOCAL_DOT_COLOR = 0x7A3A00FF
 
 # === Navigation framing. ===
 # After nuke.zoomToFitSelected() frames a module edge-to-edge, navigate_to_anchor
-# zooms out by this factor to leave a margin around the module (issue #61).
-# Nuke's zoomToFitSelected() has no padding parameter, so the margin is applied
-# as a post-fit zoom-out: 0.85 leaves ~7.5% of the viewport as margin per side,
-# which lands in the requested ~100-200px range on a typical DAG panel.
-MODULE_ZOOM_MARGIN_FACTOR = 0.85
+# zooms out by this factor to leave a margin around the module, for every anchor
+# type (issue #61, widened by issue #73). Nuke's zoomToFitSelected() has no
+# padding parameter, so the margin is applied as a post-fit zoom-out: 0.75 leaves
+# ~12.5% of the viewport as margin per side, which lands in the requested
+# ~200-300px range on a typical DAG panel.
+MODULE_ZOOM_MARGIN_FACTOR = 0.75
 
 # === Keyboard shortcut context. ===
 # Nuke's menu.addCommand() accepts a shortcutContext that scopes where a
