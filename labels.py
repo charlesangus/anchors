@@ -1,9 +1,21 @@
-"""User-facing label helper functions for anchor and link nodes."""
+"""User-facing label helper functions for anchor, link, and backdrop nodes."""
 
 import nuke
 
+try:
+    if hasattr(nuke, 'NUKE_VERSION_MAJOR') and nuke.NUKE_VERSION_MAJOR >= 16:
+        from PySide6 import QtWidgets
+    else:
+        from PySide2 import QtWidgets
+except ImportError:
+    QtWidgets = None
+
 import prefs
+from colors import BackdropDialog
 from constants import (
+    BACKDROP_APPEARANCE_BORDER,
+    BACKDROP_APPEARANCE_FILLED,
+    BACKDROP_APPEARANCE_KNOB_NAME,
     DOT_ANCHOR_MIN_FONT_SIZE,
     DOT_LABEL_FONT_SIZE_LARGE,
     DOT_LABEL_FONT_SIZE_MEDIUM,
@@ -98,3 +110,93 @@ def append_to_label():
     def applier(node, text):
         _apply_label(node, node['label'].getText() + text)
     _prompt_and_label("Append to label:", lambda node: "", applier)
+
+
+# ---------------------------------------------------------------------------
+# Backdrop setup (issue #68)
+# ---------------------------------------------------------------------------
+
+def is_backdrop(node):
+    """True if *node* is a BackdropNode."""
+    return node.Class() == 'BackdropNode'
+
+
+def backdrop_is_filled(backdrop_node):
+    """True if *backdrop_node* currently draws filled rather than as an outline.
+
+    Nuke gained the ``appearance`` knob in Nuke 11; older backdrops are always
+    drawn filled, so they report True.
+    """
+    if BACKDROP_APPEARANCE_KNOB_NAME not in backdrop_node.knobs():
+        return True
+    return backdrop_node[BACKDROP_APPEARANCE_KNOB_NAME].value() == BACKDROP_APPEARANCE_FILLED
+
+
+def apply_backdrop_setup(backdrop_node, label_text=None, font_size=None,
+                         filled=None, color=None):
+    """Apply the backdrop dialog's results to *backdrop_node*.
+
+    Every attribute is optional: ``None`` leaves that aspect of the backdrop
+    untouched, so callers can set just a label (the no-Qt fallback below) or the
+    full set.  ``filled`` maps onto Nuke's ``appearance`` knob and is ignored on
+    Nuke versions that predate it.
+    """
+    if label_text is not None:
+        backdrop_node['label'].setValue(label_text)
+    if font_size is not None:
+        backdrop_node['note_font_size'].setValue(font_size)
+    if color is not None:
+        backdrop_node['tile_color'].setValue(color)
+    if filled is not None and BACKDROP_APPEARANCE_KNOB_NAME in backdrop_node.knobs():
+        appearance = BACKDROP_APPEARANCE_FILLED if filled else BACKDROP_APPEARANCE_BORDER
+        backdrop_node[BACKDROP_APPEARANCE_KNOB_NAME].setValue(appearance)
+
+
+def setup_backdrop(backdrop_node):
+    """Open the backdrop setup dialog and apply what the user chose.
+
+    Silent no-op when the plugin is disabled or the dialog is cancelled.  With Qt
+    unavailable the dialog cannot be built, so this falls back to a plain label
+    prompt and leaves the backdrop's colour, font size, and appearance alone.
+    """
+    if not prefs.plugin_enabled:
+        return
+    current_label = backdrop_node['label'].getValue()
+
+    if BackdropDialog is None or QtWidgets is None:
+        label_text = nuke.getInput("Backdrop label:", current_label)
+        if label_text is None:
+            return
+        apply_backdrop_setup(backdrop_node, label_text=label_text)
+        return
+
+    dialog = BackdropDialog(
+        initial_label=current_label,
+        initial_color=int(backdrop_node['tile_color'].value()),
+        initial_font_size=int(backdrop_node['note_font_size'].value()),
+        initial_filled=backdrop_is_filled(backdrop_node),
+        custom_colors=prefs.custom_colors,
+    )
+    if dialog.exec_() != QtWidgets.QDialog.Accepted:
+        return
+    prefs.persist_custom_colors_from_dialog(dialog)
+    apply_backdrop_setup(
+        backdrop_node,
+        label_text=dialog.chosen_name,
+        font_size=dialog.chosen_font_size,
+        filled=dialog.chosen_filled,
+        color=dialog.selected_color_int(),
+    )
+
+
+def setup_selected_backdrop():
+    """Open the backdrop setup dialog for the selected backdrop.
+
+    Does nothing unless the selection is exactly one BackdropNode — the same
+    single-node rule the ``A`` shortcut uses.
+    """
+    if not prefs.plugin_enabled:
+        return
+    selected_nodes = nuke.selectedNodes()
+    if len(selected_nodes) == 1 and is_backdrop(selected_nodes[0]):
+        setup_backdrop(selected_nodes[0])
