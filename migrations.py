@@ -5,7 +5,8 @@ This module is the single source of truth for:
 - ``migrate_script()`` — rewrite legacy ``paste_hidden_*`` and ``copy_hidden_*``
   knobs (and the legacy PyScript_Knob button knobs ``reconnect_link``,
   ``reconnect_child_links``, ``rename_anchor``, ``set_anchor_color``) on every
-  node in the current script to the unified ``anchors_*`` namespace.
+  node in the current script to the unified ``anchors_*`` namespace, and add the
+  ``anchors_jump_to_node_only`` checkbox to anchors created before it existed.
 - ``migrate_to_stemless_names()`` — rewrite stored anchor references from the
   old ``scriptStem.fullName`` format to the new ``fullName``-only format.
 - ``migrate_prefs_files()`` — copy the legacy ``paste_hidden_prefs.json`` to
@@ -29,6 +30,7 @@ import nuke
 
 import constants
 from constants import (
+    ANCHOR_JUMP_NODE_ONLY_KNOB_NAME,
     ANCHOR_RECONNECT_KNOB_NAME,
     ANCHOR_RENAME_KNOB_NAME,
     ANCHOR_SET_COLOR_KNOB_NAME,
@@ -38,6 +40,7 @@ from constants import (
     LINK_RECONNECT_KNOB_NAME,
     TAB_NAME,
 )
+from link import add_jump_scope_knob, is_anchor
 # OLD_PREFS_PATH, PREFS_PATH and USER_PALETTE_PATH are read via the constants
 # module attribute every call — tests in tests/test_prefs.py monkeypatch these
 # at the constants-module level, and the prefs migrators must honour the live
@@ -159,7 +162,9 @@ def migrate_script():
     Scans every node (including inside Groups) and rewrites legacy
     ``paste_hidden_*``, ``copy_hidden_*``, ``reconnect_link``,
     ``reconnect_child_links``, ``rename_anchor`` and ``set_anchor_color``
-    knobs to their unified ``anchors_*`` equivalents.
+    knobs to their unified ``anchors_*`` equivalents, then backfills the
+    jump-scope checkbox onto anchors that predate it (issue #66) via
+    ``backfill_anchor_jump_scope_knobs()``.
 
     Idempotent: re-running on an already-migrated script is a no-op.
 
@@ -182,10 +187,39 @@ def migrate_script():
         if node_changed:
             nodes_updated += 1
 
+    anchors_backfilled = backfill_anchor_jump_scope_knobs()
+
     print(
         "anchors.migrate_script(): updated "
-        f"{nodes_updated} node(s), renamed {knobs_renamed} knob(s)."
+        f"{nodes_updated} node(s), renamed {knobs_renamed} knob(s), "
+        f"added the jump-scope checkbox to {anchors_backfilled} anchor(s)."
     )
+
+
+def backfill_anchor_jump_scope_knobs():
+    """Add the "Jump to anchor only" checkbox to anchors that predate it.
+
+    Anchors written by earlier versions carry no
+    ``ANCHOR_JUMP_NODE_ONLY_KNOB_NAME`` knob, so the jump-scope toggle would be
+    unreachable on them (issue #66).  This walks every node in the script and
+    adds the missing checkbox — unticked, i.e. the tree-framing behaviour those
+    anchors already had.
+
+    Idempotent: anchors that already carry the checkbox are left untouched, so
+    the second load of a script does nothing.  Called from ``migrate_script()``,
+    which runs on every script load.
+
+    Returns the number of anchors updated.
+    """
+    anchors_updated = 0
+    for node in nuke.allNodes(recurseGroups=True):
+        if not is_anchor(node):
+            continue
+        if ANCHOR_JUMP_NODE_ONLY_KNOB_NAME in node.knobs():
+            continue
+        add_jump_scope_knob(node)
+        anchors_updated += 1
+    return anchors_updated
 
 
 def migrate_to_stemless_names():

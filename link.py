@@ -11,6 +11,7 @@ import nuke
 
 from constants import (
     ANCHOR_DEFAULT_COLOR,
+    ANCHOR_JUMP_NODE_ONLY_KNOB_NAME,
     ANCHOR_PREFIX,
     DOT_ANCHOR_KNOB_NAME,
     DOT_ANCHOR_MIN_FONT_SIZE,
@@ -99,7 +100,11 @@ def mark_dot_as_anchor(dot_node):
     DOT_ANCHOR_PREFIX to recover the display name.  If the label is empty or
     sanitizes to empty, the node name is left unchanged (the caller can set
     the label before calling, or rename_anchor_to() can fix it later).
+
+    Adding the jump-scope checkbox happens before the already-an-anchor guard so
+    that re-labelling a Dot anchor made by an older version backfills it.
     """
+    add_jump_scope_knob(dot_node)
     if DOT_ANCHOR_KNOB_NAME in dot_node.knobs():
         dot_node[DOT_ANCHOR_KNOB_NAME].setValue(True)
         return
@@ -114,6 +119,38 @@ def mark_dot_as_anchor(dot_node):
         dot_node.setName(DOT_ANCHOR_PREFIX + sanitized_label)
 
     dot_node['tile_color'].setValue(ANCHOR_DEFAULT_COLOR)
+
+
+def add_jump_scope_knob(node):
+    """Add the "Jump to anchor only" checkbox to *node* if it is not already there.
+
+    The checkbox controls what Alt+A / Alt+J frame when they jump to this anchor:
+    unticked (the default) frames the anchor together with its upstream tree,
+    ticked frames the anchor alone so it acts as a pure jump site (issue #66).
+
+    Idempotent — a second call on the same node is a no-op, so it is safe to call
+    from every path that creates or refreshes an anchor.
+    """
+    if ANCHOR_JUMP_NODE_ONLY_KNOB_NAME in node.knobs():
+        return
+    knob = nuke.Boolean_Knob(ANCHOR_JUMP_NODE_ONLY_KNOB_NAME, 'Jump to anchor only')
+    knob.setValue(False)
+    node.addKnob(knob)
+
+
+def jumps_to_node_only(node):
+    """Return True when jumping to *node* should frame the anchor alone.
+
+    Anchors created before the checkbox existed (and anchors in scripts that have
+    not been migrated yet) carry no such knob; they read as False so their jumps
+    keep framing the upstream tree exactly as before.
+    """
+    try:
+        if ANCHOR_JUMP_NODE_ONLY_KNOB_NAME not in node.knobs():
+            return False
+        return bool(node[ANCHOR_JUMP_NODE_ONLY_KNOB_NAME].getValue())
+    except Exception:
+        return False
 
 
 def is_anchor(node):

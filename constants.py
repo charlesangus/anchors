@@ -22,6 +22,8 @@ ANCHOR_RENAME_KNOB_NAME = 'anchors_rename_anchor'
 # FROZEN: value stored in .nk files — do not rename
 ANCHOR_SET_COLOR_KNOB_NAME = 'anchors_set_anchor_color'
 # FROZEN: value stored in .nk files — do not rename
+ANCHOR_JUMP_NODE_ONLY_KNOB_NAME = 'anchors_jump_to_node_only'
+# FROZEN: value stored in .nk files — do not rename
 DOT_ANCHOR_KNOB_NAME = 'anchors_dot_anchor'
 # FROZEN: value stored in .nk files — do not rename
 DOT_TYPE_KNOB_NAME = 'anchors_dot_type'
@@ -41,6 +43,13 @@ LOCAL_DOT_COLOR = 0x7A3A00FF
 # as a post-fit zoom-out: 0.85 leaves ~7.5% of the viewport as margin per side,
 # which lands in the requested ~100-200px range on a typical DAG panel.
 MODULE_ZOOM_MARGIN_FACTOR = 0.85
+
+# An anchor whose "Jump to anchor only" checkbox is ticked is a pure jump site:
+# navigate_to_anchor centres the DAG on the anchor at this zoom scale instead of
+# fitting its upstream tree (issue #66).  A fixed scale is used rather than
+# nuke.zoomToFitSelected() because fitting a single small node — a Dot anchor in
+# particular — zooms in an arbitrary, usually excessive amount.
+NODE_ONLY_JUMP_ZOOM = 1.0
 
 # === Keyboard shortcut context. ===
 # Nuke's menu.addCommand() accepts a shortcutContext that scopes where a

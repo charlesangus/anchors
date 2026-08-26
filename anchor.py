@@ -33,8 +33,10 @@ from constants import (
     KNOB_NAME,
     MODULE_ZOOM_MARGIN_FACTOR,
     NODE_LABEL_FONT_SIZE_LARGE,
+    NODE_ONLY_JUMP_ZOOM,
 )
 from link import (
+    add_jump_scope_knob,
     find_anchor_node,
     find_node_color,
     find_smallest_containing_backdrop,
@@ -42,6 +44,7 @@ from link import (
     get_link_class_for_source,
     is_anchor,
     is_link,
+    jumps_to_node_only,
     reconnect_link_node,
     setup_link_node,
 )
@@ -616,6 +619,7 @@ def create_anchor_named(name, input_node=None, color=None):
     add_reconnect_anchor_knob(anchor)
     add_rename_anchor_knob(anchor)
     add_set_color_anchor_knob(anchor)
+    add_jump_scope_knob(anchor)
     return anchor
 
 
@@ -1031,8 +1035,35 @@ def upstream_ignoring_hidden(node, nodes_so_far=None, _visited=None):
     return nodes_so_far
 
 
+def navigate_to_node_only(anchor_node):
+    """Centre the DAG on *anchor_node* alone at NODE_ONLY_JUMP_ZOOM.
+
+    Used for anchors whose "Jump to anchor only" checkbox is ticked — the anchor
+    is a pure jump site, so its upstream tree is deliberately not framed (issue
+    #66).  The framing is a fixed zoom on the node's centre rather than a fit:
+    nuke.zoomToFitSelected() on one small node zooms in an arbitrary amount, and
+    a Dot anchor is small enough for that to land unusably close.  The selection
+    is left untouched — nothing needs selecting to set an absolute zoom.
+    """
+    # A list, not a tuple, to match what nuke.center() hands back to nuke.zoom()
+    # on the navigate_back() path.
+    node_center = [
+        anchor_node.xpos() + anchor_node.screenWidth() / 2.0,
+        anchor_node.ypos() + anchor_node.screenHeight() / 2.0,
+    ]
+    nuke.zoom(NODE_ONLY_JUMP_ZOOM, node_center)
+
+
 def navigate_to_anchor(anchor_node):
-    """Zoom the DAG to frame *anchor_node* and its visible-path upstream nodes."""
+    """Zoom the DAG to frame *anchor_node* and its visible-path upstream nodes.
+
+    An anchor with "Jump to anchor only" ticked frames the anchor by itself
+    instead — see navigate_to_node_only().
+    """
+    if jumps_to_node_only(anchor_node):
+        navigate_to_node_only(anchor_node)
+        return
+
     upstream_nodes = upstream_ignoring_hidden(anchor_node) or set()
     nodes_to_fit = upstream_nodes | {anchor_node}
 
