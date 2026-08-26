@@ -59,6 +59,7 @@ The anchor system is a reusable named-input mechanism for the node graph.
 ## Creating Anchors
 
 - Select a node and press `A` (or `Edit > Anchors > Create Anchor`) — a combined name + color dialog appears, pre-filled from the input node's file path and the smallest containing backdrop label.
+- A Link node is created directly below the new anchor, centred on it, so the anchor is immediately usable. Turn this off with the "Create a link below each new anchor" preference. The behaviour applies to the interactive command only — the `api.create_anchor()` Python API always creates just the anchor.
 - **Dot anchors**: select a plain Dot and press `Shift+B`, `Shift+N`, or `Shift+M`. The label prompt appears; entering a label and confirming applies a small/medium/large font and promotes the Dot to a Dot anchor in place.
 - **Rename**: if an anchor is already selected when you press `A`, the rename dialog opens instead of creating a new anchor.
 
@@ -171,6 +172,7 @@ All anchor shortcuts are scoped to the **DAG (Node Graph) context** — they onl
 `Edit > Anchors > Anchor Preferences...` opens a dialog with:
 
 - **Enable anchors plugin** — master toggle. When unchecked, all gated menu items disable and `Ctrl+C/X/V` fall through to plain Nuke copy/cut/paste.
+- **Create a link below each new anchor** — on by default. When unchecked, `Edit > Anchors > Create Anchor` (and `A` with a node selected) creates the anchor alone.
 - **Custom Colors** — a palette of user-defined colors. Available in the anchor create / rename dialogs and in the "Set Color" picker on NoOp anchors.
 - **Anchor Naming (Advanced)** — user-configurable regex + template for deriving anchor names from file paths. Includes a live preview against a test filename and an "Override Site Config" checkbox. Admins can publish the current values to a site config JSON via the "Publish Naming…" button.
 
