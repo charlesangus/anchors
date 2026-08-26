@@ -168,6 +168,20 @@ def save():
         )
 
 
+def persist_custom_colors_from_dialog(dialog):
+    """Save any newly staged custom colors from *dialog* back to prefs and disk.
+
+    Call this on every accepted ColorPaletteDialog (or subclass) so custom colors
+    added via "Custom Color..." persist across sessions.  Only saves when the
+    staged list differs from the current custom_colors, to avoid spurious writes.
+    """
+    global custom_colors
+    staged = dialog.chosen_custom_colors()
+    if staged != custom_colors:
+        custom_colors = staged
+        save()
+
+
 def publish(destination_path):
     """Write only naming fields to destination_path in sparse site config format.
 
