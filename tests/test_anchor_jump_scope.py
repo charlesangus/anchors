@@ -50,6 +50,7 @@ import migrations  # noqa: E402
 from constants import (  # noqa: E402
     ANCHOR_JUMP_NODE_ONLY_KNOB_NAME,
     ANCHOR_PREFIX,
+    DOT_ANCHOR_KNOB_NAME,
     DOT_ANCHOR_PREFIX,
     NODE_ONLY_JUMP_ZOOM,
 )
@@ -151,7 +152,6 @@ class TestNewAnchorsCarryCheckbox(unittest.TestCase):
 
     def test_mark_dot_as_anchor_backfills_existing_dot_anchor(self):
         """Re-labelling an older Dot anchor backfills the checkbox."""
-        from constants import DOT_ANCHOR_KNOB_NAME
         import nuke as nuke_stub
         dot_node = _make_anchor_stub(name=DOT_ANCHOR_PREFIX + 'Foo', node_class='Dot')
         dot_node.addKnob(nuke_stub.StubKnob(True, knob_name=DOT_ANCHOR_KNOB_NAME))
@@ -248,6 +248,7 @@ class TestNavigateHonoursJumpScope(unittest.TestCase):
     def test_jump_to_selected_anchor_uses_node_only_framing(self):
         """Alt+J from a link lands on a ticked anchor without framing its tree."""
         import nuke as nuke_stub
+
         import prefs as prefs_module
         prefs_module.plugin_enabled = True
         anchor_node = _make_anchor_stub(xpos=10, ypos=20, jump_node_only=True)
