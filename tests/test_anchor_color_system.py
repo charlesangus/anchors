@@ -482,6 +482,10 @@ class _PickerTestHarness:
     # palette-based highlight color appears in stylesheets.
     HARNESS_HIGHLIGHT_COLOR = "#4a90d9"
 
+    # Mirrors the class attribute on ColorPaletteDialog: the plain palette uses a
+    # single-line name field (BackdropDialog is the multi-line subclass).
+    _NAME_FIELD_MULTILINE = False
+
     def __init__(self, initial_color=None, custom_colors=None):
         self._selected_color = initial_color
         self._hint_mode = False
@@ -508,6 +512,10 @@ class _PickerTestHarness:
         is used — rather than hardcoded 'white'.
         """
         return self.HARNESS_HIGHLIGHT_COLOR
+
+    def _name_field_text(self):
+        """Run the real _name_field_text implementation from colors.py source."""
+        return _extract_method_from_source('_name_field_text')(self)
 
 
 class TestColorPaletteDialogClickToSelect(unittest.TestCase):

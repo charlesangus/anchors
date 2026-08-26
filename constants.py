@@ -58,6 +58,26 @@ NODE_LABEL_FONT_SIZE_LARGE = 33
 DOT_LINK_LABEL_FONT_SIZE = 33
 DOT_ANCHOR_MIN_FONT_SIZE = 33
 
+# === Backdrop setup (issue #68). ===
+# The backdrop dialog offers the same font sizes as the Dot-anchor label keys so
+# a backdrop caption sits on the same visual scale as the Dot captions under it.
+# Each entry is (menu_text, point_size); "Custom" is appended by the dialog.
+BACKDROP_FONT_SIZE_PRESETS = (
+    ('Small', DOT_LABEL_FONT_SIZE_SMALL),
+    ('Medium', DOT_LABEL_FONT_SIZE_MEDIUM),
+    ('Large', DOT_LABEL_FONT_SIZE_LARGE),
+)
+BACKDROP_DEFAULT_FONT_SIZE = DOT_LABEL_FONT_SIZE_LARGE
+# Bounds for the dialog's custom font-size spin box — wide enough for any
+# readable caption without letting a stray keypress produce an unusable value.
+BACKDROP_MIN_FONT_SIZE = 1
+BACKDROP_MAX_FONT_SIZE = 500
+# Nuke's own BackdropNode knob controlling fill vs. outline. Not a plugin knob,
+# so it needs no migration, but it is absent on Nuke versions before 11.
+BACKDROP_APPEARANCE_KNOB_NAME = 'appearance'
+BACKDROP_APPEARANCE_FILLED = 'Fill'
+BACKDROP_APPEARANCE_BORDER = 'Border'
+
 # === On-disk preferences paths. ===
 USER_PALETTE_PATH = os.path.expanduser('~/.nuke/paste_hidden_user_palette.json')
 OLD_PREFS_PATH = os.path.expanduser('~/.nuke/paste_hidden_prefs.json')

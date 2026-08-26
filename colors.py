@@ -1,7 +1,13 @@
 """Color palette dialog for the anchor color system."""
 
 import nuke
-from constants import ANCHOR_DEFAULT_COLOR
+from constants import (
+    ANCHOR_DEFAULT_COLOR,
+    BACKDROP_DEFAULT_FONT_SIZE,
+    BACKDROP_FONT_SIZE_PRESETS,
+    BACKDROP_MAX_FONT_SIZE,
+    BACKDROP_MIN_FONT_SIZE,
+)
 
 try:
     if hasattr(nuke, 'NUKE_VERSION_MAJOR') and nuke.NUKE_VERSION_MAJOR >= 16:
@@ -128,8 +134,33 @@ def adjust_color_for_backdrop_contrast(backdrop_color_int):
     return (adjusted_red_int << 24) | (adjusted_green_int << 16) | (adjusted_blue_int << 8) | alpha
 
 
+# Sentinel stored as the "Custom" font-size entry's item data.  Zero is never a
+# valid point size, so it cannot collide with a preset.
+BACKDROP_CUSTOM_FONT_SIZE = 0
+
+
+def resolve_backdrop_font_size(current_font_size):
+    """Return the font size the backdrop dialog should pre-select.
+
+    A size that exactly matches one of the Small/Medium/Large presets pre-selects
+    that preset, so re-opening the dialog on a backdrop styled through it leaves
+    the size untouched.  Anything else — including Nuke's own backdrop default —
+    pre-selects Large, which is the default asked for in issue #68.  The dialog
+    still seeds its custom spin box with the current size, so the original value
+    is one dropdown entry away.
+    """
+    preset_sizes = [preset_size for _preset_name, preset_size in BACKDROP_FONT_SIZE_PRESETS]
+    # Nuke knob values arrive as floats; normalise so 111.0 matches the 111 preset
+    # and so the returned value can be matched against the combo box item data.
+    normalized_size = int(current_font_size) if current_font_size is not None else None
+    if normalized_size in preset_sizes:
+        return normalized_size
+    return BACKDROP_DEFAULT_FONT_SIZE
+
+
 if QtWidgets is None:
     ColorPaletteDialog = None
+    BackdropDialog = None
     PrefsDialog = None
 else:
     # Column addresses: 1-9, 0 (10 columns max)
@@ -137,6 +168,9 @@ else:
     # Row addresses: a-z (26 rows max)
     _ROW_KEYS = 'abcdefghijklmnopqrstuvwxyz'
     _SWATCHES_PER_ROW = 8
+    # Height of the multi-line name field: roughly three lines of text, enough
+    # for a typical backdrop caption without dwarfing the swatch grid.
+    _MULTILINE_NAME_FIELD_HEIGHT = 64
 
     class ColorPaletteDialog(QtWidgets.QDialog):
         """Color palette dialog showing swatches from Nuke prefs, backdrop colors, and user palette.
@@ -154,7 +188,15 @@ else:
             Defaults to an empty list if not provided.
         parent : QWidget or None
             Parent widget.
+
+        Subclasses may set ``_NAME_FIELD_MULTILINE`` to swap the single-line name
+        field for a multi-line one, and override ``_build_extra_fields`` to add
+        their own widgets between that field and the swatch grid.
         """
+
+        # Single-line name field by default: anchor names are one line and Enter
+        # should confirm the dialog.  BackdropDialog flips this.
+        _NAME_FIELD_MULTILINE = False
 
         def __init__(self, initial_color=None, show_name_field=False,
                      initial_name="", custom_colors=None, parent=None,
@@ -187,8 +229,16 @@ else:
             # Optional name field at top
             self._name_edit = None
             if show_name_field:
-                self._name_edit = QtWidgets.QLineEdit(initial_name)
+                if self._NAME_FIELD_MULTILINE:
+                    self._name_edit = QtWidgets.QPlainTextEdit(initial_name)
+                    self._name_edit.setFixedHeight(_MULTILINE_NAME_FIELD_HEIGHT)
+                else:
+                    self._name_edit = QtWidgets.QLineEdit(initial_name)
                 outer_layout.addWidget(self._name_edit)
+
+            # Subclass hook — extra controls sit between the name field and the
+            # swatches so the colour grid stays the bottom-most section.
+            self._build_extra_fields(outer_layout)
 
             # Swatch grid — all colour sections (including Default Colour) live here
             # so they share the same margins and spacing.
@@ -359,9 +409,36 @@ else:
             # swatch cells are populated and the widget has a palette context.
             self._refresh_swatch_borders()
 
+        def _build_extra_fields(self, outer_layout):
+            """Hook: add widgets between the name field and the swatch grid.
+
+            No-op for the plain colour palette; overridden by subclasses such as
+            BackdropDialog that need extra controls in the same dialog.
+            """
+
+        def _name_field_text(self):
+            """Return the current text of the name field, whichever kind it is."""
+            if self._name_edit is None:
+                return self.chosen_name
+            if self._NAME_FIELD_MULTILINE:
+                return self._name_edit.toPlainText()
+            return self._name_edit.text()
+
+        def _name_field_wants_newline(self, event):
+            """True when Return should insert a newline instead of confirming.
+
+            Only the multi-line name field takes Return, and only while it holds
+            focus — Ctrl+Return still confirms the dialog, as does the OK button.
+            """
+            if not self._NAME_FIELD_MULTILINE or self._name_edit is None:
+                return False
+            if not self._name_edit.hasFocus():
+                return False
+            return not bool(event.modifiers() & Qt.ControlModifier)
+
         def accept(self):
             if self._name_edit is not None:
-                self.chosen_name = self._name_edit.text()
+                self.chosen_name = self._name_field_text()
             super().accept()
 
         def _on_swatch_clicked(self, color_int):
@@ -461,8 +538,11 @@ else:
                 self.reject()
                 return True
 
-            # Enter/Return confirms the current selection.
+            # Enter/Return confirms the current selection — unless a multi-line
+            # name field has focus, where it types a newline instead.
             if key in (Qt.Key_Return, Qt.Key_Enter):
+                if self._name_field_wants_newline(event):
+                    return False
                 if self._selected_color is not None:
                     self.accept()
                 return True
@@ -641,6 +721,124 @@ else:
             are discarded by not calling this method.
             """
             return list(self._staged_custom_colors)
+
+    class BackdropDialog(ColorPaletteDialog):
+        """Setup dialog for a BackdropNode: label, colour, font size and fill.
+
+        The colour palette, its hint-mode navigation and its custom-colour
+        staging are inherited unchanged, so setting up a backdrop feels like
+        renaming an anchor (issue #68).  Three things differ:
+
+        - the label field is multi-line, because backdrop labels routinely carry
+          several lines of notes that a single-line field would silently flatten;
+        - a font-size dropdown offers the Dot-anchor sizes plus **Custom**;
+        - a **Filled** checkbox drives Nuke's ``appearance`` knob.
+
+        Read the results after ``exec_()`` returns ``Accepted``::
+
+            dialog.chosen_name        # label text
+            dialog.chosen_font_size   # point size
+            dialog.chosen_filled      # True for Fill, False for Border
+            dialog.selected_color_int()
+
+        Parameters
+        ----------
+        initial_label : str
+            The backdrop's current label.
+        initial_color : int or None
+            The backdrop's current tile colour as a 0xRRGGBBAA int.
+        initial_font_size : int or None
+            The backdrop's current note font size.  Sizes that do not match a
+            preset open on Large — see ``resolve_backdrop_font_size``.
+        initial_filled : bool
+            True when the backdrop's appearance is currently 'Fill'.
+        custom_colors : list of int or None
+            User palette colours, as for ColorPaletteDialog.
+        parent : QWidget or None
+            Parent widget.
+        """
+
+        _NAME_FIELD_MULTILINE = True
+
+        def __init__(self, initial_label="", initial_color=None, initial_font_size=None,
+                     initial_filled=True, custom_colors=None, parent=None):
+            # Set before super().__init__ — it runs _build_ui, which builds the
+            # extra fields from these values.
+            if initial_font_size is None:
+                self._initial_font_size = BACKDROP_DEFAULT_FONT_SIZE
+            else:
+                self._initial_font_size = int(initial_font_size)
+            self._initial_filled = bool(initial_filled)
+            self._font_size_combobox = None
+            self._font_size_spinbox = None
+            self._fill_checkbox = None
+            # Seeded with what the dialog opens on, so the values are meaningful
+            # even if a caller reads them without waiting for accept().
+            self.chosen_font_size = resolve_backdrop_font_size(self._initial_font_size)
+            self.chosen_filled = self._initial_filled
+
+            super().__init__(
+                initial_color=initial_color,
+                show_name_field=True,
+                initial_name=initial_label,
+                custom_colors=custom_colors,
+                parent=parent,
+            )
+            self.setWindowTitle("Backdrop")
+
+        def _build_extra_fields(self, outer_layout):
+            """Add the font-size selector and the fill checkbox."""
+            font_size_row = QtWidgets.QHBoxLayout()
+            font_size_label = QtWidgets.QLabel("Font size:")
+            font_size_label.setFocusPolicy(Qt.NoFocus)
+            font_size_row.addWidget(font_size_label)
+
+            self._font_size_combobox = QtWidgets.QComboBox()
+            for preset_name, preset_size in BACKDROP_FONT_SIZE_PRESETS:
+                self._font_size_combobox.addItem(f"{preset_name} ({preset_size})", preset_size)
+            self._font_size_combobox.addItem("Custom", BACKDROP_CUSTOM_FONT_SIZE)
+            preselected_size = resolve_backdrop_font_size(self._initial_font_size)
+            preselected_index = self._font_size_combobox.findData(preselected_size)
+            if preselected_index >= 0:
+                self._font_size_combobox.setCurrentIndex(preselected_index)
+            self._font_size_combobox.currentIndexChanged.connect(self._on_font_size_choice_changed)
+            font_size_row.addWidget(self._font_size_combobox)
+
+            self._font_size_spinbox = QtWidgets.QSpinBox()
+            self._font_size_spinbox.setRange(BACKDROP_MIN_FONT_SIZE, BACKDROP_MAX_FONT_SIZE)
+            # Seed with the backdrop's own size so switching to "Custom" offers
+            # the value the backdrop already had rather than a preset.
+            self._font_size_spinbox.setValue(
+                max(BACKDROP_MIN_FONT_SIZE, min(BACKDROP_MAX_FONT_SIZE, self._initial_font_size))
+            )
+            # resolve_backdrop_font_size always lands on a preset, so the spin box
+            # starts disabled and is enabled when the user picks "Custom".
+            self._font_size_spinbox.setEnabled(False)
+            font_size_row.addWidget(self._font_size_spinbox)
+
+            outer_layout.addLayout(font_size_row)
+
+            self._fill_checkbox = QtWidgets.QCheckBox("Filled")
+            self._fill_checkbox.setChecked(self._initial_filled)
+            outer_layout.addWidget(self._fill_checkbox)
+
+        def _on_font_size_choice_changed(self, _index):
+            """Enable the spin box only while the "Custom" entry is selected."""
+            self._font_size_spinbox.setEnabled(self._is_custom_font_size_selected())
+
+        def _is_custom_font_size_selected(self):
+            return self._font_size_combobox.currentData() == BACKDROP_CUSTOM_FONT_SIZE
+
+        def selected_font_size(self):
+            """Return the point size currently chosen in the dialog."""
+            if self._is_custom_font_size_selected():
+                return int(self._font_size_spinbox.value())
+            return int(self._font_size_combobox.currentData())
+
+        def accept(self):
+            self.chosen_font_size = self.selected_font_size()
+            self.chosen_filled = bool(self._fill_checkbox.isChecked())
+            super().accept()
 
     class PrefsDialog(QtWidgets.QDialog):
         """Preferences dialog for managing plugin settings and custom colors.
