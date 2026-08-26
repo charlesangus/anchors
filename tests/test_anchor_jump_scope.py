@@ -7,8 +7,8 @@ Covers:
   (anchors written by earlier versions must keep framing their tree).
 - navigate_to_anchor() frames the anchor alone when the box is ticked, and the
   anchor plus its upstream tree when it is not.
-- migrations.backfill_anchor_jump_scope_knobs() adds the checkbox to anchors
-  that predate it, skips non-anchors, and is idempotent.
+- migrations.migrate_script() backfills the checkbox onto anchors that predate
+  it in its single graph pass, skips non-anchors, and is idempotent.
 """
 
 import importlib
@@ -265,7 +265,7 @@ class TestNavigateHonoursJumpScope(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# migrations.backfill_anchor_jump_scope_knobs()
+# The jump-scope backfill inside migrations.migrate_script()
 # ---------------------------------------------------------------------------
 
 class TestBackfillJumpScopeKnobs(unittest.TestCase):
@@ -277,8 +277,7 @@ class TestBackfillJumpScopeKnobs(unittest.TestCase):
         importlib.reload(migrations)
 
     def _run_backfill(self, nodes):
-        with patch.object(migrations.nuke, 'allNodes', return_value=list(nodes)):
-            return migrations.backfill_anchor_jump_scope_knobs()
+        return sum(migrations._backfill_jump_scope_knob(node) for node in nodes)
 
     def test_backfills_anchor_without_checkbox(self):
         anchor_node = _make_anchor_stub(name=ANCHOR_PREFIX + 'Foo')
@@ -312,6 +311,19 @@ class TestBackfillJumpScopeKnobs(unittest.TestCase):
 
         self.assertEqual(updated, 0)
         self.assertTrue(link_module.jumps_to_node_only(anchor_node))
+
+    def test_migrate_script_backfills_in_a_single_graph_pass(self):
+        """Script load backfills the checkbox without a second full-graph scan."""
+        anchor_node = _make_anchor_stub(name=ANCHOR_PREFIX + 'Foo')
+        plain_node = _make_anchor_stub(name='Grade1')
+
+        with patch.object(migrations.nuke, 'allNodes',
+                          return_value=[anchor_node, plain_node]) as mock_all_nodes:
+            migrations.migrate_script()
+
+        mock_all_nodes.assert_called_once_with(recurseGroups=True)
+        self.assertIn(ANCHOR_JUMP_NODE_ONLY_KNOB_NAME, anchor_node.knobs())
+        self.assertNotIn(ANCHOR_JUMP_NODE_ONLY_KNOB_NAME, plain_node.knobs())
 
 
 if __name__ == '__main__':
