@@ -986,8 +986,9 @@ else:
             else:
                 self._use_tabtabtab_prefs_checkbox.setToolTip(
                     "No tabtabtab-nuke installation was found (looked for "
-                    "tabtabtab_prefs.py on NUKE_PATH and its preferences file "
-                    "in ~/.nuke)."
+                    "tabtabtab_prefs.py on NUKE_PATH and for the preferences "
+                    "file it points at, falling back to "
+                    "~/.nuke/tabtabtab_prefs.json)."
                 )
             combo_boxes_are_editable = not self._is_following_tabtabtab_prefs()
             for combobox in self._space_mode_comboboxes:
