@@ -721,6 +721,28 @@ def _anchor_navigate_invoke(thing, hit_group):
     QtCore.QTimer.singleShot(0, _deferred_navigate)
 
 
+def _current_space_mode_order():
+    """Return the search mode to use for 0, 1 and 2 leading spaces in a picker.
+
+    Re-reads a followed tabtabtab-nuke install first so a change made in
+    tabtabtab's own preferences dialog applies to the next picker without a
+    Nuke restart; the user's own anchors setting needs no re-read.
+    """
+    if prefs.use_tabtabtab_prefs:
+        prefs.refresh_tabtabtab_prefs()
+    return list(prefs.space_mode_order)
+
+
+def _apply_space_mode_order(picker_widget):
+    """Push the current space-prefix mode mapping onto a reused picker widget.
+
+    The pickers are cached across invocations, so a preference changed since
+    the widget was built has to be applied on the reuse path too. Mirrors what
+    tabtabtab_anchors.launch() does for its own cached instance.
+    """
+    picker_widget.things_model._space_mode_order = _current_space_mode_order()
+
+
 class _AnchorPickerPlugin(_tabtabtab.TabTabTabPlugin):
     """Unified tabtabtab plugin for both anchor link-creation and navigation.
 
@@ -828,7 +850,11 @@ def pick_anchor(on_pick, hit_group=None):
         weights_filename=os.path.expanduser('~/.nuke/anchors_anchor_weights.json'),
     )
     plugin._hit_group = hit_group
-    widget = _tabtabtab.TabTabTabWidget(plugin, winflags=Qt.FramelessWindowHint)
+    widget = _tabtabtab.TabTabTabWidget(
+        plugin,
+        winflags=Qt.FramelessWindowHint,
+        space_mode_order=_current_space_mode_order(),
+    )
     widget.under_cursor()
     widget.show()
     widget.raise_()
@@ -866,6 +892,7 @@ def select_anchor_and_create(hit_group=None):
     if _anchor_picker_widget is not None:
         try:
             _anchor_picker_widget.plugin._hit_group = hit_group
+            _apply_space_mode_order(_anchor_picker_widget)
             _anchor_picker_widget.under_cursor()
             _anchor_picker_widget.show()
             _anchor_picker_widget.raise_()
@@ -875,7 +902,9 @@ def select_anchor_and_create(hit_group=None):
     plugin = _make_anchor_picker_plugin()
     plugin._hit_group = hit_group
     _anchor_picker_widget = _tabtabtab.TabTabTabWidget(
-        plugin, winflags=Qt.FramelessWindowHint
+        plugin,
+        winflags=Qt.FramelessWindowHint,
+        space_mode_order=_current_space_mode_order(),
     )
     _anchor_picker_widget.under_cursor()
     _anchor_picker_widget.show()
@@ -1079,6 +1108,7 @@ def select_anchor_and_navigate():
     if _anchor_navigate_widget is not None:
         try:
             _anchor_navigate_widget.plugin._hit_group = hit_group
+            _apply_space_mode_order(_anchor_navigate_widget)
             _anchor_navigate_widget.under_cursor()
             _anchor_navigate_widget.show()
             _anchor_navigate_widget.raise_()
@@ -1088,7 +1118,9 @@ def select_anchor_and_navigate():
     plugin = _make_anchor_navigate_plugin()
     plugin._hit_group = hit_group
     _anchor_navigate_widget = _tabtabtab.TabTabTabWidget(
-        plugin, winflags=Qt.FramelessWindowHint
+        plugin,
+        winflags=Qt.FramelessWindowHint,
+        space_mode_order=_current_space_mode_order(),
     )
     _anchor_navigate_widget.under_cursor()
     _anchor_navigate_widget.show()
