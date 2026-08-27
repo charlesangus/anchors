@@ -314,6 +314,8 @@ node):
 
 - **Enable anchors plugin** — the master toggle.
 - **Keyboard layout** — QWERTY / AZERTY / QWERTZ for the leader overlay.
+- **Space-prefix search modes** — what leading spaces do in the fuzzy-find menus
+  (see below).
 - **Custom Colors** — add, edit, and remove the colours in your personal palette.
 - **Advanced** — the anchor **naming regex** and **template**, plus a **site
   config override**.
@@ -322,6 +324,31 @@ Settings are stored per user in `~/.nuke/anchors_prefs.json`. A studio can
 **publish** the naming settings to a shared site-config file (pointed to by the
 `ANCHORS_SITE_CONFIG` environment variable) so every artist gets consistent anchor
 names; individuals can opt out with the site-config override.
+
+### Space-prefix search modes
+
+The `A` and `Alt`+`A` menus filter as you type, and typing one or two spaces
+before your search text switches how that text is matched:
+
+- **Anchored fuzzy** — the letters appear in order, starting at the first letter
+  of the name: `bgp` finds `BG_Plate`.
+- **Non-anchored fuzzy** — the letters appear in order anywhere in the name:
+  `plt` finds `BG_Plate`.
+- **Consecutive substring** — the text appears as typed: `plat` finds `BG_Plate`.
+
+By default no leading space means anchored fuzzy, one space means non-anchored
+fuzzy, and two spaces mean a consecutive substring search. The **Space-prefix
+search modes** group in Preferences maps each of the three levels to whichever
+mode you prefer; every mode must be used exactly once, so OK is refused if you
+assign the same mode twice.
+
+These menus share their search core with
+[tabtabtab-nuke](https://github.com/charlesangus/tabtabtab-nuke), which offers the
+same preference. If you run both, tick **Use tabtabtab-nuke preferences** and
+anchors follows the mapping set there instead — the three dropdowns grey out and
+show what tabtabtab is enforcing, and your own mapping is kept for when you untick
+the box. The checkbox itself is greyed out when no tabtabtab-nuke installation is
+found.
 
 
 
