@@ -64,8 +64,13 @@ class _SpaceModePrefsTestCase(unittest.TestCase):
             if 'prefs' in sys.modules:
                 del sys.modules['prefs']
             # An unrelated tabtabtab_prefs module on the developer's sys.path
-            # would otherwise make install detection machine-dependent.
-            with patch('prefs._tabtabtab_prefs_module', return_value=None, create=True):
+            # would otherwise make install detection machine-dependent. The
+            # block has to be in sys.modules rather than a patch of
+            # prefs._tabtabtab_prefs_module: patch() imports prefs to find its
+            # target, so prefs' own import-time detection has already run by the
+            # time such a patch takes effect. A None entry makes the import
+            # raise, which _tabtabtab_prefs_module() reads as "not installed".
+            with patch.dict(sys.modules, {'tabtabtab_prefs': None}):
                 import prefs as reloaded_prefs
                 reloaded_prefs.PREFS_PATH = constants.PREFS_PATH
                 reloaded_prefs.TABTABTAB_PREFS_PATH = tabtabtab_prefs_path
