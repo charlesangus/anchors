@@ -6,12 +6,19 @@ Writes via explicit save() call only — called by Phase 7 PrefsDialog on accept
 Module-level variables (read these directly after import):
     plugin_enabled          bool  — True if the plugin is active
     custom_colors           list  — list of 0xRRGGBBAA color ints
+    space_mode_order        list  — effective search mode per leading-space count
 """
 
 import json
 import os
 
-from constants import OLD_PREFS_PATH, PREFS_PATH, USER_PALETTE_PATH
+from constants import (
+    DEFAULT_SPACE_MODE_ORDER,
+    OLD_PREFS_PATH,
+    PREFS_PATH,
+    TABTABTAB_PREFS_PATH,
+    USER_PALETTE_PATH,
+)
 
 # ---------------------------------------------------------------------------
 # Defaults — overwritten by _load() at module import time
@@ -24,14 +31,23 @@ naming_demo_filename = "plate_v003.exr"
 site_config_override = False    # persisted to anchors_prefs.json
 last_publish_path = ""          # most recently chosen publish destination; persisted to anchors_prefs.json
 keyboard_layout = "qwerty"      # one of "qwerty", "azerty", "qwertz"; persisted to anchors_prefs.json
+# Effective search mode for 0, 1 and 2 leading spaces in the fuzzy-find pickers.
+# Read this one; it already accounts for use_tabtabtab_prefs.
+space_mode_order = list(DEFAULT_SPACE_MODE_ORDER)
+use_tabtabtab_prefs = False     # follow a tabtabtab-nuke install's space_mode_order; persisted
 
 _VALID_KEYBOARD_LAYOUTS = ("qwerty", "azerty", "qwertz")
+_VALID_SPACE_MODES = frozenset(DEFAULT_SPACE_MODE_ORDER)
 
 # Private — populated by _load_site_config(), never written to user prefs file directly
 _site_config = {}               # keys: field names locked by site config; values: admin values
 _user_naming_regex = ""         # shadow: user's own saved value for naming_regex
 _user_naming_template = ""      # shadow: user's own saved value for naming_template
 _user_naming_demo_filename = "plate_v003.exr"  # shadow: user's own saved value for naming_demo_filename
+# shadow: user's own saved value for space_mode_order
+_user_space_mode_order = list(DEFAULT_SPACE_MODE_ORDER)
+# order read from a tabtabtab-nuke install, or None when no install was found
+_tabtabtab_space_mode_order = None
 
 _LOCKABLE_NAMING_FIELDS = ('naming_regex', 'naming_template', 'naming_demo_filename')
 
@@ -64,9 +80,9 @@ def _load():
     global plugin_enabled, custom_colors, \
            naming_regex, naming_template, naming_demo_filename, \
            site_config_override, last_publish_path, \
-           keyboard_layout, \
+           keyboard_layout, use_tabtabtab_prefs, \
            _user_naming_regex, _user_naming_template, \
-           _user_naming_demo_filename
+           _user_naming_demo_filename, _user_space_mode_order
     if not os.path.exists(PREFS_PATH):
         _migrate_from_old_prefs_file()
         if not os.path.exists(PREFS_PATH):
@@ -74,6 +90,7 @@ def _load():
             _migrate_from_old_palette()
             save()
             _load_site_config()
+            refresh_tabtabtab_prefs()
             return
         # Old prefs was successfully copied; now fall through to load it
     try:
@@ -96,6 +113,10 @@ def _load():
             last_publish_path = data['last_publish_path']
         if data.get('keyboard_layout') in _VALID_KEYBOARD_LAYOUTS:
             keyboard_layout = data['keyboard_layout']
+        if is_valid_space_mode_order(data.get('space_mode_order')):
+            _user_space_mode_order = list(data['space_mode_order'])
+        if isinstance(data.get('use_tabtabtab_prefs'), bool):
+            use_tabtabtab_prefs = data['use_tabtabtab_prefs']
     except (OSError, ValueError, json.JSONDecodeError):
         pass  # silent fallback — module-level defaults remain
     # Copy user values into shadow vars before site config is applied
@@ -103,6 +124,8 @@ def _load():
     _user_naming_template = naming_template
     _user_naming_demo_filename = naming_demo_filename
     _load_site_config()
+    # Read the tabtabtab-nuke install (if any) and pick the effective mode order
+    refresh_tabtabtab_prefs()
 
 
 def _load_site_config():
@@ -145,6 +168,107 @@ def _apply_effective_naming_values():
         naming_demo_filename = _user_naming_demo_filename
 
 
+def is_valid_space_mode_order(candidate_order):
+    """Return True when *candidate_order* is a usable space-prefix mode mapping.
+
+    A valid mapping assigns each of the three search modes to exactly one
+    leading-space level, matching the rule tabtabtab-nuke's own preferences
+    dialog enforces. Anything else (wrong length, unknown mode, duplicate
+    mode, not a sequence) is rejected.
+    """
+    if not isinstance(candidate_order, (list, tuple)):
+        return False
+    if len(candidate_order) != len(DEFAULT_SPACE_MODE_ORDER):
+        return False
+    return set(candidate_order) == _VALID_SPACE_MODES
+
+
+def _tabtabtab_prefs_module():
+    """Return the installed tabtabtab-nuke prefs module, or None when absent.
+
+    tabtabtab-nuke ships tabtabtab_prefs.py on NUKE_PATH, so a plain import is
+    the most reliable way to tell whether an install is present and where it
+    keeps its preferences file.
+    """
+    try:
+        import tabtabtab_prefs
+    except Exception:
+        return None  # not installed, or an unrelated module of that name failed to import
+    return tabtabtab_prefs
+
+
+def _tabtabtab_prefs_path():
+    """Return the path of the tabtabtab-nuke preferences file.
+
+    Prefers the installed module's own PREFS_FILE so a future tabtabtab-nuke
+    that relocates its prefs is still followed correctly; falls back to the
+    documented default path.
+    """
+    installed_module = _tabtabtab_prefs_module()
+    module_prefs_path = getattr(installed_module, 'PREFS_FILE', None)
+    if isinstance(module_prefs_path, str) and module_prefs_path:
+        return module_prefs_path
+    return TABTABTAB_PREFS_PATH
+
+
+def refresh_tabtabtab_prefs():
+    """Re-read the tabtabtab-nuke space_mode_order and re-apply effective values.
+
+    Sets _tabtabtab_space_mode_order to the order that install is currently
+    using, or None when no tabtabtab-nuke install was found. An install that
+    has never saved its preferences is still an install: it runs on
+    tabtabtab-nuke's defaults, which are the same defaults anchors ships.
+
+    Called at import time, and again whenever the effective order matters, so
+    that preferences changed in tabtabtab's own dialog are picked up without a
+    Nuke restart.
+    """
+    global _tabtabtab_space_mode_order
+    tabtabtab_prefs_path = _tabtabtab_prefs_path()
+    tabtabtab_is_installed = _tabtabtab_prefs_module() is not None
+    saved_order = None
+    try:
+        with open(tabtabtab_prefs_path) as file_handle:
+            data = json.load(file_handle)
+        if isinstance(data, dict) and is_valid_space_mode_order(data.get('space_mode_order')):
+            saved_order = list(data['space_mode_order'])
+        tabtabtab_is_installed = True  # a prefs file it wrote is proof enough
+    except (OSError, ValueError, json.JSONDecodeError):
+        pass  # no readable prefs file — fall back on the install check alone
+    if saved_order is not None:
+        _tabtabtab_space_mode_order = saved_order
+    elif tabtabtab_is_installed:
+        _tabtabtab_space_mode_order = list(DEFAULT_SPACE_MODE_ORDER)
+    else:
+        _tabtabtab_space_mode_order = None
+    _apply_effective_space_mode_order()
+
+
+def tabtabtab_prefs_available():
+    """Return True when a tabtabtab-nuke install was found to follow."""
+    return _tabtabtab_space_mode_order is not None
+
+
+def tabtabtab_space_mode_order():
+    """Return the tabtabtab-nuke mode order, or the anchors default when absent."""
+    if _tabtabtab_space_mode_order is None:
+        return list(DEFAULT_SPACE_MODE_ORDER)
+    return list(_tabtabtab_space_mode_order)
+
+
+def _apply_effective_space_mode_order():
+    """Set space_mode_order to the effective value.
+
+    Follows the tabtabtab-nuke install when the user asked for it and one was
+    found; otherwise uses the user's own saved order.
+    """
+    global space_mode_order
+    if use_tabtabtab_prefs and _tabtabtab_space_mode_order is not None:
+        space_mode_order = list(_tabtabtab_space_mode_order)
+    else:
+        space_mode_order = list(_user_space_mode_order)
+
+
 def save():
     """Persist current preference values to disk.
 
@@ -163,6 +287,8 @@ def save():
                 'site_config_override': site_config_override,
                 'last_publish_path': last_publish_path,
                 'keyboard_layout': keyboard_layout,
+                'space_mode_order': list(_user_space_mode_order),
+                'use_tabtabtab_prefs': use_tabtabtab_prefs,
             },
             file_handle,
         )

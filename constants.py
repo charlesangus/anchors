@@ -62,6 +62,30 @@ DOT_ANCHOR_MIN_FONT_SIZE = 33
 USER_PALETTE_PATH = os.path.expanduser('~/.nuke/paste_hidden_user_palette.json')
 OLD_PREFS_PATH = os.path.expanduser('~/.nuke/paste_hidden_prefs.json')
 PREFS_PATH = os.path.expanduser('~/.nuke/anchors_prefs.json')
+# Preferences file written by a tabtabtab-nuke install. Anchors never writes it —
+# it is read only when the user asks anchors to follow tabtabtab's settings. The
+# path mirrors tabtabtab_prefs.PREFS_FILE in tabtabtab-nuke; when that module is
+# importable its own value wins (see prefs._tabtabtab_prefs_path).
+TABTABTAB_PREFS_PATH = os.path.expanduser('~/.nuke/tabtabtab_prefs.json')
+
+# === Space-prefix search modes for the fuzzy-find pickers. ===
+# FROZEN: these strings are the on-disk values shared with tabtabtab-nuke's
+# space_mode_order preference, and they must match the MODE_* constants in
+# tabtabtab_anchors.py. They are duplicated here so prefs.py can validate the
+# preference without importing the Qt-dependent tabtabtab core (which would
+# break headless `nuke -t` sessions).
+SPACE_MODE_ANCHORED_FUZZY = 'anchored_fuzzy'
+SPACE_MODE_NON_ANCHORED_FUZZY = 'non_anchored_fuzzy'
+SPACE_MODE_CONSECUTIVE = 'consecutive'
+
+# Ordered by the number of leading spaces typed in the picker: index 0 is no
+# leading space, index 1 is one space, index 2 is two spaces. The default
+# matches both the historic hardcoded behaviour and tabtabtab-nuke's default.
+DEFAULT_SPACE_MODE_ORDER = (
+    SPACE_MODE_ANCHORED_FUZZY,
+    SPACE_MODE_NON_ANCHORED_FUZZY,
+    SPACE_MODE_CONSECUTIVE,
+)
 
 # === Leader-key bindings — single source of truth for leader.py and leader_overlay.py. ===
 # Each entry: (key_letter, action_label, row, col, kind)
