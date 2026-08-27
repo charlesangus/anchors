@@ -175,10 +175,16 @@ def is_valid_space_mode_order(candidate_order):
     leading-space level, matching the rule tabtabtab-nuke's own preferences
     dialog enforces. Anything else (wrong length, unknown mode, duplicate
     mode, not a sequence) is rejected.
+
+    The entries are checked to be strings before they are put in a set: a
+    corrupt prefs file can hold unhashable entries (a nested list or object),
+    and set() would raise TypeError on those rather than reject them.
     """
     if not isinstance(candidate_order, (list, tuple)):
         return False
     if len(candidate_order) != len(DEFAULT_SPACE_MODE_ORDER):
+        return False
+    if not all(isinstance(mode_id, str) for mode_id in candidate_order):
         return False
     return set(candidate_order) == _VALID_SPACE_MODES
 

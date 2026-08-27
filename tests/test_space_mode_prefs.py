@@ -163,12 +163,35 @@ class TestSpaceModeOrderValidation(_SpaceModePrefsTestCase):
                 [ANCHORED, ANCHORED, CONSECUTIVE],             # duplicate mode
                 [ANCHORED, NON_ANCHORED, 'regex'],             # unknown mode
                 {'0': ANCHORED},
+                [{'mode': ANCHORED}, NON_ANCHORED, CONSECUTIVE],  # unhashable entry
+                [[ANCHORED], NON_ANCHORED, CONSECUTIVE],       # unhashable entry
             ]
             for candidate_order in rejected_orders:
                 self.assertFalse(
                     prefs_module.is_valid_space_mode_order(candidate_order),
                     "{!r} must be rejected".format(candidate_order),
                 )
+
+    def test_unhashable_order_in_prefs_file_is_ignored(self):
+        """A nested object on disk must be rejected, not crash the import."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with open(os.path.join(temp_dir, 'anchors_prefs.json'), 'w') as file_handle:
+                json.dump(
+                    {
+                        'plugin_enabled': True,
+                        'custom_colors': [],
+                        'space_mode_order': [{'mode': ANCHORED}, [NON_ANCHORED], 3],
+                    },
+                    file_handle,
+                )
+
+            prefs_module = self._reload_prefs(temp_dir)
+
+            self.assertEqual(
+                prefs_module.space_mode_order,
+                [ANCHORED, NON_ANCHORED, CONSECUTIVE],
+                "unhashable entries on disk must fall back to the default",
+            )
 
     def test_invalid_order_in_prefs_file_is_ignored(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -287,6 +310,22 @@ class TestFollowingTabtabtabPrefs(_SpaceModePrefsTestCase):
                 prefs_module.space_mode_order,
                 [ANCHORED, NON_ANCHORED, CONSECUTIVE],
                 "an unreadable tabtabtab prefs file must not crash or corrupt the mapping",
+            )
+
+    def test_unhashable_tabtabtab_order_is_treated_as_defaults(self):
+        """A nested object in tabtabtab's file must not crash the refresh."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tabtabtab_path = os.path.join(temp_dir, 'tabtabtab_prefs.json')
+            self._write_tabtabtab_prefs(tabtabtab_path, [{'mode': ANCHORED}, [], 2])
+
+            prefs_module = self._reload_prefs(temp_dir, tabtabtab_prefs_path=tabtabtab_path)
+            prefs_module.use_tabtabtab_prefs = True
+            self._refresh_without_installed_module(prefs_module)
+
+            self.assertEqual(
+                prefs_module.space_mode_order,
+                [ANCHORED, NON_ANCHORED, CONSECUTIVE],
+                "an unusable order in tabtabtab's file must fall back to the defaults",
             )
 
     def test_refresh_picks_up_a_change_made_in_tabtabtab(self):
