@@ -410,6 +410,7 @@ first.
 - **Keyboard layout** — QWERTY / AZERTY / QWERTZ for the leader overlay.
 - **Space-prefix search modes** — what leading spaces do in the fuzzy-find menus
   (see below).
+- **Scroll through all fuzzy-find results** — on by default; see below.
 - **Custom Colors** — add, edit, and remove the colours in your personal palette.
 - **Selecting a color closes the color palette** — on by default; turn it off to
   keep the palette open until you confirm with `Enter` or **OK**.
@@ -445,6 +446,19 @@ anchors follows the mapping set there instead — the three dropdowns grey out a
 show what tabtabtab is enforcing, and your own mapping is kept for when you untick
 the box. The checkbox itself is greyed out when no tabtabtab-nuke installation is
 found.
+
+### Scrolling through the results
+
+The `A` and `Alt`+`A` menus are a fixed size, so only the first eighteen matches
+fit in the window. **Scroll through all fuzzy-find results**, on by default, keeps
+the rest of the matches instead of throwing them away: scroll down to them with the
+mouse wheel, drag the scrollbar, or just keep pressing `Down`. The menu itself stays
+the same size either way — only what is reachable inside it changes.
+
+Untick the box to go back to only ever keeping the first screenful. Either way the
+best matches are at the top, so with a specific enough search you rarely need to
+scroll at all. The setting applies the next time you open one of the menus; there is
+no need to restart Nuke.
 
 
 
