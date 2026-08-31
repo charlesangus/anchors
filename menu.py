@@ -99,6 +99,9 @@ anchors_menu.addCommand(
     "Anchor Migrate from Old Version",
     "anchors.migrate_to_stemless_names()"
 )
+# Adopting another tool's anchor-like nodes creates real anchors, so it is gated
+# on plugin_enabled like every other anchor-creating command.
+_add_gated_command(anchors_menu, "Upgrade to Anchors...", "anchors.upgrade_to_anchors()")
 
 # Automatically migrate old-style knob names on every script load.
 # migrate_script() is idempotent — it only acts when the old knob names are

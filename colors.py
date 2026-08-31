@@ -1,7 +1,15 @@
 """Color palette dialog for the anchor color system."""
 
 import nuke
-from constants import ANCHOR_DEFAULT_COLOR
+
+from constants import (
+    ANCHOR_DEFAULT_COLOR,
+    NAME_SOURCE_AUTO,
+    NAME_SOURCE_LABEL,
+    NAME_SOURCE_NODE_NAME,
+    UPGRADE_SCOPE_SCRIPT,
+    UPGRADE_SCOPE_SELECTED,
+)
 
 try:
     if hasattr(nuke, 'NUKE_VERSION_MAJOR') and nuke.NUKE_VERSION_MAJOR >= 16:
@@ -131,6 +139,7 @@ def adjust_color_for_backdrop_contrast(backdrop_color_int):
 if QtWidgets is None:
     ColorPaletteDialog = None
     PrefsDialog = None
+    UpgradeAnchorsDialog = None
 else:
     # Column addresses: 1-9, 0 (10 columns max)
     _COLUMN_KEYS = '1234567890'
@@ -154,14 +163,20 @@ else:
             Defaults to an empty list if not provided.
         parent : QWidget or None
             Parent widget.
+        close_on_select : bool
+            If True (the default), picking a color accepts and closes the dialog
+            immediately. If False, picking only highlights the color and the user
+            confirms with Enter or the OK button. Injected by the caller from
+            prefs.close_palette_on_select.
         """
 
         def __init__(self, initial_color=None, show_name_field=False,
                      initial_name="", custom_colors=None, parent=None,
-                     default_color=None):
+                     default_color=None, close_on_select=True):
             super().__init__(parent)
 
             self._selected_color = initial_color
+            self._close_on_select = close_on_select
             self._hint_mode = False
             self._hint_row = None  # stores logical row index after letter keypress
             self._swatch_cells = []  # list of (group_col, logical_row, color_int, button)
@@ -364,10 +379,22 @@ else:
                 self.chosen_name = self._name_edit.text()
             super().accept()
 
-        def _on_swatch_clicked(self, color_int):
+        def _select_color(self, color_int):
+            """Record *color_int* as the current selection.
+
+            Every selection path — swatch click, hint-mode addressing, and the
+            "Custom Color..." picker — routes through here so the
+            close-on-select preference applies consistently.  When the
+            preference is off the dialog stays open with the color highlighted
+            and the user confirms with Enter or the OK button.
+            """
             self._selected_color = color_int
             self._refresh_swatch_borders()
-            self.accept()
+            if self._close_on_select:
+                self.accept()
+
+        def _on_swatch_clicked(self, color_int):
+            self._select_color(color_int)
 
         def _highlight_color_name(self):
             """Return the CSS color name to use for the selected swatch border.
@@ -415,10 +442,8 @@ else:
             if result == initial_color:
                 return
             self._staged_custom_colors.append(result)
-            self._selected_color = result
             self._append_swatch_to_custom_group(result)
-            self._refresh_swatch_borders()
-            self.accept()
+            self._select_color(result)
 
         def selected_color_int(self):
             """Return the selected color as a 0xRRGGBBAA int, or None if cancelled."""
@@ -479,8 +504,8 @@ else:
                     target_cell = self._cell_map.get((col_index, self._hint_row))
                     if target_cell is not None:
                         color_int, button = target_cell
-                        self._selected_color = color_int
-                        self.accept()
+                        self._leave_hint_mode()
+                        self._select_color(color_int)
                     self._hint_row = None
                     return True
                 return True  # consume unknown keys in hint mode
@@ -518,14 +543,15 @@ else:
                     event.accept()
                     return
 
-                # Second keypress: number selects the column and confirms
+                # Second keypress: number selects the column (and confirms when
+                # the close-on-select preference is on)
                 if key_text in _COLUMN_KEYS and self._hint_row is not None:
                     col_index = _COLUMN_KEYS.index(key_text)
                     target_cell = self._cell_map.get((col_index, self._hint_row))
                     if target_cell is not None:
                         color_int, button = target_cell
-                        self._selected_color = color_int
-                        self.accept()
+                        self._leave_hint_mode()
+                        self._select_color(color_int)
                     self._hint_row = None
                     event.accept()
                     return
@@ -534,6 +560,17 @@ else:
                 return
 
             super().keyPressEvent(event)
+
+        def _leave_hint_mode(self):
+            """Turn hint mode off and clear the address labels from the swatches.
+
+            Called once a hint address has resolved to a color: when the dialog
+            stays open (close-on-select off) the overlays must go so the
+            selection highlight is visible, and when it closes the cleared state
+            is what a re-opened dialog expects.
+            """
+            self._hint_mode = False
+            self._update_hint_overlays()
 
         def _update_hint_overlays(self):
             """Show or hide row/column address labels on swatches in hint mode.
@@ -667,6 +704,7 @@ else:
             self._local_naming_demo_filename = prefs_module._user_naming_demo_filename
             self._local_site_config_override = prefs_module.site_config_override
             self._local_keyboard_layout = prefs_module.keyboard_layout
+            self._local_close_palette_on_select = prefs_module.close_palette_on_select
             self._pre_reset_naming_snapshot = None  # (regex_text, template_text) tuple or None
             import os as os_module
             self._publish_path = (
@@ -845,6 +883,13 @@ else:
             self._populate_swatch_grid()
 
             outer_layout.addLayout(button_row_layout)
+
+            # Checkbox: whether picking a color in the palette accepts and closes it
+            self._close_palette_on_select_checkbox = QtWidgets.QCheckBox(
+                "Selecting a color closes the color palette"
+            )
+            self._close_palette_on_select_checkbox.setChecked(self._local_close_palette_on_select)
+            outer_layout.addWidget(self._close_palette_on_select_checkbox)
 
             # Horizontal separator between Custom Colors and Anchor Naming
             separator_above_naming = QtWidgets.QFrame()
@@ -1223,6 +1268,10 @@ else:
             prefs_module._user_naming_template = self._local_naming_template
             prefs_module._user_naming_demo_filename = self._local_naming_demo_filename
             prefs_module.site_config_override = self._local_site_config_override
+            # Flush the palette close-on-select pref; ColorPaletteDialog reads it
+            # through its close_on_select argument the next time it is opened.
+            self._local_close_palette_on_select = self._close_palette_on_select_checkbox.isChecked()
+            prefs_module.close_palette_on_select = self._local_close_palette_on_select
             # Re-apply effective values so module vars reflect the new override state
             prefs_module._apply_effective_naming_values()
             # Flush keyboard layout pref and rebuild the leader's dispatch tables
@@ -1276,3 +1325,207 @@ else:
                     self.focusPreviousChild()
                     return True
             return False
+
+    class UpgradeAnchorsDialog(QtWidgets.QDialog):
+        """Options and live preview for "Upgrade to Anchors".
+
+        Scripts built with another "pointer"/"stamp" tool have the same shape as
+        an anchor rig without our machinery.  This dialog chooses how those nodes
+        should be adopted, and previews the result before anything is mutated.
+
+        It owns no anchor logic: it collects option values and, whenever one
+        changes, asks *preview_provider* what the upgrade would do.
+
+        Parameters
+        ----------
+        preview_provider : callable
+            Called with the dict that chosen_options() returns; returns a list of
+            one-line strings, one per node that would be upgraded.
+        selection_count : int
+            How many nodes are selected.  Decides the default scope and labels
+            the "Selected nodes" option.
+        parent : QWidget or None
+            Parent widget.
+        """
+
+        def __init__(self, preview_provider, selection_count=0, parent=None):
+            super().__init__(parent)
+            self._preview_provider = preview_provider
+            self._selection_count = selection_count
+            self._build_ui()
+            self._refresh_preview()
+
+        def _add_section_label(self, layout, text):
+            """Add a non-focusable section heading to *layout*."""
+            section_label = QtWidgets.QLabel(text)
+            section_label.setFocusPolicy(Qt.NoFocus)
+            layout.addWidget(section_label)
+
+        def _add_name_source_combobox(self, layout, text, initial_source):
+            """Add a labelled name-source dropdown row and return the combobox."""
+            row_layout = QtWidgets.QHBoxLayout()
+            row_label = QtWidgets.QLabel(text)
+            row_label.setFocusPolicy(Qt.NoFocus)
+            combobox = QtWidgets.QComboBox()
+            combobox.addItem("Label, else node name", NAME_SOURCE_AUTO)
+            combobox.addItem("Node name", NAME_SOURCE_NODE_NAME)
+            combobox.addItem("Label", NAME_SOURCE_LABEL)
+            combobox.setCurrentIndex(max(0, combobox.findData(initial_source)))
+            combobox.currentIndexChanged.connect(self._refresh_preview)
+            row_layout.addWidget(row_label)
+            row_layout.addWidget(combobox)
+            row_layout.addStretch()
+            layout.addLayout(row_layout)
+            return combobox
+
+        def _add_strip_line_edit(self, layout, text, placeholder):
+            """Add a labelled strip-text field row and return the line edit."""
+            row_layout = QtWidgets.QHBoxLayout()
+            row_label = QtWidgets.QLabel(text)
+            row_label.setFocusPolicy(Qt.NoFocus)
+            line_edit = QtWidgets.QLineEdit()
+            line_edit.setPlaceholderText(placeholder)
+            line_edit.textChanged.connect(self._refresh_preview)
+            row_layout.addWidget(row_label)
+            row_layout.addWidget(line_edit)
+            layout.addLayout(row_layout)
+            return line_edit
+
+        def _build_ui(self):
+            self.setWindowTitle("Upgrade to Anchors")
+            outer_layout = QtWidgets.QVBoxLayout()
+            self.setLayout(outer_layout)
+
+            intro_label = QtWidgets.QLabel(
+                "Adopt anchor-like nodes built by another tool: each parent node "
+                "becomes an anchor, and the hidden-input nodes pointing at it "
+                "become Links.  Nodes are converted in place, so their "
+                "connections and positions are kept."
+            )
+            intro_label.setWordWrap(True)
+            intro_label.setFocusPolicy(Qt.NoFocus)
+            outer_layout.addWidget(intro_label)
+
+            # ---- Scope ----
+            self._add_section_label(outer_layout, "Upgrade")
+            self._selected_scope_radio = QtWidgets.QRadioButton(
+                f"Selected nodes ({self._selection_count})"
+            )
+            self._script_scope_radio = QtWidgets.QRadioButton(
+                "Every anchor-like node in the script"
+            )
+            # Radio buttons sharing a parent widget are auto-exclusive, which would
+            # make picking a colour clear the scope choice.  An explicit
+            # QButtonGroup per pair keeps the two sets independent.
+            self._scope_button_group = QtWidgets.QButtonGroup(self)
+            self._scope_button_group.addButton(self._selected_scope_radio)
+            self._scope_button_group.addButton(self._script_scope_radio)
+            self._selected_scope_radio.setEnabled(bool(self._selection_count))
+            # Default to the selection when there is one — "one selected NoOp" is
+            # the common case; otherwise fall back to the whole script.
+            if self._selection_count:
+                self._selected_scope_radio.setChecked(True)
+            else:
+                self._script_scope_radio.setChecked(True)
+            self._selected_scope_radio.toggled.connect(self._refresh_preview)
+            outer_layout.addWidget(self._selected_scope_radio)
+            outer_layout.addWidget(self._script_scope_radio)
+
+            # ---- Which kinds of parent ----
+            self._add_section_label(outer_layout, "Parent nodes to upgrade")
+            self._noop_parents_checkbox = QtWidgets.QCheckBox("NoOp and PostageStamp parents")
+            self._noop_parents_checkbox.setChecked(True)
+            self._noop_parents_checkbox.toggled.connect(self._refresh_preview)
+            outer_layout.addWidget(self._noop_parents_checkbox)
+
+            self._dot_parents_checkbox = QtWidgets.QCheckBox("Dot parents")
+            self._dot_parents_checkbox.setChecked(True)
+            self._dot_parents_checkbox.toggled.connect(self._refresh_preview)
+            outer_layout.addWidget(self._dot_parents_checkbox)
+
+            # ---- Naming ----
+            self._add_section_label(outer_layout, "Anchor names")
+            self._noop_name_source_combobox = self._add_name_source_combobox(
+                outer_layout, "Name NoOp parents from:", NAME_SOURCE_AUTO
+            )
+            self._dot_name_source_combobox = self._add_name_source_combobox(
+                outer_layout, "Name Dot parents from:", NAME_SOURCE_AUTO
+            )
+            self._strip_prefix_edit = self._add_strip_line_edit(
+                outer_layout, "Strip leading text:", "e.g. Pointer_"
+            )
+            self._strip_suffix_edit = self._add_strip_line_edit(
+                outer_layout, "Strip trailing text:", "e.g. _OUT"
+            )
+
+            # ---- Colour ----
+            self._add_section_label(outer_layout, "Colours")
+            self._keep_colors_radio = QtWidgets.QRadioButton("Keep the existing node colours")
+            self._default_colors_radio = QtWidgets.QRadioButton("Use the anchor colours")
+            self._color_button_group = QtWidgets.QButtonGroup(self)
+            self._color_button_group.addButton(self._keep_colors_radio)
+            self._color_button_group.addButton(self._default_colors_radio)
+            self._keep_colors_radio.setChecked(True)
+            outer_layout.addWidget(self._keep_colors_radio)
+            outer_layout.addWidget(self._default_colors_radio)
+            dot_color_note_label = QtWidgets.QLabel(
+                "Dot anchors always take the default anchor colour."
+            )
+            dot_color_note_label.setWordWrap(True)
+            dot_color_note_label.setFocusPolicy(Qt.NoFocus)
+            outer_layout.addWidget(dot_color_note_label)
+
+            # ---- Preview ----
+            self._add_section_label(outer_layout, "Preview")
+            self._preview_list = QtWidgets.QListWidget()
+            self._preview_list.setFocusPolicy(Qt.NoFocus)
+            outer_layout.addWidget(self._preview_list)
+
+            # ---- Cancel / Upgrade — positive action on the right, as elsewhere ----
+            self._upgrade_button = QtWidgets.QPushButton("Upgrade")
+            self._upgrade_button.setFocusPolicy(Qt.NoFocus)
+            self._upgrade_button.setAutoDefault(False)
+            self._upgrade_button.clicked.connect(self.accept)
+
+            cancel_button = QtWidgets.QPushButton("Cancel")
+            cancel_button.setFocusPolicy(Qt.NoFocus)
+            cancel_button.setAutoDefault(False)
+            cancel_button.clicked.connect(self.reject)
+
+            button_row_layout = QtWidgets.QHBoxLayout()
+            button_row_layout.addWidget(self._upgrade_button)
+            button_row_layout.addWidget(cancel_button)
+            outer_layout.addLayout(button_row_layout)
+
+        def chosen_options(self):
+            """Return the current option values as a plain dict.
+
+            Consumed by migrations.UpgradeOptions.from_dict(); keeping it a plain
+            dict is what lets this dialog stay free of any anchor logic.
+            """
+            scope = (UPGRADE_SCOPE_SELECTED if self._selected_scope_radio.isChecked()
+                     else UPGRADE_SCOPE_SCRIPT)
+            return {
+                'scope': scope,
+                'include_noop_parents': self._noop_parents_checkbox.isChecked(),
+                'include_dot_parents': self._dot_parents_checkbox.isChecked(),
+                'noop_name_source': self._noop_name_source_combobox.currentData(),
+                'dot_name_source': self._dot_name_source_combobox.currentData(),
+                'strip_prefix': self._strip_prefix_edit.text(),
+                'strip_suffix': self._strip_suffix_edit.text(),
+                'keep_colors': self._keep_colors_radio.isChecked(),
+            }
+
+        def _refresh_preview(self):
+            """Re-run the preview for the current options and update the list.
+
+            The Upgrade button is disabled while there is nothing to do, so the
+            dialog can never apply an empty plan.
+            """
+            preview_lines = self._preview_provider(self.chosen_options())
+            self._preview_list.clear()
+            if preview_lines:
+                self._preview_list.addItems(preview_lines)
+            else:
+                self._preview_list.addItem("Nothing to upgrade with these options.")
+            self._upgrade_button.setEnabled(bool(preview_lines))

@@ -192,6 +192,7 @@ def set_anchor_color(anchor_node):
         initial_color=current_color,
         show_name_field=False,
         custom_colors=prefs.custom_colors,
+        close_on_select=prefs.close_palette_on_select,
     )
     if dialog.exec_() == ColorPaletteDialog.Accepted:
         _persist_custom_colors_from_dialog(dialog)
@@ -456,6 +457,7 @@ def rename_anchor(anchor_node):
         initial_name=suggested,
         custom_colors=prefs.custom_colors,
         default_color=auto_derived_color,
+        close_on_select=prefs.close_palette_on_select,
     )
     if dialog.exec_() != QtWidgets.QDialog.Accepted:
         return
@@ -583,6 +585,7 @@ def create_anchor():
         initial_name=suggested,
         custom_colors=prefs.custom_colors,
         default_color=pre_color,
+        close_on_select=prefs.close_palette_on_select,
     )
     if dialog.exec_() != QtWidgets.QDialog.Accepted:
         return
@@ -1071,15 +1074,14 @@ def navigate_to_anchor(anchor_node):
 
     nuke.zoomToFitSelected()
 
-    # A labelled-dot module (the nodes above a Dot anchor) frames too tight with
-    # zoomToFitSelected, which has no padding parameter (issue #61). Zoom out
-    # slightly from the fitted framing to leave a margin around the module. Only
-    # Dot anchors get this margin; other anchor types keep the tight fit they had
-    # before, matching the framing that already worked for them.
-    if anchor_node.Class() == 'Dot':
-        fitted_scale = nuke.zoom()
-        fitted_center = nuke.center()
-        nuke.zoom(fitted_scale * MODULE_ZOOM_MARGIN_FACTOR, fitted_center)
+    # zoomToFitSelected frames the module edge-to-edge, which has no padding
+    # parameter and crops the anchor and outermost nodes at the viewport edge
+    # (issue #73). Zoom out slightly from the fitted framing to leave a margin
+    # around the module, for every anchor type — matching the margin that
+    # navigate_to_backdrop already gets for free from the backdrop's own bounds.
+    fitted_scale = nuke.zoom()
+    fitted_center = nuke.center()
+    nuke.zoom(fitted_scale * MODULE_ZOOM_MARGIN_FACTOR, fitted_center)
 
     nukescripts.clear_selection_recursive()
     for node in saved_selection:

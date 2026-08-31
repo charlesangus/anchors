@@ -482,8 +482,9 @@ class _PickerTestHarness:
     # palette-based highlight color appears in stylesheets.
     HARNESS_HIGHLIGHT_COLOR = "#4a90d9"
 
-    def __init__(self, initial_color=None, custom_colors=None):
+    def __init__(self, initial_color=None, custom_colors=None, close_on_select=True):
         self._selected_color = initial_color
+        self._close_on_select = close_on_select
         self._hint_mode = False
         self._hint_row = None  # stores logical row index after letter keypress
         self._swatch_cells = []
@@ -498,6 +499,15 @@ class _PickerTestHarness:
         self._custom_group_next_logical_row = 0
         self.accept = MagicMock()
         self.reject = MagicMock()
+
+    def _select_color(self, color_int):
+        """Run the real _select_color implementation extracted from colors.py.
+
+        Every selection path in the dialog funnels through this method, so the
+        harness binds the real one rather than a mock — tests asserting that a
+        click accepts (or does not accept) exercise the actual gate.
+        """
+        _extract_method_from_source('_select_color')(self, color_int)
 
     def _highlight_color_name(self):
         """Return a deterministic sentinel highlight color for offline testing.
@@ -2505,6 +2515,243 @@ class TestAdjustColorForBackdropContrast(unittest.TestCase):
             adjusted = self._adjusted(color)
             self.assertGreaterEqual(adjusted, 0)
             self.assertLessEqual(adjusted, 0xFFFFFFFF)
+
+
+class TestColorPaletteDialogCloseOnSelectPreference(unittest.TestCase):
+    """Issue #70: the close_on_select flag (fed from prefs.close_palette_on_select)
+    decides whether picking a color accepts and closes the palette.
+
+    The default is True, which is the long-standing behaviour: a click, a hint
+    address, or a custom color pick closes the dialog straight away. With the
+    flag off the color is only highlighted and the user confirms with Enter or
+    the OK button.
+    """
+
+    def _read_colors_source(self):
+        with open(_REPO_ROOT / 'colors.py', 'r') as source_file:
+            return source_file.read()
+
+    def _get_init_defaults(self):
+        """Return {parameter_name: default AST node} for ColorPaletteDialog.__init__."""
+        tree = ast.parse(self._read_colors_source())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ClassDef) and node.name == 'ColorPaletteDialog':
+                for item in node.body:
+                    if isinstance(item, ast.FunctionDef) and item.name == '__init__':
+                        arg_names = [arg.arg for arg in item.args.args]
+                        defaults = item.args.defaults
+                        first_defaulted = len(arg_names) - len(defaults)
+                        return {
+                            arg_names[first_defaulted + i]: default_node
+                            for i, default_node in enumerate(defaults)
+                        }
+        self.fail("ColorPaletteDialog.__init__ not found in colors.py")
+
+    def _get_method_source(self, method_name):
+        """Return the source text of a ColorPaletteDialog method."""
+        source_text = self._read_colors_source()
+        tree = ast.parse(source_text)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ClassDef) and node.name == 'ColorPaletteDialog':
+                for item in node.body:
+                    if isinstance(item, ast.FunctionDef) and item.name == method_name:
+                        lines = source_text.splitlines()
+                        return '\n'.join(lines[item.lineno - 1:item.end_lineno])
+        self.fail(f"{method_name} not found in ColorPaletteDialog in colors.py")
+
+    def test_init_accepts_close_on_select_defaulting_to_true(self):
+        """__init__ must take a close_on_select parameter defaulting to True."""
+        init_defaults = self._get_init_defaults()
+
+        self.assertIn('close_on_select', init_defaults,
+                      "ColorPaletteDialog.__init__ must accept a 'close_on_select' parameter")
+        self.assertIs(
+            getattr(init_defaults['close_on_select'], 'value', None), True,
+            "close_on_select must default to True so current behaviour is preserved",
+        )
+
+    def test_swatch_click_accepts_when_close_on_select_is_on(self):
+        """With the flag on, clicking a swatch closes the dialog."""
+        on_swatch_clicked = _extract_method_from_source('_on_swatch_clicked')
+        dialog = _PickerTestHarness(close_on_select=True)
+        dialog._refresh_swatch_borders = MagicMock()
+
+        on_swatch_clicked(dialog, 0xFF0000FF)
+
+        dialog.accept.assert_called_once()
+
+    def test_swatch_click_does_not_accept_when_close_on_select_is_off(self):
+        """With the flag off, clicking a swatch selects without closing the dialog."""
+        on_swatch_clicked = _extract_method_from_source('_on_swatch_clicked')
+        dialog = _PickerTestHarness(close_on_select=False)
+        dialog._refresh_swatch_borders = MagicMock()
+
+        on_swatch_clicked(dialog, 0xFF0000FF)
+
+        dialog.accept.assert_not_called()
+        self.assertEqual(dialog._selected_color, 0xFF0000FF,
+                         "The clicked color must still become the selection")
+        dialog._refresh_swatch_borders.assert_called_once()
+
+    def test_custom_color_pick_accepts_when_close_on_select_is_on(self):
+        """With the flag on, confirming a custom color closes the dialog."""
+        on_custom_color_clicked = _extract_method_from_source('_on_custom_color_clicked')
+        dialog = _PickerTestHarness(close_on_select=True)
+        dialog._refresh_swatch_borders = MagicMock()
+        dialog._append_swatch_to_custom_group = MagicMock()
+
+        import nuke as nuke_stub
+        nuke_stub.getColor = MagicMock(return_value=0x8800CCFF)
+
+        on_custom_color_clicked(dialog)
+
+        dialog.accept.assert_called_once()
+
+    def test_custom_color_pick_does_not_accept_when_close_on_select_is_off(self):
+        """With the flag off, a custom color is staged and selected but the dialog stays open."""
+        on_custom_color_clicked = _extract_method_from_source('_on_custom_color_clicked')
+        dialog = _PickerTestHarness(close_on_select=False)
+        dialog._refresh_swatch_borders = MagicMock()
+        dialog._append_swatch_to_custom_group = MagicMock()
+
+        import nuke as nuke_stub
+        nuke_stub.getColor = MagicMock(return_value=0x8800CCFF)
+
+        on_custom_color_clicked(dialog)
+
+        dialog.accept.assert_not_called()
+        self.assertEqual(dialog._selected_color, 0x8800CCFF)
+        self.assertIn(0x8800CCFF, dialog._staged_custom_colors,
+                      "The custom color must still be staged when the dialog stays open")
+        dialog._append_swatch_to_custom_group.assert_called_once_with(0x8800CCFF)
+
+    def test_select_color_only_accepts_when_flag_is_set(self):
+        """_select_color is the single gate: it accepts only when _close_on_select is True."""
+        select_color = _extract_method_from_source('_select_color')
+        self.assertIsNotNone(select_color,
+                             "_select_color not found in ColorPaletteDialog in colors.py")
+
+        closing_dialog = _PickerTestHarness(close_on_select=True)
+        closing_dialog._refresh_swatch_borders = MagicMock()
+        select_color(closing_dialog, 0)  # black — must not be treated as falsy
+        self.assertEqual(closing_dialog._selected_color, 0)
+        closing_dialog.accept.assert_called_once()
+
+        staying_dialog = _PickerTestHarness(close_on_select=False)
+        staying_dialog._refresh_swatch_borders = MagicMock()
+        select_color(staying_dialog, 0)
+        self.assertEqual(staying_dialog._selected_color, 0)
+        staying_dialog.accept.assert_not_called()
+
+    def test_hint_mode_selection_routes_through_select_color(self):
+        """Both hint-mode key handlers must select via _select_color, not accept() directly.
+
+        Qt key handling cannot run offline, so this is a source-level check that
+        the hint path shares the same close-on-select gate as a mouse click.
+        """
+        for method_name in ('keyPressEvent', 'eventFilter'):
+            method_source = self._get_method_source(method_name)
+            self.assertIn(
+                'self._select_color(color_int)', method_source,
+                f"{method_name} must resolve a hint address through _select_color "
+                "so the close-on-select preference is honoured",
+            )
+            self.assertNotIn(
+                'self._selected_color = color_int', method_source,
+                f"{method_name} must not set _selected_color directly — it bypasses "
+                "the close-on-select gate",
+            )
+
+    def test_hint_mode_is_left_before_the_selection_is_applied(self):
+        """Resolving a hint address must clear hint overlays so the highlight is visible."""
+        leave_hint_mode = _extract_method_from_source('_leave_hint_mode')
+        self.assertIsNotNone(leave_hint_mode,
+                             "_leave_hint_mode not found in ColorPaletteDialog in colors.py")
+
+        dialog = _PickerTestHarness(close_on_select=False)
+        dialog._hint_mode = True
+        dialog._update_hint_overlays = MagicMock()
+
+        leave_hint_mode(dialog)
+
+        self.assertFalse(dialog._hint_mode)
+        dialog._update_hint_overlays.assert_called_once()
+
+        for method_name in ('keyPressEvent', 'eventFilter'):
+            self.assertIn('self._leave_hint_mode()', self._get_method_source(method_name),
+                          f"{method_name} must leave hint mode once an address resolves")
+
+
+class TestPrefsDialogCloseOnSelectCheckbox(unittest.TestCase):
+    """Issue #70: PrefsDialog exposes close_palette_on_select as a checkbox."""
+
+    def _read_colors_source(self):
+        with open(_REPO_ROOT / 'colors.py', 'r') as source_file:
+            return source_file.read()
+
+    def _get_prefs_dialog_method_source(self, method_name):
+        source_text = self._read_colors_source()
+        tree = ast.parse(source_text)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ClassDef) and node.name == 'PrefsDialog':
+                for item in node.body:
+                    if isinstance(item, ast.FunctionDef) and item.name == method_name:
+                        lines = source_text.splitlines()
+                        return '\n'.join(lines[item.lineno - 1:item.end_lineno])
+        self.fail(f"{method_name} not found in PrefsDialog in colors.py")
+
+    def test_build_ui_creates_the_checkbox_seeded_from_the_local_value(self):
+        build_ui_source = self._get_prefs_dialog_method_source('_build_ui')
+
+        self.assertIn('_close_palette_on_select_checkbox', build_ui_source,
+                      "PrefsDialog must show a close-on-select checkbox")
+        self.assertIn(
+            'setChecked(self._local_close_palette_on_select)', build_ui_source,
+            "The checkbox must be seeded from the local working copy of the preference",
+        )
+
+    def test_init_seeds_the_local_value_from_prefs(self):
+        init_source = self._get_prefs_dialog_method_source('__init__')
+
+        self.assertIn(
+            'self._local_close_palette_on_select = prefs_module.close_palette_on_select',
+            init_source,
+            "PrefsDialog must seed a local working copy from prefs.close_palette_on_select",
+        )
+
+    def test_on_accept_flushes_the_checkbox_to_prefs(self):
+        on_accept_source = self._get_prefs_dialog_method_source('_on_accept')
+
+        self.assertIn('self._close_palette_on_select_checkbox.isChecked()', on_accept_source,
+                      "_on_accept must read the checkbox state")
+        self.assertIn('prefs_module.close_palette_on_select', on_accept_source,
+                      "_on_accept must flush the value to the prefs module")
+
+
+class TestAnchorPassesCloseOnSelectToDialog(unittest.TestCase):
+    """Issue #70: every ColorPaletteDialog opened by anchor.py must carry the preference."""
+
+    def test_every_dialog_construction_passes_close_on_select(self):
+        with open(_REPO_ROOT / 'anchor.py', 'r') as source_file:
+            source_text = source_file.read()
+        tree = ast.parse(source_text)
+
+        constructions = [
+            node for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == 'ColorPaletteDialog'
+        ]
+        self.assertTrue(constructions,
+                        "anchor.py must construct ColorPaletteDialog at least once")
+
+        for construction in constructions:
+            keyword_names = [keyword.arg for keyword in construction.keywords]
+            self.assertIn(
+                'close_on_select', keyword_names,
+                f"ColorPaletteDialog construction at anchor.py:{construction.lineno} must pass "
+                "close_on_select=prefs.close_palette_on_select",
+            )
 
 
 if __name__ == '__main__':

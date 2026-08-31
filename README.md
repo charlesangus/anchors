@@ -107,6 +107,14 @@ When the plugin is disabled in Preferences, the `Shift+A` shortcut is disabled a
 
 The existing `Alt+A`, `Alt+J`, `Alt+L`, `Alt+Z` shortcuts continue to work alongside the leader for muscle-memory parity.
 
+## Upgrading Another Tool's Anchors
+
+`Edit > Anchors > Upgrade to Anchors...` adopts an anchor-like rig built with a different tool — a labelled, coloured NoOp/Dot/PostageStamp with hidden-input nodes pointing back at it — as real anchors and Links. Nodes are converted **in place**, so each keeps its class, position, and downstream connections.
+
+The dialog previews every conversion before anything changes, and offers: the scope (selected nodes or the whole script); which parent kinds to include (NoOp/PostageStamp and Dot, configured separately); where each kind takes its name from (label, node name, or label-else-name); leading/trailing text to strip from that name (`Pointer_Foo` → `Foo`); and whether to keep the existing tile colours or take the derived anchor colours.
+
+Derived names are sanitized and de-duplicated (`Anchor_Foo`, `Anchor_Foo1`). A node that is both a parent and another parent's hidden-input child stays a parent. Nodes that are already anchors keep their name and colour — only their children are upgraded — so re-running the command is a no-op. Like the other migrators, it is not undoable: save a backup first.
+
 ## Reconnecting
 
 - `Edit > Anchors > Reconnect All Links` — re-wires all link nodes in the script. Useful after a script load or merge.
@@ -421,6 +429,31 @@ The legacy → new knob mapping covers:
 A second migrator, available from `Edit > Anchors > Anchor Migrate from Old Version`, calls `anchors.migrate_to_stemless_names()`. This rewrites stored anchor references on link nodes from the very-old `scriptStem.fullName` format (e.g. `myScript.Anchor_Foo`) to the current `fullName`-only format (e.g. `Anchor_Foo` or `Group1.Anchor_Foo`). It is safe to run on already-migrated scripts (no-op).
 
 Both migrators print a summary of the nodes/knobs updated. Neither is undoable — save a backup of your script first.
+
+### Upgrading another tool's anchors
+
+`anchors.upgrade_to_anchors()` (wired to `Edit > Anchors > Upgrade to Anchors...`) opens the options dialog described in [Upgrading Another Tool's Anchors](#upgrading-another-tools-anchors) and applies the chosen conversion.
+
+For scripted use, `anchors.upgrade_nodes_to_anchors(nodes, options=None)` does the same without prompting and returns an `(anchor_count, link_count)` tuple:
+
+```python
+import nuke
+import anchors
+from migrations import UpgradeOptions
+from constants import NAME_SOURCE_NODE_NAME
+
+options = UpgradeOptions(
+    include_noop_parents=True,      # upgrade NoOp / PostageStamp parents
+    include_dot_parents=True,       # upgrade Dot parents
+    noop_name_source=NAME_SOURCE_NODE_NAME,   # or NAME_SOURCE_LABEL / NAME_SOURCE_AUTO
+    strip_prefix='Pointer_',        # Pointer_Foo -> Foo
+    strip_suffix='',
+    keep_colors=True,               # False takes the derived anchor colours
+)
+anchor_count, link_count = anchors.upgrade_nodes_to_anchors(nuke.allNodes(), options)
+```
+
+`migrations.plan_upgrades(nodes, options)` returns the same work as a list of `UpgradePlanEntry` objects without mutating anything — that is what the dialog previews.
 
 # Development
 
