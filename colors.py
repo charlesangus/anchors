@@ -154,14 +154,20 @@ else:
             Defaults to an empty list if not provided.
         parent : QWidget or None
             Parent widget.
+        close_on_select : bool
+            If True (the default), picking a color accepts and closes the dialog
+            immediately. If False, picking only highlights the color and the user
+            confirms with Enter or the OK button. Injected by the caller from
+            prefs.close_palette_on_select.
         """
 
         def __init__(self, initial_color=None, show_name_field=False,
                      initial_name="", custom_colors=None, parent=None,
-                     default_color=None):
+                     default_color=None, close_on_select=True):
             super().__init__(parent)
 
             self._selected_color = initial_color
+            self._close_on_select = close_on_select
             self._hint_mode = False
             self._hint_row = None  # stores logical row index after letter keypress
             self._swatch_cells = []  # list of (group_col, logical_row, color_int, button)
@@ -364,10 +370,22 @@ else:
                 self.chosen_name = self._name_edit.text()
             super().accept()
 
-        def _on_swatch_clicked(self, color_int):
+        def _select_color(self, color_int):
+            """Record *color_int* as the current selection.
+
+            Every selection path — swatch click, hint-mode addressing, and the
+            "Custom Color..." picker — routes through here so the
+            close-on-select preference applies consistently.  When the
+            preference is off the dialog stays open with the color highlighted
+            and the user confirms with Enter or the OK button.
+            """
             self._selected_color = color_int
             self._refresh_swatch_borders()
-            self.accept()
+            if self._close_on_select:
+                self.accept()
+
+        def _on_swatch_clicked(self, color_int):
+            self._select_color(color_int)
 
         def _highlight_color_name(self):
             """Return the CSS color name to use for the selected swatch border.
@@ -415,10 +433,8 @@ else:
             if result == initial_color:
                 return
             self._staged_custom_colors.append(result)
-            self._selected_color = result
             self._append_swatch_to_custom_group(result)
-            self._refresh_swatch_borders()
-            self.accept()
+            self._select_color(result)
 
         def selected_color_int(self):
             """Return the selected color as a 0xRRGGBBAA int, or None if cancelled."""
@@ -479,8 +495,8 @@ else:
                     target_cell = self._cell_map.get((col_index, self._hint_row))
                     if target_cell is not None:
                         color_int, button = target_cell
-                        self._selected_color = color_int
-                        self.accept()
+                        self._leave_hint_mode()
+                        self._select_color(color_int)
                     self._hint_row = None
                     return True
                 return True  # consume unknown keys in hint mode
@@ -518,14 +534,15 @@ else:
                     event.accept()
                     return
 
-                # Second keypress: number selects the column and confirms
+                # Second keypress: number selects the column (and confirms when
+                # the close-on-select preference is on)
                 if key_text in _COLUMN_KEYS and self._hint_row is not None:
                     col_index = _COLUMN_KEYS.index(key_text)
                     target_cell = self._cell_map.get((col_index, self._hint_row))
                     if target_cell is not None:
                         color_int, button = target_cell
-                        self._selected_color = color_int
-                        self.accept()
+                        self._leave_hint_mode()
+                        self._select_color(color_int)
                     self._hint_row = None
                     event.accept()
                     return
@@ -534,6 +551,17 @@ else:
                 return
 
             super().keyPressEvent(event)
+
+        def _leave_hint_mode(self):
+            """Turn hint mode off and clear the address labels from the swatches.
+
+            Called once a hint address has resolved to a color: when the dialog
+            stays open (close-on-select off) the overlays must go so the
+            selection highlight is visible, and when it closes the cleared state
+            is what a re-opened dialog expects.
+            """
+            self._hint_mode = False
+            self._update_hint_overlays()
 
         def _update_hint_overlays(self):
             """Show or hide row/column address labels on swatches in hint mode.
@@ -666,6 +694,7 @@ else:
             self._local_naming_demo_filename = prefs_module._user_naming_demo_filename
             self._local_site_config_override = prefs_module.site_config_override
             self._local_keyboard_layout = prefs_module.keyboard_layout
+            self._local_close_palette_on_select = prefs_module.close_palette_on_select
             self._pre_reset_naming_snapshot = None  # (regex_text, template_text) tuple or None
             import os as os_module
             self._publish_path = (
@@ -837,6 +866,13 @@ else:
             self._populate_swatch_grid()
 
             outer_layout.addLayout(button_row_layout)
+
+            # Checkbox: whether picking a color in the palette accepts and closes it
+            self._close_palette_on_select_checkbox = QtWidgets.QCheckBox(
+                "Selecting a color closes the color palette"
+            )
+            self._close_palette_on_select_checkbox.setChecked(self._local_close_palette_on_select)
+            outer_layout.addWidget(self._close_palette_on_select_checkbox)
 
             # Horizontal separator between Custom Colors and Anchor Naming
             separator_above_naming = QtWidgets.QFrame()
@@ -1211,6 +1247,10 @@ else:
             prefs_module._user_naming_template = self._local_naming_template
             prefs_module._user_naming_demo_filename = self._local_naming_demo_filename
             prefs_module.site_config_override = self._local_site_config_override
+            # Flush the palette close-on-select pref; ColorPaletteDialog reads it
+            # through its close_on_select argument the next time it is opened.
+            self._local_close_palette_on_select = self._close_palette_on_select_checkbox.isChecked()
+            prefs_module.close_palette_on_select = self._local_close_palette_on_select
             # Re-apply effective values so module vars reflect the new override state
             prefs_module._apply_effective_naming_values()
             # Flush keyboard layout pref and rebuild the leader's dispatch tables

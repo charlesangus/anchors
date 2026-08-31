@@ -192,6 +192,7 @@ def set_anchor_color(anchor_node):
         initial_color=current_color,
         show_name_field=False,
         custom_colors=prefs.custom_colors,
+        close_on_select=prefs.close_palette_on_select,
     )
     if dialog.exec_() == ColorPaletteDialog.Accepted:
         _persist_custom_colors_from_dialog(dialog)
@@ -456,6 +457,7 @@ def rename_anchor(anchor_node):
         initial_name=suggested,
         custom_colors=prefs.custom_colors,
         default_color=auto_derived_color,
+        close_on_select=prefs.close_palette_on_select,
     )
     if dialog.exec_() != QtWidgets.QDialog.Accepted:
         return
@@ -555,6 +557,7 @@ def create_anchor():
         initial_name=suggested,
         custom_colors=prefs.custom_colors,
         default_color=pre_color,
+        close_on_select=prefs.close_palette_on_select,
     )
     if dialog.exec_() != QtWidgets.QDialog.Accepted:
         return
