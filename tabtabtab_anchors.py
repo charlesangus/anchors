@@ -244,9 +244,12 @@ def parse_search_modes(filtertext, space_mode_order=None):
     fuzzy matching regardless of that mapping.
 
     Returns ``(text, anchored, force_non_anchored, force_consecutive)`` where
-    *text* is *filtertext* with any prefix removed.  Callers that do their own
-    matching (the spatial view) share this parsing with NodeModel so every
-    search field in the plugin honours the same preference.
+    *text* is *filtertext* with the leading spaces and every ``*`` stripped.  A
+    leading ``[`` is deliberately kept: it is part of the bracketed menu path in
+    an item's ui-name (see :func:`menupath_uiname`), so it has to reach the
+    matcher.  Callers that do their own matching (the spatial view) share this
+    parsing with NodeModel so every search field in the plugin honours the same
+    preference.
     """
     if (space_mode_order is None
             or len(space_mode_order) != len(DEFAULT_SPACE_MODE_ORDER)
