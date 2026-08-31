@@ -59,6 +59,7 @@ The anchor system is a reusable named-input mechanism for the node graph.
 ## Creating Anchors
 
 - Select a node and press `A` (or `Edit > Anchors > Create Anchor`) — a combined name + color dialog appears, pre-filled from the input node's file path and the smallest containing backdrop label.
+- A Link node is created directly below the new anchor, centred on it, so the anchor is immediately usable. Turn this off with the "Create a link below each new anchor" preference. The behaviour applies to the interactive command only — the `api.create_anchor()` Python API always creates just the anchor.
 - **Dot anchors**: select a plain Dot and press `Shift+B`, `Shift+N`, or `Shift+M`. The label prompt appears; entering a label and confirming applies a small/medium/large font and promotes the Dot to a Dot anchor in place.
 - **Rename**: if an anchor is already selected when you press `A`, the rename dialog opens instead of creating a new anchor.
 - **Backdrops**: if a single BackdropNode is selected when you press `A`, the backdrop setup dialog opens instead — see [Backdrops](#backdrops).
@@ -106,6 +107,14 @@ Set your keyboard layout in `Edit > Anchors > Anchor Preferences…` (QWERTY, AZ
 When the plugin is disabled in Preferences, the `Shift+A` shortcut is disabled along with every other gated anchor command. Re-enable from `Edit > Anchors > Anchor Preferences…`, which stays active in the menu.
 
 The existing `Alt+A`, `Alt+J`, `Alt+L`, `Alt+Z` shortcuts continue to work alongside the leader for muscle-memory parity.
+
+## Upgrading Another Tool's Anchors
+
+`Edit > Anchors > Upgrade to Anchors...` adopts an anchor-like rig built with a different tool — a labelled, coloured NoOp/Dot/PostageStamp with hidden-input nodes pointing back at it — as real anchors and Links. Nodes are converted **in place**, so each keeps its class, position, and downstream connections.
+
+The dialog previews every conversion before anything changes, and offers: the scope (selected nodes or the whole script); which parent kinds to include (NoOp/PostageStamp and Dot, configured separately); where each kind takes its name from (label, node name, or label-else-name); leading/trailing text to strip from that name (`Pointer_Foo` → `Foo`); and whether to keep the existing tile colours or take the derived anchor colours.
+
+Derived names are sanitized and de-duplicated (`Anchor_Foo`, `Anchor_Foo1`). A node that is both a parent and another parent's hidden-input child stays a parent. Nodes that are already anchors keep their name and colour — only their children are upgraded — so re-running the command is a no-op. Like the other migrators, it is not undoable: save a backup first.
 
 ## Reconnecting
 
@@ -183,6 +192,7 @@ All anchor shortcuts are scoped to the **DAG (Node Graph) context** — they onl
 `Edit > Anchors > Anchor Preferences...` opens a dialog with:
 
 - **Enable anchors plugin** — master toggle. When unchecked, all gated menu items disable and `Ctrl+C/X/V` fall through to plain Nuke copy/cut/paste.
+- **Create a link below each new anchor** — on by default. When unchecked, `Edit > Anchors > Create Anchor` (and `A` with a node selected) creates the anchor alone.
 - **Custom Colors** — a palette of user-defined colors. Available in the anchor create / rename dialogs and in the "Set Color" picker on NoOp anchors.
 - **Anchor Naming (Advanced)** — user-configurable regex + template for deriving anchor names from file paths. Includes a live preview against a test filename and an "Override Site Config" checkbox. Admins can publish the current values to a site config JSON via the "Publish Naming…" button.
 
@@ -447,6 +457,31 @@ The legacy → new knob mapping covers:
 A second migrator, available from `Edit > Anchors > Anchor Migrate from Old Version`, calls `anchors.migrate_to_stemless_names()`. This rewrites stored anchor references on link nodes from the very-old `scriptStem.fullName` format (e.g. `myScript.Anchor_Foo`) to the current `fullName`-only format (e.g. `Anchor_Foo` or `Group1.Anchor_Foo`). It is safe to run on already-migrated scripts (no-op).
 
 Both migrators print a summary of the nodes/knobs updated. Neither is undoable — save a backup of your script first.
+
+### Upgrading another tool's anchors
+
+`anchors.upgrade_to_anchors()` (wired to `Edit > Anchors > Upgrade to Anchors...`) opens the options dialog described in [Upgrading Another Tool's Anchors](#upgrading-another-tools-anchors) and applies the chosen conversion.
+
+For scripted use, `anchors.upgrade_nodes_to_anchors(nodes, options=None)` does the same without prompting and returns an `(anchor_count, link_count)` tuple:
+
+```python
+import nuke
+import anchors
+from migrations import UpgradeOptions
+from constants import NAME_SOURCE_NODE_NAME
+
+options = UpgradeOptions(
+    include_noop_parents=True,      # upgrade NoOp / PostageStamp parents
+    include_dot_parents=True,       # upgrade Dot parents
+    noop_name_source=NAME_SOURCE_NODE_NAME,   # or NAME_SOURCE_LABEL / NAME_SOURCE_AUTO
+    strip_prefix='Pointer_',        # Pointer_Foo -> Foo
+    strip_suffix='',
+    keep_colors=True,               # False takes the derived anchor colours
+)
+anchor_count, link_count = anchors.upgrade_nodes_to_anchors(nuke.allNodes(), options)
+```
+
+`migrations.plan_upgrades(nodes, options)` returns the same work as a list of `UpgradePlanEntry` objects without mutating anything — that is what the dialog previews.
 
 # Development
 

@@ -106,7 +106,7 @@ BackdropNode {
  ypos -1468
  appearance Border
  bdwidth 338
- bdheight 373
+ bdheight 460
 }
 BackdropNode {
  inputs 0
@@ -1596,4 +1596,17 @@ NoOp {
  addUserKnob {22 anchors_reconnect_child_links l "Reconnect Child Links" -STARTLINE T "import anchor\nanchor.reconnect_anchor_node(nuke.thisNode())"}
  addUserKnob {22 anchors_rename_anchor l Rename -STARTLINE T "import anchor\nanchor.rename_anchor(nuke.thisNode())"}
  addUserKnob {22 anchors_set_anchor_color l "Set Color" -STARTLINE T "import anchor\nanchor.set_anchor_color(nuke.thisNode())"}
+}
+NoOp {
+ name NoOp27
+ tile_color 0xeec42fff
+ label "Link: plates_fg1"
+ xpos 7422
+ ypos -1128
+ hide_input true
+ addUserKnob {20 User}
+ addUserKnob {22 anchors_reconnect_link l Reconnect -STARTLINE T "import link\nlink.reconnect_link_node(nuke.thisNode())"}
+ addUserKnob {20 anchors_tab +HIDDEN +INVISIBLE}
+ addUserKnob {1 anchors_input_node +HIDDEN}
+ anchors_input_node Anchor_plates_fg1
 }
