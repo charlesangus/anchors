@@ -643,7 +643,7 @@ class TestNavigateToAnchorZoom(unittest.TestCase):
         self.assertEqual(selected_at_zoom_time, [True])
 
     def test_zooms_out_for_margin_after_fit(self):
-        """For a Dot anchor, zoom is re-applied at fitted_scale * margin factor (issue #61)."""
+        """Zoom is re-applied at fitted_scale * margin factor (issue #61, #73)."""
         import nuke as nuke_stub
         from constants import MODULE_ZOOM_MARGIN_FACTOR
         anchor_node = self._make_dot_anchor_node()
@@ -664,7 +664,7 @@ class TestNavigateToAnchorZoom(unittest.TestCase):
         self.assertEqual(applied_center, fitted_center)
 
     def test_margin_zoom_out_happens_after_fit(self):
-        """For a Dot anchor, the margin zoom-out must run after zoomToFitSelected."""
+        """The margin zoom-out must run after zoomToFitSelected."""
         import nuke as nuke_stub
         anchor_node = self._make_dot_anchor_node()
 
@@ -686,25 +686,31 @@ class TestNavigateToAnchorZoom(unittest.TestCase):
         self.assertEqual(call_order[-1], 'zoom',
                          msg="the margin zoom-out must be the final framing call")
 
-    def test_no_margin_zoom_out_for_non_dot_anchor(self):
-        """A non-Dot anchor must keep the tight fit — no post-fit margin zoom-out (issue #61).
+    def test_margin_zoom_out_for_non_dot_anchor(self):
+        """A non-Dot anchor also gets the post-fit margin zoom-out (issue #73).
 
-        The margin is scoped to labelled-dot modules; applying it to other anchor
-        types over-zoomed framings that were already correct.
+        zoomToFitSelected's tight fit crops non-Dot anchors the same way it
+        crops Dot modules, so the margin applies to every anchor type.
         """
         import nuke as nuke_stub
+        from constants import MODULE_ZOOM_MARGIN_FACTOR
         anchor_node = self._make_anchor_node(node_class='NoOp')
 
-        nuke_stub.zoom = MagicMock(return_value=2.0)
-        nuke_stub.center = MagicMock(return_value=[10.0, 20.0])
+        fitted_scale = 2.0
+        fitted_center = [10.0, 20.0]
+        nuke_stub.zoom = MagicMock(return_value=fitted_scale)
+        nuke_stub.center = MagicMock(return_value=fitted_center)
 
         with patch('anchor.upstream_ignoring_hidden', return_value=set()):
             anchor.navigate_to_anchor(anchor_node)
 
         nuke_stub.zoomToFitSelected.assert_called_once()
         setter_calls = [c for c in nuke_stub.zoom.call_args_list if c.args]
-        self.assertEqual(setter_calls, [],
-                         msg="non-Dot anchors must not trigger a margin zoom-out")
+        self.assertEqual(len(setter_calls), 1,
+                         msg="non-Dot anchors must also trigger a margin zoom-out")
+        applied_scale, applied_center = setter_calls[0].args
+        self.assertAlmostEqual(applied_scale, fitted_scale * MODULE_ZOOM_MARGIN_FACTOR)
+        self.assertEqual(applied_center, fitted_center)
 
 
 # ---------------------------------------------------------------------------
