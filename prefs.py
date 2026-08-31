@@ -11,6 +11,8 @@ Module-level variables (read these directly after import):
                                     unaffected and always creates just the anchor)
     custom_colors           list  — list of 0xRRGGBBAA color ints
     space_mode_order        list  — effective search mode per leading-space count
+    picker_scroll_enabled   bool  — True if the fuzzy-find pickers keep (and let
+                                    you scroll to) matches past the visible rows
     close_palette_on_select bool  — True if picking a color closes the palette
 """
 
@@ -41,6 +43,11 @@ keyboard_layout = "qwerty"      # one of "qwerty", "azerty", "qwertz"; persisted
 # Read this one; it already accounts for use_tabtabtab_prefs.
 space_mode_order = list(DEFAULT_SPACE_MODE_ORDER)
 use_tabtabtab_prefs = False     # follow a tabtabtab-nuke install's space_mode_order; persisted
+# True: the fuzzy-find pickers retain matches beyond the rows the popup shows and
+# let you scroll or arrow-key down to them. False: only the first screenful of
+# matches is kept, the historic behaviour. The popup is the same fixed size either
+# way — this only decides whether the extra matches are reachable or discarded.
+picker_scroll_enabled = True
 close_palette_on_select = True  # True: picking a color accepts and closes the color palette;
                                 # False: it only highlights, and the user confirms with Enter/OK
 
@@ -88,7 +95,8 @@ def _load():
     global plugin_enabled, auto_create_link, custom_colors, \
            naming_regex, naming_template, naming_demo_filename, \
            site_config_override, last_publish_path, \
-           keyboard_layout, use_tabtabtab_prefs, close_palette_on_select, \
+           keyboard_layout, use_tabtabtab_prefs, picker_scroll_enabled, \
+           close_palette_on_select, \
            _user_naming_regex, _user_naming_template, \
            _user_naming_demo_filename, _user_space_mode_order
     if not os.path.exists(PREFS_PATH):
@@ -127,6 +135,8 @@ def _load():
             _user_space_mode_order = list(data['space_mode_order'])
         if isinstance(data.get('use_tabtabtab_prefs'), bool):
             use_tabtabtab_prefs = data['use_tabtabtab_prefs']
+        if isinstance(data.get('picker_scroll_enabled'), bool):
+            picker_scroll_enabled = data['picker_scroll_enabled']
         if isinstance(data.get('close_palette_on_select'), bool):
             close_palette_on_select = data['close_palette_on_select']
     except (OSError, ValueError, json.JSONDecodeError):
@@ -308,6 +318,7 @@ def save():
                 'keyboard_layout': keyboard_layout,
                 'space_mode_order': list(_user_space_mode_order),
                 'use_tabtabtab_prefs': use_tabtabtab_prefs,
+                'picker_scroll_enabled': picker_scroll_enabled,
                 'close_palette_on_select': close_palette_on_select,
             },
             file_handle,
