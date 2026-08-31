@@ -473,6 +473,12 @@ else:
         MODE_NAVIGATE: 'type to filter  ·  arrows to move  ·  Enter to navigate  ·  Esc to close',
         MODE_CREATE_LINK: 'type to filter  ·  arrows to move  ·  Enter to link  ·  Esc to close',
     }
+    # Navigate mode lists labelled backdrops alongside the anchors and filters
+    # both; in link mode the backdrops are context only, so only anchors match.
+    _PLACEHOLDERS = {
+        MODE_NAVIGATE: 'Search anchors and backdrops',
+        MODE_CREATE_LINK: 'Search anchors',
+    }
     _FILTERED_OUT_COLOR = QtGui.QColor(70, 70, 70)
     _FILTERED_OUT_TEXT = '#888888'
     _HIGHLIGHT_BORDER = '#ffffff'
@@ -688,7 +694,7 @@ else:
             title_label.setAlignment(Qt.AlignCenter)
 
             self.filter_input = FilterLineEdit()
-            self.filter_input.setPlaceholderText("Search anchors")
+            self.filter_input.setPlaceholderText(_PLACEHOLDERS[self._mode])
             self.filter_input.textChanged.connect(self._apply_filter)
             self.filter_input.returnPressed.connect(self._activate_highlighted)
             self.filter_input.cancelled.connect(self.close)
