@@ -18,6 +18,7 @@ except ImportError:
     QtWidgets = None
     QtCore = None
 
+import labels
 import prefs
 import tabtabtab_anchors as _tabtabtab
 from colors import ColorPaletteDialog, adjust_color_for_backdrop_contrast
@@ -168,14 +169,10 @@ def propagate_anchor_color(anchor_node, color_int):
 def _persist_custom_colors_from_dialog(dialog):
     """Save any newly staged custom colors from *dialog* back to prefs and disk.
 
-    Call this on every accepted ColorPaletteDialog so custom colors added via
-    "Custom Color..." persist across sessions.  Only saves when the staged list
-    differs from the current prefs.custom_colors to avoid spurious disk writes.
+    Thin wrapper over prefs.persist_custom_colors_from_dialog, which is shared
+    with the backdrop dialog in labels.py.
     """
-    staged = dialog.chosen_custom_colors()
-    if staged != prefs.custom_colors:
-        prefs.custom_colors = staged
-        prefs.save()
+    prefs.persist_custom_colors_from_dialog(dialog)
 
 
 def set_anchor_color(anchor_node):
@@ -874,6 +871,10 @@ def anchor_shortcut():
         selected = nuke.selectedNodes()
     if len(selected) == 1 and is_anchor(selected[0]):
         rename_anchor(selected[0])
+    elif len(selected) == 1 and labels.is_backdrop(selected[0]):
+        # A lone backdrop is a container, not an anchor source — set it up
+        # instead of anchoring it (issue #68).
+        labels.setup_backdrop(selected[0])
     elif selected:
         create_anchor()
     else:

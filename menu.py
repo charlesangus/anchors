@@ -81,6 +81,7 @@ _add_gated_command(anchors_menu, "Label (Large)",  "labels.create_large_label()"
 _add_gated_command(anchors_menu, "Label (Medium)", "labels.create_medium_label()", "+N")
 _add_gated_command(anchors_menu, "Label (Small)",  "labels.create_small_label()",  "+B")
 _add_gated_command(anchors_menu, "Append Label",   "labels.append_to_label()",     "^M")
+_add_gated_command(anchors_menu, "Setup Backdrop", "labels.setup_selected_backdrop()")
 
 anchors_menu.addSeparator()
 

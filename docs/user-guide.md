@@ -323,6 +323,30 @@ node):
 
 
 
+## Setting up a backdrop
+
+Backdrops carry the comp's structure, so `A` treats them as something to set up
+rather than something to anchor. Select a single backdrop, press `A` (or use
+**Edit > Anchors > Setup Backdrop**), and a dialog opens with everything a
+backdrop needs in one place `(Figure \ref{fig:backdrop-setup})`{=latex}:
+
+- a **label** field — multi-line, so a backdrop's notes survive a round trip;
+- the same **colour palette** as the anchor dialogs, including your custom
+  colours and hint-mode navigation;
+- a **font size** dropdown offering the Dot-anchor sizes — Small (33), Medium
+  (66), Large (111) — plus **Custom** for anything else. A backdrop already set
+  to one of the three presets re-opens on that size; anything else, including
+  Nuke's own default, opens on Large;
+- a **Filled** checkbox — off draws the backdrop as an outline only.
+
+Clicking a swatch confirms the whole dialog, as it does when renaming an anchor,
+so a label and a colour are two keystrokes and a click. Pressing `Enter` inside
+the multi-line label field adds a line; `Ctrl`+`Enter`, the **OK** button, or a
+swatch click confirms. Selecting a backdrop *together with* its contents keeps
+the old behaviour and creates an anchor from the selection.
+
+![Setting up a backdrop: label, colour, font size, and fill in one dialog.](img/backdrop-setup-dialog.png){#fig:backdrop-setup}
+
 ## Upgrading a script built with another tool
 
 Plenty of scripts already contain an anchor rig built by a different tool: a
@@ -410,7 +434,7 @@ if existing is None:
 
 | Shortcut | Action |
 |----------|--------|
-| `A` | Create anchor (selection) / Anchor selection menu (no selection) |
+| `A` | Create anchor (selection) / Set up backdrop (one backdrop selected) / Anchor selection menu (no selection) |
 | `Shift`+`A` | Leader-key overlay |
 | `Alt`+`A` | Anchor Find / navigate |
 | `Alt`+`J` | Anchor Jump (Link -> anchor) |

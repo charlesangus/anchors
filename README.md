@@ -62,6 +62,7 @@ The anchor system is a reusable named-input mechanism for the node graph.
 - A Link node is created directly below the new anchor, centred on it, so the anchor is immediately usable. Turn this off with the "Create a link below each new anchor" preference. The behaviour applies to the interactive command only — the `api.create_anchor()` Python API always creates just the anchor.
 - **Dot anchors**: select a plain Dot and press `Shift+B`, `Shift+N`, or `Shift+M`. The label prompt appears; entering a label and confirming applies a small/medium/large font and promotes the Dot to a Dot anchor in place.
 - **Rename**: if an anchor is already selected when you press `A`, the rename dialog opens instead of creating a new anchor.
+- **Backdrops**: if a single BackdropNode is selected when you press `A`, the backdrop setup dialog opens instead — see [Backdrops](#backdrops).
 
 ## Creating Links
 
@@ -154,6 +155,17 @@ All three Label shortcuts apply a font size at or above the Dot-anchor threshold
 
 For Dot anchors, applying or appending a label also propagates the change to all link nodes pointing at that Dot.
 
+# Backdrops
+
+Select a single BackdropNode and press `A` (or `Edit > Anchors > Setup Backdrop`) to open the backdrop setup dialog. It is the anchor rename dialog plus the two things a backdrop needs:
+
+- **Label** — a multi-line field, so a backdrop's notes are not flattened on a round trip.
+- **Colour** — the same palette as the anchor dialogs, including custom colors and hint-mode navigation. Clicking a swatch confirms the dialog.
+- **Font size** — Small (33), Medium (66), Large (111) — the Dot-anchor sizes — plus **Custom** with a spin box. A backdrop already set to one of the presets re-opens on that size; anything else (including Nuke's own default) opens on Large.
+- **Filled** — drives Nuke's `appearance` knob: checked is `Fill`, unchecked is `Border`. Ignored on Nuke versions that predate the knob.
+
+Inside the multi-line label field, `Enter` inserts a newline; `Ctrl+Enter`, the **OK** button, or a swatch click confirms. Selecting a backdrop together with its contents is unchanged — that still creates an anchor from the selection.
+
 # Keyboard Shortcuts
 
 | Shortcut | Action |
@@ -162,7 +174,7 @@ For Dot anchors, applying or appending a label also propagates the change to all
 | `Ctrl+X` | Cut (hidden) |
 | `Ctrl+V` | Paste (hidden) |
 | `Ctrl+Shift+D` | Paste (old-style, no re-piping) |
-| `A` | Anchor shortcut (context-sensitive: create anchor, rename, or open link picker) |
+| `A` | Anchor shortcut (context-sensitive: create anchor, rename, set up a backdrop, or open link picker) |
 | `Shift+A` | Leader Key — opens the command overlay (see Leader Key section above) |
 | `Alt+A` | Anchor Find (navigate DAG to any anchor or labelled BackdropNode) |
 | `Alt+J` | Anchor Jump (Link → source anchor) |
@@ -302,6 +314,7 @@ anchor.anchor_shortcut()
 ```
 Context-sensitive handler for the `A` keybind. Behaviour depends on the current selection:
 - One anchor selected → rename dialog.
+- One BackdropNode selected → backdrop setup dialog (label, color, font size, fill).
 - Any other selection → create-anchor dialog (combined name + color).
 - Nothing selected → open the link-creation fuzzy picker.
 
@@ -393,6 +406,21 @@ Prompts for a label and applies it. Dot nodes get a 33pt font (the Dot-anchor th
 labels.append_to_label()
 ```
 Prompts for a suffix and appends it to the selected node's existing label. For Dot anchors, propagates the updated label to all linked nodes.
+
+```python
+labels.setup_backdrop(backdrop_node: nuke.Node)
+```
+Opens the backdrop setup dialog for `backdrop_node` and applies the label, color, font size, and fill the user chose. No-op if the plugin is disabled or the dialog is cancelled. Without Qt, falls back to a plain label prompt.
+
+```python
+labels.setup_selected_backdrop()
+```
+Same, for the current selection. Does nothing unless exactly one BackdropNode is selected.
+
+```python
+labels.apply_backdrop_setup(backdrop_node: nuke.Node, label_text=None, font_size=None, filled=None, color=None)
+```
+Applies backdrop styling without any dialog — useful from pipeline scripts. Each argument is optional; `None` leaves that aspect untouched. `filled=True` sets the `appearance` knob to `Fill`, `False` to `Border`.
 
 ---
 
