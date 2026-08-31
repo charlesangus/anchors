@@ -128,6 +128,11 @@ The standard anchor. Select a node and press **`A`** (or **Edit > Anchors >
 Create Anchor**). A `NoOp` anchor is created beneath the node, wired to it, and
 named from the source `(Figure \ref{fig:create-anchor})`{=latex}.
 
+A matching **link** is created directly below the new anchor, so you get both
+halves of the pair from one gesture — drag the link wherever you need it. If you
+would rather create links yourself, switch off **Create a link below each new
+anchor** in Preferences.
+
 Each NoOp anchor's properties panel carries three buttons:
 
 - **Reconnect Child Links** — rewire every link that points at this anchor.
@@ -170,6 +175,10 @@ These are handy for re-using sections of a module within the module. If you're r
 
 
 ## Creating links
+
+Unless you have switched the preference off, every new anchor already arrives
+with a link beneath it (see **Anchors** above). To create further links to an
+existing anchor:
 
 With **nothing selected**, press **`A`** to open the Anchor selection menu. It lists every
 anchor `(Figure \ref{fig:link-picker})`{=latex} in the script with its colour; choose one and a link is created at the
@@ -357,6 +366,8 @@ first.
 **Edit > Anchors > Anchor Preferences...** controls:
 
 - **Enable anchors plugin** — the master toggle.
+- **Create a link below each new anchor** — on by default; uncheck it if you
+  prefer creating links yourself.
 - **Keyboard layout** — QWERTY / AZERTY / QWERTZ for the leader overlay.
 - **Custom Colors** — add, edit, and remove the colours in your personal palette.
 - **Selecting a color closes the color palette** — on by default; turn it off to

@@ -692,6 +692,7 @@ else:
             import prefs as prefs_module
             # Seed local working copies — never mutate prefs module vars until accept
             self._local_plugin_enabled = prefs_module.plugin_enabled
+            self._local_auto_create_link = prefs_module.auto_create_link
             self._local_custom_colors = list(prefs_module.custom_colors)
             # Snapshot of custom colors at open time so _on_accept can detect changes
             # and recolor any anchor nodes using the old color values.
@@ -722,6 +723,13 @@ else:
             self._plugin_checkbox = QtWidgets.QCheckBox("Enable anchors plugin")
             self._plugin_checkbox.setChecked(self._local_plugin_enabled)
             outer_layout.addWidget(self._plugin_checkbox)
+
+            # Checkbox: create a link alongside every new anchor
+            self._auto_create_link_checkbox = QtWidgets.QCheckBox(
+                "Create a link below each new anchor"
+            )
+            self._auto_create_link_checkbox.setChecked(self._local_auto_create_link)
+            outer_layout.addWidget(self._auto_create_link_checkbox)
 
             # Keyboard layout dropdown
             keyboard_layout_row = QtWidgets.QHBoxLayout()
@@ -1106,7 +1114,7 @@ else:
             if not self._swatch_buttons:
                 return
             # Chain from the last focusable checkbox down to the first swatch button
-            QtWidgets.QWidget.setTabOrder(self._plugin_checkbox, self._swatch_buttons[0])
+            QtWidgets.QWidget.setTabOrder(self._auto_create_link_checkbox, self._swatch_buttons[0])
             # Chain each swatch button to the next one
             for swatch_index in range(len(self._swatch_buttons) - 1):
                 QtWidgets.QWidget.setTabOrder(
@@ -1246,6 +1254,10 @@ else:
             set_menu_enabled = getattr(prefs_module, 'set_anchors_menu_enabled', None)
             if set_menu_enabled is not None:
                 set_menu_enabled(prefs_module.plugin_enabled)
+            # Flush the auto-create-link toggle; anchor.create_anchor() reads it
+            # on every anchor creation, so no further wiring is needed.
+            self._local_auto_create_link = self._auto_create_link_checkbox.isChecked()
+            prefs_module.auto_create_link = self._local_auto_create_link
             # Read naming fields and custom colors
             self._local_naming_regex = self._naming_regex_edit.text()
             self._local_naming_template = self._naming_template_edit.text()

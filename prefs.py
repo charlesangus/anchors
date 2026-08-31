@@ -5,6 +5,10 @@ Writes via explicit save() call only — called by Phase 7 PrefsDialog on accept
 
 Module-level variables (read these directly after import):
     plugin_enabled          bool  — True if the plugin is active
+    auto_create_link        bool  — True if the interactive Create Anchor command
+                                    also creates a link below the new anchor
+                                    (the api.create_anchor() Python API is
+                                    unaffected and always creates just the anchor)
     custom_colors           list  — list of 0xRRGGBBAA color ints
     close_palette_on_select bool  — True if picking a color closes the palette
 """
@@ -18,6 +22,7 @@ from constants import OLD_PREFS_PATH, PREFS_PATH, USER_PALETTE_PATH
 # Defaults — overwritten by _load() at module import time
 # ---------------------------------------------------------------------------
 plugin_enabled = True
+auto_create_link = True         # interactive Create Anchor also creates a Link below the anchor
 custom_colors = []
 naming_regex = ""
 naming_template = ""
@@ -64,7 +69,7 @@ def _load():
     back to defaults. Per-key type validation ensures corrupt individual values
     do not poison valid ones.
     """
-    global plugin_enabled, custom_colors, \
+    global plugin_enabled, auto_create_link, custom_colors, \
            naming_regex, naming_template, naming_demo_filename, \
            site_config_override, last_publish_path, \
            keyboard_layout, close_palette_on_select, \
@@ -84,6 +89,8 @@ def _load():
             data = json.load(file_handle)
         if isinstance(data.get('plugin_enabled'), bool):
             plugin_enabled = data['plugin_enabled']
+        if isinstance(data.get('auto_create_link'), bool):
+            auto_create_link = data['auto_create_link']
         if isinstance(data.get('custom_colors'), list):
             custom_colors = [int(color_value) for color_value in data['custom_colors']
                              if isinstance(color_value, (int, float))]
@@ -161,6 +168,7 @@ def save():
         json.dump(
             {
                 'plugin_enabled': plugin_enabled,
+                'auto_create_link': auto_create_link,
                 'custom_colors': custom_colors,
                 'naming_regex': _user_naming_regex,
                 'naming_template': _user_naming_template,

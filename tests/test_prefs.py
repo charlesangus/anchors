@@ -956,6 +956,99 @@ class TestKeyboardLayoutPref(unittest.TestCase):
             self.assertEqual(prefs_module.keyboard_layout, 'qwerty')
 
 
+class TestAutoCreateLinkPref(unittest.TestCase):
+    """Round-trip tests for the auto_create_link preference field (issue #69)."""
+
+    def setUp(self):
+        if 'prefs' in sys.modules:
+            del sys.modules['prefs']
+
+    def tearDown(self):
+        if 'prefs' in sys.modules:
+            del sys.modules['prefs']
+
+    def _reload_prefs_with_temp_path(self, temp_prefs_path):
+        import constants
+        original_prefs_path = constants.PREFS_PATH
+        original_palette_path = constants.USER_PALETTE_PATH
+        original_old_prefs_path = constants.OLD_PREFS_PATH
+        try:
+            constants.PREFS_PATH = temp_prefs_path
+            constants.USER_PALETTE_PATH = temp_prefs_path + '.palette_unused'
+            constants.OLD_PREFS_PATH = temp_prefs_path + '.old_unused'
+            if 'prefs' in sys.modules:
+                del sys.modules['prefs']
+            import prefs as reloaded_prefs
+            reloaded_prefs.PREFS_PATH = temp_prefs_path
+            return reloaded_prefs
+        finally:
+            constants.PREFS_PATH = original_prefs_path
+            constants.USER_PALETTE_PATH = original_palette_path
+            constants.OLD_PREFS_PATH = original_old_prefs_path
+
+    def test_auto_create_link_defaults_to_enabled(self):
+        """A fresh install creates links alongside anchors by default."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+            self.assertFalse(os.path.exists(temp_prefs_path))
+
+            prefs_module = self._reload_prefs_with_temp_path(temp_prefs_path)
+
+            self.assertTrue(prefs_module.auto_create_link)
+
+    def test_auto_create_link_round_trips(self):
+        """Turning the preference off persists across a reload."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+            prefs_module = self._reload_prefs_with_temp_path(temp_prefs_path)
+
+            prefs_module.auto_create_link = False
+            prefs_module.save()
+
+            with open(temp_prefs_path) as file_handle:
+                data = json.load(file_handle)
+            self.assertIs(data['auto_create_link'], False)
+
+            prefs_module2 = self._reload_prefs_with_temp_path(temp_prefs_path)
+            self.assertFalse(prefs_module2.auto_create_link)
+
+    def test_auto_create_link_non_bool_in_json_is_ignored(self):
+        """A corrupt value must not poison the default."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+
+            prefs_data = {
+                'plugin_enabled': True,
+                'auto_create_link': 'nope',  # not a bool
+                'custom_colors': [],
+            }
+            with open(temp_prefs_path, 'w') as file_handle:
+                json.dump(prefs_data, file_handle)
+
+            prefs_module = self._reload_prefs_with_temp_path(temp_prefs_path)
+
+            self.assertTrue(
+                prefs_module.auto_create_link,
+                "non-bool auto_create_link must be ignored; module var stays True",
+            )
+
+    def test_auto_create_link_missing_key_keeps_default(self):
+        """Prefs files written by older versions keep the enabled default."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_prefs_path = os.path.join(temp_dir, 'anchors_prefs.json')
+
+            prefs_data = {
+                'plugin_enabled': True,
+                'custom_colors': [],
+            }
+            with open(temp_prefs_path, 'w') as file_handle:
+                json.dump(prefs_data, file_handle)
+
+            prefs_module = self._reload_prefs_with_temp_path(temp_prefs_path)
+
+            self.assertTrue(prefs_module.auto_create_link)
+
+
 class TestClosePaletteOnSelectPref(unittest.TestCase):
     """Round-trip tests for the close_palette_on_select preference field (issue #70)."""
 
