@@ -5,8 +5,13 @@ Writes via explicit save() call only — called by Phase 7 PrefsDialog on accept
 
 Module-level variables (read these directly after import):
     plugin_enabled          bool  — True if the plugin is active
+    auto_create_link        bool  — True if the interactive Create Anchor command
+                                    also creates a link below the new anchor
+                                    (the api.create_anchor() Python API is
+                                    unaffected and always creates just the anchor)
     custom_colors           list  — list of 0xRRGGBBAA color ints
     space_mode_order        list  — effective search mode per leading-space count
+    close_palette_on_select bool  — True if picking a color closes the palette
 """
 
 import json
@@ -24,6 +29,7 @@ from constants import (
 # Defaults — overwritten by _load() at module import time
 # ---------------------------------------------------------------------------
 plugin_enabled = True
+auto_create_link = True         # interactive Create Anchor also creates a Link below the anchor
 custom_colors = []
 naming_regex = ""
 naming_template = ""
@@ -35,6 +41,8 @@ keyboard_layout = "qwerty"      # one of "qwerty", "azerty", "qwertz"; persisted
 # Read this one; it already accounts for use_tabtabtab_prefs.
 space_mode_order = list(DEFAULT_SPACE_MODE_ORDER)
 use_tabtabtab_prefs = False     # follow a tabtabtab-nuke install's space_mode_order; persisted
+close_palette_on_select = True  # True: picking a color accepts and closes the color palette;
+                                # False: it only highlights, and the user confirms with Enter/OK
 
 _VALID_KEYBOARD_LAYOUTS = ("qwerty", "azerty", "qwertz")
 _VALID_SPACE_MODES = frozenset(DEFAULT_SPACE_MODE_ORDER)
@@ -77,10 +85,10 @@ def _load():
     back to defaults. Per-key type validation ensures corrupt individual values
     do not poison valid ones.
     """
-    global plugin_enabled, custom_colors, \
+    global plugin_enabled, auto_create_link, custom_colors, \
            naming_regex, naming_template, naming_demo_filename, \
            site_config_override, last_publish_path, \
-           keyboard_layout, use_tabtabtab_prefs, \
+           keyboard_layout, use_tabtabtab_prefs, close_palette_on_select, \
            _user_naming_regex, _user_naming_template, \
            _user_naming_demo_filename, _user_space_mode_order
     if not os.path.exists(PREFS_PATH):
@@ -98,6 +106,8 @@ def _load():
             data = json.load(file_handle)
         if isinstance(data.get('plugin_enabled'), bool):
             plugin_enabled = data['plugin_enabled']
+        if isinstance(data.get('auto_create_link'), bool):
+            auto_create_link = data['auto_create_link']
         if isinstance(data.get('custom_colors'), list):
             custom_colors = [int(color_value) for color_value in data['custom_colors']
                              if isinstance(color_value, (int, float))]
@@ -117,6 +127,8 @@ def _load():
             _user_space_mode_order = list(data['space_mode_order'])
         if isinstance(data.get('use_tabtabtab_prefs'), bool):
             use_tabtabtab_prefs = data['use_tabtabtab_prefs']
+        if isinstance(data.get('close_palette_on_select'), bool):
+            close_palette_on_select = data['close_palette_on_select']
     except (OSError, ValueError, json.JSONDecodeError):
         pass  # silent fallback — module-level defaults remain
     # Copy user values into shadow vars before site config is applied
@@ -286,6 +298,7 @@ def save():
         json.dump(
             {
                 'plugin_enabled': plugin_enabled,
+                'auto_create_link': auto_create_link,
                 'custom_colors': custom_colors,
                 'naming_regex': _user_naming_regex,
                 'naming_template': _user_naming_template,
@@ -295,9 +308,24 @@ def save():
                 'keyboard_layout': keyboard_layout,
                 'space_mode_order': list(_user_space_mode_order),
                 'use_tabtabtab_prefs': use_tabtabtab_prefs,
+                'close_palette_on_select': close_palette_on_select,
             },
             file_handle,
         )
+
+
+def persist_custom_colors_from_dialog(dialog):
+    """Save any newly staged custom colors from *dialog* back to prefs and disk.
+
+    Call this on every accepted ColorPaletteDialog (or subclass) so custom colors
+    added via "Custom Color..." persist across sessions.  Only saves when the
+    staged list differs from the current custom_colors, to avoid spurious writes.
+    """
+    global custom_colors
+    staged = dialog.chosen_custom_colors()
+    if staged != custom_colors:
+        custom_colors = staged
+        save()
 
 
 def publish(destination_path):

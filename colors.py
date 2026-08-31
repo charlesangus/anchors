@@ -3,9 +3,18 @@
 import nuke
 from constants import (
     ANCHOR_DEFAULT_COLOR,
+    BACKDROP_DEFAULT_FONT_SIZE,
+    BACKDROP_FONT_SIZE_PRESETS,
+    BACKDROP_MAX_FONT_SIZE,
+    BACKDROP_MIN_FONT_SIZE,
+    NAME_SOURCE_AUTO,
+    NAME_SOURCE_LABEL,
+    NAME_SOURCE_NODE_NAME,
     SPACE_MODE_ANCHORED_FUZZY,
     SPACE_MODE_CONSECUTIVE,
     SPACE_MODE_NON_ANCHORED_FUZZY,
+    UPGRADE_SCOPE_SCRIPT,
+    UPGRADE_SCOPE_SELECTED,
 )
 
 try:
@@ -150,15 +159,44 @@ def adjust_color_for_backdrop_contrast(backdrop_color_int):
     return (adjusted_red_int << 24) | (adjusted_green_int << 16) | (adjusted_blue_int << 8) | alpha
 
 
+# Sentinel stored as the "Custom" font-size entry's item data.  Zero is never a
+# valid point size, so it cannot collide with a preset.
+BACKDROP_CUSTOM_FONT_SIZE = 0
+
+
+def resolve_backdrop_font_size(current_font_size):
+    """Return the font size the backdrop dialog should pre-select.
+
+    A size that exactly matches one of the Small/Medium/Large presets pre-selects
+    that preset, so re-opening the dialog on a backdrop styled through it leaves
+    the size untouched.  Anything else — including Nuke's own backdrop default —
+    pre-selects Large, which is the default asked for in issue #68.  The dialog
+    still seeds its custom spin box with the current size, so the original value
+    is one dropdown entry away.
+    """
+    preset_sizes = [preset_size for _preset_name, preset_size in BACKDROP_FONT_SIZE_PRESETS]
+    # Nuke knob values arrive as floats; normalise so 111.0 matches the 111 preset
+    # and so the returned value can be matched against the combo box item data.
+    normalized_size = int(current_font_size) if current_font_size is not None else None
+    if normalized_size in preset_sizes:
+        return normalized_size
+    return BACKDROP_DEFAULT_FONT_SIZE
+
+
 if QtWidgets is None:
     ColorPaletteDialog = None
+    BackdropDialog = None
     PrefsDialog = None
+    UpgradeAnchorsDialog = None
 else:
     # Column addresses: 1-9, 0 (10 columns max)
     _COLUMN_KEYS = '1234567890'
     # Row addresses: a-z (26 rows max)
     _ROW_KEYS = 'abcdefghijklmnopqrstuvwxyz'
     _SWATCHES_PER_ROW = 8
+    # Height of the multi-line name field: roughly three lines of text, enough
+    # for a typical backdrop caption without dwarfing the swatch grid.
+    _MULTILINE_NAME_FIELD_HEIGHT = 64
 
     class ColorPaletteDialog(QtWidgets.QDialog):
         """Color palette dialog showing swatches from Nuke prefs, backdrop colors, and user palette.
@@ -176,14 +214,28 @@ else:
             Defaults to an empty list if not provided.
         parent : QWidget or None
             Parent widget.
+        close_on_select : bool
+            If True (the default), picking a color accepts and closes the dialog
+            immediately. If False, picking only highlights the color and the user
+            confirms with Enter or the OK button. Injected by the caller from
+            prefs.close_palette_on_select.
+
+        Subclasses may set ``_NAME_FIELD_MULTILINE`` to swap the single-line name
+        field for a multi-line one, and override ``_build_extra_fields`` to add
+        their own widgets between that field and the swatch grid.
         """
+
+        # Single-line name field by default: anchor names are one line and Enter
+        # should confirm the dialog.  BackdropDialog flips this.
+        _NAME_FIELD_MULTILINE = False
 
         def __init__(self, initial_color=None, show_name_field=False,
                      initial_name="", custom_colors=None, parent=None,
-                     default_color=None):
+                     default_color=None, close_on_select=True):
             super().__init__(parent)
 
             self._selected_color = initial_color
+            self._close_on_select = close_on_select
             self._hint_mode = False
             self._hint_row = None  # stores logical row index after letter keypress
             self._swatch_cells = []  # list of (group_col, logical_row, color_int, button)
@@ -209,8 +261,16 @@ else:
             # Optional name field at top
             self._name_edit = None
             if show_name_field:
-                self._name_edit = QtWidgets.QLineEdit(initial_name)
+                if self._NAME_FIELD_MULTILINE:
+                    self._name_edit = QtWidgets.QPlainTextEdit(initial_name)
+                    self._name_edit.setFixedHeight(_MULTILINE_NAME_FIELD_HEIGHT)
+                else:
+                    self._name_edit = QtWidgets.QLineEdit(initial_name)
                 outer_layout.addWidget(self._name_edit)
+
+            # Subclass hook — extra controls sit between the name field and the
+            # swatches so the colour grid stays the bottom-most section.
+            self._build_extra_fields(outer_layout)
 
             # Swatch grid — all colour sections (including Default Colour) live here
             # so they share the same margins and spacing.
@@ -381,15 +441,54 @@ else:
             # swatch cells are populated and the widget has a palette context.
             self._refresh_swatch_borders()
 
+        def _build_extra_fields(self, outer_layout):
+            """Hook: add widgets between the name field and the swatch grid.
+
+            No-op for the plain colour palette; overridden by subclasses such as
+            BackdropDialog that need extra controls in the same dialog.
+            """
+
+        def _name_field_text(self):
+            """Return the current text of the name field, whichever kind it is."""
+            if self._name_edit is None:
+                return self.chosen_name
+            if self._NAME_FIELD_MULTILINE:
+                return self._name_edit.toPlainText()
+            return self._name_edit.text()
+
+        def _name_field_wants_newline(self, event):
+            """True when Return should insert a newline instead of confirming.
+
+            Only the multi-line name field takes Return, and only while it holds
+            focus — Ctrl+Return still confirms the dialog, as does the OK button.
+            """
+            if not self._NAME_FIELD_MULTILINE or self._name_edit is None:
+                return False
+            if not self._name_edit.hasFocus():
+                return False
+            return not bool(event.modifiers() & Qt.ControlModifier)
+
         def accept(self):
             if self._name_edit is not None:
-                self.chosen_name = self._name_edit.text()
+                self.chosen_name = self._name_field_text()
             super().accept()
 
-        def _on_swatch_clicked(self, color_int):
+        def _select_color(self, color_int):
+            """Record *color_int* as the current selection.
+
+            Every selection path — swatch click, hint-mode addressing, and the
+            "Custom Color..." picker — routes through here so the
+            close-on-select preference applies consistently.  When the
+            preference is off the dialog stays open with the color highlighted
+            and the user confirms with Enter or the OK button.
+            """
             self._selected_color = color_int
             self._refresh_swatch_borders()
-            self.accept()
+            if self._close_on_select:
+                self.accept()
+
+        def _on_swatch_clicked(self, color_int):
+            self._select_color(color_int)
 
         def _highlight_color_name(self):
             """Return the CSS color name to use for the selected swatch border.
@@ -437,10 +536,8 @@ else:
             if result == initial_color:
                 return
             self._staged_custom_colors.append(result)
-            self._selected_color = result
             self._append_swatch_to_custom_group(result)
-            self._refresh_swatch_borders()
-            self.accept()
+            self._select_color(result)
 
         def selected_color_int(self):
             """Return the selected color as a 0xRRGGBBAA int, or None if cancelled."""
@@ -483,8 +580,11 @@ else:
                 self.reject()
                 return True
 
-            # Enter/Return confirms the current selection.
+            # Enter/Return confirms the current selection — unless a multi-line
+            # name field has focus, where it types a newline instead.
             if key in (Qt.Key_Return, Qt.Key_Enter):
+                if self._name_field_wants_newline(event):
+                    return False
                 if self._selected_color is not None:
                     self.accept()
                 return True
@@ -501,8 +601,8 @@ else:
                     target_cell = self._cell_map.get((col_index, self._hint_row))
                     if target_cell is not None:
                         color_int, button = target_cell
-                        self._selected_color = color_int
-                        self.accept()
+                        self._leave_hint_mode()
+                        self._select_color(color_int)
                     self._hint_row = None
                     return True
                 return True  # consume unknown keys in hint mode
@@ -540,14 +640,15 @@ else:
                     event.accept()
                     return
 
-                # Second keypress: number selects the column and confirms
+                # Second keypress: number selects the column (and confirms when
+                # the close-on-select preference is on)
                 if key_text in _COLUMN_KEYS and self._hint_row is not None:
                     col_index = _COLUMN_KEYS.index(key_text)
                     target_cell = self._cell_map.get((col_index, self._hint_row))
                     if target_cell is not None:
                         color_int, button = target_cell
-                        self._selected_color = color_int
-                        self.accept()
+                        self._leave_hint_mode()
+                        self._select_color(color_int)
                     self._hint_row = None
                     event.accept()
                     return
@@ -556,6 +657,17 @@ else:
                 return
 
             super().keyPressEvent(event)
+
+        def _leave_hint_mode(self):
+            """Turn hint mode off and clear the address labels from the swatches.
+
+            Called once a hint address has resolved to a color: when the dialog
+            stays open (close-on-select off) the overlays must go so the
+            selection highlight is visible, and when it closes the cleared state
+            is what a re-opened dialog expects.
+            """
+            self._hint_mode = False
+            self._update_hint_overlays()
 
         def _update_hint_overlays(self):
             """Show or hide row/column address labels on swatches in hint mode.
@@ -664,6 +776,124 @@ else:
             """
             return list(self._staged_custom_colors)
 
+    class BackdropDialog(ColorPaletteDialog):
+        """Setup dialog for a BackdropNode: label, colour, font size and fill.
+
+        The colour palette, its hint-mode navigation and its custom-colour
+        staging are inherited unchanged, so setting up a backdrop feels like
+        renaming an anchor (issue #68).  Three things differ:
+
+        - the label field is multi-line, because backdrop labels routinely carry
+          several lines of notes that a single-line field would silently flatten;
+        - a font-size dropdown offers the Dot-anchor sizes plus **Custom**;
+        - a **Filled** checkbox drives Nuke's ``appearance`` knob.
+
+        Read the results after ``exec_()`` returns ``Accepted``::
+
+            dialog.chosen_name        # label text
+            dialog.chosen_font_size   # point size
+            dialog.chosen_filled      # True for Fill, False for Border
+            dialog.selected_color_int()
+
+        Parameters
+        ----------
+        initial_label : str
+            The backdrop's current label.
+        initial_color : int or None
+            The backdrop's current tile colour as a 0xRRGGBBAA int.
+        initial_font_size : int or None
+            The backdrop's current note font size.  Sizes that do not match a
+            preset open on Large — see ``resolve_backdrop_font_size``.
+        initial_filled : bool
+            True when the backdrop's appearance is currently 'Fill'.
+        custom_colors : list of int or None
+            User palette colours, as for ColorPaletteDialog.
+        parent : QWidget or None
+            Parent widget.
+        """
+
+        _NAME_FIELD_MULTILINE = True
+
+        def __init__(self, initial_label="", initial_color=None, initial_font_size=None,
+                     initial_filled=True, custom_colors=None, parent=None):
+            # Set before super().__init__ — it runs _build_ui, which builds the
+            # extra fields from these values.
+            if initial_font_size is None:
+                self._initial_font_size = BACKDROP_DEFAULT_FONT_SIZE
+            else:
+                self._initial_font_size = int(initial_font_size)
+            self._initial_filled = bool(initial_filled)
+            self._font_size_combobox = None
+            self._font_size_spinbox = None
+            self._fill_checkbox = None
+            # Seeded with what the dialog opens on, so the values are meaningful
+            # even if a caller reads them without waiting for accept().
+            self.chosen_font_size = resolve_backdrop_font_size(self._initial_font_size)
+            self.chosen_filled = self._initial_filled
+
+            super().__init__(
+                initial_color=initial_color,
+                show_name_field=True,
+                initial_name=initial_label,
+                custom_colors=custom_colors,
+                parent=parent,
+            )
+            self.setWindowTitle("Backdrop")
+
+        def _build_extra_fields(self, outer_layout):
+            """Add the font-size selector and the fill checkbox."""
+            font_size_row = QtWidgets.QHBoxLayout()
+            font_size_label = QtWidgets.QLabel("Font size:")
+            font_size_label.setFocusPolicy(Qt.NoFocus)
+            font_size_row.addWidget(font_size_label)
+
+            self._font_size_combobox = QtWidgets.QComboBox()
+            for preset_name, preset_size in BACKDROP_FONT_SIZE_PRESETS:
+                self._font_size_combobox.addItem(f"{preset_name} ({preset_size})", preset_size)
+            self._font_size_combobox.addItem("Custom", BACKDROP_CUSTOM_FONT_SIZE)
+            preselected_size = resolve_backdrop_font_size(self._initial_font_size)
+            preselected_index = self._font_size_combobox.findData(preselected_size)
+            if preselected_index >= 0:
+                self._font_size_combobox.setCurrentIndex(preselected_index)
+            self._font_size_combobox.currentIndexChanged.connect(self._on_font_size_choice_changed)
+            font_size_row.addWidget(self._font_size_combobox)
+
+            self._font_size_spinbox = QtWidgets.QSpinBox()
+            self._font_size_spinbox.setRange(BACKDROP_MIN_FONT_SIZE, BACKDROP_MAX_FONT_SIZE)
+            # Seed with the backdrop's own size so switching to "Custom" offers
+            # the value the backdrop already had rather than a preset.
+            self._font_size_spinbox.setValue(
+                max(BACKDROP_MIN_FONT_SIZE, min(BACKDROP_MAX_FONT_SIZE, self._initial_font_size))
+            )
+            # resolve_backdrop_font_size always lands on a preset, so the spin box
+            # starts disabled and is enabled when the user picks "Custom".
+            self._font_size_spinbox.setEnabled(False)
+            font_size_row.addWidget(self._font_size_spinbox)
+
+            outer_layout.addLayout(font_size_row)
+
+            self._fill_checkbox = QtWidgets.QCheckBox("Filled")
+            self._fill_checkbox.setChecked(self._initial_filled)
+            outer_layout.addWidget(self._fill_checkbox)
+
+        def _on_font_size_choice_changed(self, _index):
+            """Enable the spin box only while the "Custom" entry is selected."""
+            self._font_size_spinbox.setEnabled(self._is_custom_font_size_selected())
+
+        def _is_custom_font_size_selected(self):
+            return self._font_size_combobox.currentData() == BACKDROP_CUSTOM_FONT_SIZE
+
+        def selected_font_size(self):
+            """Return the point size currently chosen in the dialog."""
+            if self._is_custom_font_size_selected():
+                return int(self._font_size_spinbox.value())
+            return int(self._font_size_combobox.currentData())
+
+        def accept(self):
+            self.chosen_font_size = self.selected_font_size()
+            self.chosen_filled = bool(self._fill_checkbox.isChecked())
+            super().accept()
+
     class PrefsDialog(QtWidgets.QDialog):
         """Preferences dialog for managing plugin settings and custom colors.
 
@@ -677,6 +907,7 @@ else:
             import prefs as prefs_module
             # Seed local working copies — never mutate prefs module vars until accept
             self._local_plugin_enabled = prefs_module.plugin_enabled
+            self._local_auto_create_link = prefs_module.auto_create_link
             self._local_custom_colors = list(prefs_module.custom_colors)
             # Snapshot of custom colors at open time so _on_accept can detect changes
             # and recolor any anchor nodes using the old color values.
@@ -693,6 +924,7 @@ else:
             prefs_module.refresh_tabtabtab_prefs()
             self._local_space_mode_order = list(prefs_module._user_space_mode_order)
             self._local_use_tabtabtab_prefs = prefs_module.use_tabtabtab_prefs
+            self._local_close_palette_on_select = prefs_module.close_palette_on_select
             self._pre_reset_naming_snapshot = None  # (regex_text, template_text) tuple or None
             import os as os_module
             self._publish_path = (
@@ -711,6 +943,13 @@ else:
             self._plugin_checkbox = QtWidgets.QCheckBox("Enable anchors plugin")
             self._plugin_checkbox.setChecked(self._local_plugin_enabled)
             outer_layout.addWidget(self._plugin_checkbox)
+
+            # Checkbox: create a link alongside every new anchor
+            self._auto_create_link_checkbox = QtWidgets.QCheckBox(
+                "Create a link below each new anchor"
+            )
+            self._auto_create_link_checkbox.setChecked(self._local_auto_create_link)
+            outer_layout.addWidget(self._auto_create_link_checkbox)
 
             # Keyboard layout dropdown
             keyboard_layout_row = QtWidgets.QHBoxLayout()
@@ -893,6 +1132,13 @@ else:
             self._populate_swatch_grid()
 
             outer_layout.addLayout(button_row_layout)
+
+            # Checkbox: whether picking a color in the palette accepts and closes it
+            self._close_palette_on_select_checkbox = QtWidgets.QCheckBox(
+                "Selecting a color closes the color palette"
+            )
+            self._close_palette_on_select_checkbox.setChecked(self._local_close_palette_on_select)
+            outer_layout.addWidget(self._close_palette_on_select_checkbox)
 
             # Horizontal separator between Custom Colors and Anchor Naming
             separator_above_naming = QtWidgets.QFrame()
@@ -1197,7 +1443,7 @@ else:
             if not self._swatch_buttons:
                 return
             # Chain from the last focusable checkbox down to the first swatch button
-            QtWidgets.QWidget.setTabOrder(self._plugin_checkbox, self._swatch_buttons[0])
+            QtWidgets.QWidget.setTabOrder(self._auto_create_link_checkbox, self._swatch_buttons[0])
             # Chain each swatch button to the next one
             for swatch_index in range(len(self._swatch_buttons) - 1):
                 QtWidgets.QWidget.setTabOrder(
@@ -1353,6 +1599,10 @@ else:
             set_menu_enabled = getattr(prefs_module, 'set_anchors_menu_enabled', None)
             if set_menu_enabled is not None:
                 set_menu_enabled(prefs_module.plugin_enabled)
+            # Flush the auto-create-link toggle; anchor.create_anchor() reads it
+            # on every anchor creation, so no further wiring is needed.
+            self._local_auto_create_link = self._auto_create_link_checkbox.isChecked()
+            prefs_module.auto_create_link = self._local_auto_create_link
             # Read naming fields and custom colors
             self._local_naming_regex = self._naming_regex_edit.text()
             self._local_naming_template = self._naming_template_edit.text()
@@ -1363,6 +1613,10 @@ else:
             prefs_module._user_naming_template = self._local_naming_template
             prefs_module._user_naming_demo_filename = self._local_naming_demo_filename
             prefs_module.site_config_override = self._local_site_config_override
+            # Flush the palette close-on-select pref; ColorPaletteDialog reads it
+            # through its close_on_select argument the next time it is opened.
+            self._local_close_palette_on_select = self._close_palette_on_select_checkbox.isChecked()
+            prefs_module.close_palette_on_select = self._local_close_palette_on_select
             # Re-apply effective values so module vars reflect the new override state
             prefs_module._apply_effective_naming_values()
             # Flush keyboard layout pref and rebuild the leader's dispatch tables
@@ -1422,3 +1676,207 @@ else:
                     self.focusPreviousChild()
                     return True
             return False
+
+    class UpgradeAnchorsDialog(QtWidgets.QDialog):
+        """Options and live preview for "Upgrade to Anchors".
+
+        Scripts built with another "pointer"/"stamp" tool have the same shape as
+        an anchor rig without our machinery.  This dialog chooses how those nodes
+        should be adopted, and previews the result before anything is mutated.
+
+        It owns no anchor logic: it collects option values and, whenever one
+        changes, asks *preview_provider* what the upgrade would do.
+
+        Parameters
+        ----------
+        preview_provider : callable
+            Called with the dict that chosen_options() returns; returns a list of
+            one-line strings, one per node that would be upgraded.
+        selection_count : int
+            How many nodes are selected.  Decides the default scope and labels
+            the "Selected nodes" option.
+        parent : QWidget or None
+            Parent widget.
+        """
+
+        def __init__(self, preview_provider, selection_count=0, parent=None):
+            super().__init__(parent)
+            self._preview_provider = preview_provider
+            self._selection_count = selection_count
+            self._build_ui()
+            self._refresh_preview()
+
+        def _add_section_label(self, layout, text):
+            """Add a non-focusable section heading to *layout*."""
+            section_label = QtWidgets.QLabel(text)
+            section_label.setFocusPolicy(Qt.NoFocus)
+            layout.addWidget(section_label)
+
+        def _add_name_source_combobox(self, layout, text, initial_source):
+            """Add a labelled name-source dropdown row and return the combobox."""
+            row_layout = QtWidgets.QHBoxLayout()
+            row_label = QtWidgets.QLabel(text)
+            row_label.setFocusPolicy(Qt.NoFocus)
+            combobox = QtWidgets.QComboBox()
+            combobox.addItem("Label, else node name", NAME_SOURCE_AUTO)
+            combobox.addItem("Node name", NAME_SOURCE_NODE_NAME)
+            combobox.addItem("Label", NAME_SOURCE_LABEL)
+            combobox.setCurrentIndex(max(0, combobox.findData(initial_source)))
+            combobox.currentIndexChanged.connect(self._refresh_preview)
+            row_layout.addWidget(row_label)
+            row_layout.addWidget(combobox)
+            row_layout.addStretch()
+            layout.addLayout(row_layout)
+            return combobox
+
+        def _add_strip_line_edit(self, layout, text, placeholder):
+            """Add a labelled strip-text field row and return the line edit."""
+            row_layout = QtWidgets.QHBoxLayout()
+            row_label = QtWidgets.QLabel(text)
+            row_label.setFocusPolicy(Qt.NoFocus)
+            line_edit = QtWidgets.QLineEdit()
+            line_edit.setPlaceholderText(placeholder)
+            line_edit.textChanged.connect(self._refresh_preview)
+            row_layout.addWidget(row_label)
+            row_layout.addWidget(line_edit)
+            layout.addLayout(row_layout)
+            return line_edit
+
+        def _build_ui(self):
+            self.setWindowTitle("Upgrade to Anchors")
+            outer_layout = QtWidgets.QVBoxLayout()
+            self.setLayout(outer_layout)
+
+            intro_label = QtWidgets.QLabel(
+                "Adopt anchor-like nodes built by another tool: each parent node "
+                "becomes an anchor, and the hidden-input nodes pointing at it "
+                "become Links.  Nodes are converted in place, so their "
+                "connections and positions are kept."
+            )
+            intro_label.setWordWrap(True)
+            intro_label.setFocusPolicy(Qt.NoFocus)
+            outer_layout.addWidget(intro_label)
+
+            # ---- Scope ----
+            self._add_section_label(outer_layout, "Upgrade")
+            self._selected_scope_radio = QtWidgets.QRadioButton(
+                f"Selected nodes ({self._selection_count})"
+            )
+            self._script_scope_radio = QtWidgets.QRadioButton(
+                "Every anchor-like node in the script"
+            )
+            # Radio buttons sharing a parent widget are auto-exclusive, which would
+            # make picking a colour clear the scope choice.  An explicit
+            # QButtonGroup per pair keeps the two sets independent.
+            self._scope_button_group = QtWidgets.QButtonGroup(self)
+            self._scope_button_group.addButton(self._selected_scope_radio)
+            self._scope_button_group.addButton(self._script_scope_radio)
+            self._selected_scope_radio.setEnabled(bool(self._selection_count))
+            # Default to the selection when there is one — "one selected NoOp" is
+            # the common case; otherwise fall back to the whole script.
+            if self._selection_count:
+                self._selected_scope_radio.setChecked(True)
+            else:
+                self._script_scope_radio.setChecked(True)
+            self._selected_scope_radio.toggled.connect(self._refresh_preview)
+            outer_layout.addWidget(self._selected_scope_radio)
+            outer_layout.addWidget(self._script_scope_radio)
+
+            # ---- Which kinds of parent ----
+            self._add_section_label(outer_layout, "Parent nodes to upgrade")
+            self._noop_parents_checkbox = QtWidgets.QCheckBox("NoOp and PostageStamp parents")
+            self._noop_parents_checkbox.setChecked(True)
+            self._noop_parents_checkbox.toggled.connect(self._refresh_preview)
+            outer_layout.addWidget(self._noop_parents_checkbox)
+
+            self._dot_parents_checkbox = QtWidgets.QCheckBox("Dot parents")
+            self._dot_parents_checkbox.setChecked(True)
+            self._dot_parents_checkbox.toggled.connect(self._refresh_preview)
+            outer_layout.addWidget(self._dot_parents_checkbox)
+
+            # ---- Naming ----
+            self._add_section_label(outer_layout, "Anchor names")
+            self._noop_name_source_combobox = self._add_name_source_combobox(
+                outer_layout, "Name NoOp parents from:", NAME_SOURCE_AUTO
+            )
+            self._dot_name_source_combobox = self._add_name_source_combobox(
+                outer_layout, "Name Dot parents from:", NAME_SOURCE_AUTO
+            )
+            self._strip_prefix_edit = self._add_strip_line_edit(
+                outer_layout, "Strip leading text:", "e.g. Pointer_"
+            )
+            self._strip_suffix_edit = self._add_strip_line_edit(
+                outer_layout, "Strip trailing text:", "e.g. _OUT"
+            )
+
+            # ---- Colour ----
+            self._add_section_label(outer_layout, "Colours")
+            self._keep_colors_radio = QtWidgets.QRadioButton("Keep the existing node colours")
+            self._default_colors_radio = QtWidgets.QRadioButton("Use the anchor colours")
+            self._color_button_group = QtWidgets.QButtonGroup(self)
+            self._color_button_group.addButton(self._keep_colors_radio)
+            self._color_button_group.addButton(self._default_colors_radio)
+            self._keep_colors_radio.setChecked(True)
+            outer_layout.addWidget(self._keep_colors_radio)
+            outer_layout.addWidget(self._default_colors_radio)
+            dot_color_note_label = QtWidgets.QLabel(
+                "Dot anchors always take the default anchor colour."
+            )
+            dot_color_note_label.setWordWrap(True)
+            dot_color_note_label.setFocusPolicy(Qt.NoFocus)
+            outer_layout.addWidget(dot_color_note_label)
+
+            # ---- Preview ----
+            self._add_section_label(outer_layout, "Preview")
+            self._preview_list = QtWidgets.QListWidget()
+            self._preview_list.setFocusPolicy(Qt.NoFocus)
+            outer_layout.addWidget(self._preview_list)
+
+            # ---- Cancel / Upgrade — positive action on the right, as elsewhere ----
+            self._upgrade_button = QtWidgets.QPushButton("Upgrade")
+            self._upgrade_button.setFocusPolicy(Qt.NoFocus)
+            self._upgrade_button.setAutoDefault(False)
+            self._upgrade_button.clicked.connect(self.accept)
+
+            cancel_button = QtWidgets.QPushButton("Cancel")
+            cancel_button.setFocusPolicy(Qt.NoFocus)
+            cancel_button.setAutoDefault(False)
+            cancel_button.clicked.connect(self.reject)
+
+            button_row_layout = QtWidgets.QHBoxLayout()
+            button_row_layout.addWidget(self._upgrade_button)
+            button_row_layout.addWidget(cancel_button)
+            outer_layout.addLayout(button_row_layout)
+
+        def chosen_options(self):
+            """Return the current option values as a plain dict.
+
+            Consumed by migrations.UpgradeOptions.from_dict(); keeping it a plain
+            dict is what lets this dialog stay free of any anchor logic.
+            """
+            scope = (UPGRADE_SCOPE_SELECTED if self._selected_scope_radio.isChecked()
+                     else UPGRADE_SCOPE_SCRIPT)
+            return {
+                'scope': scope,
+                'include_noop_parents': self._noop_parents_checkbox.isChecked(),
+                'include_dot_parents': self._dot_parents_checkbox.isChecked(),
+                'noop_name_source': self._noop_name_source_combobox.currentData(),
+                'dot_name_source': self._dot_name_source_combobox.currentData(),
+                'strip_prefix': self._strip_prefix_edit.text(),
+                'strip_suffix': self._strip_suffix_edit.text(),
+                'keep_colors': self._keep_colors_radio.isChecked(),
+            }
+
+        def _refresh_preview(self):
+            """Re-run the preview for the current options and update the list.
+
+            The Upgrade button is disabled while there is nothing to do, so the
+            dialog can never apply an empty plan.
+            """
+            preview_lines = self._preview_provider(self.chosen_options())
+            self._preview_list.clear()
+            if preview_lines:
+                self._preview_list.addItems(preview_lines)
+            else:
+                self._preview_list.addItem("Nothing to upgrade with these options.")
+            self._upgrade_button.setEnabled(bool(preview_lines))

@@ -100,11 +100,31 @@ def _show_create_dialog():
     dialog.show()
 
 
+def _show_backdrop_dialog():
+    """Show the backdrop setup dialog non-modally."""
+    import colors
+    import prefs
+
+    if colors.BackdropDialog is None:
+        return
+    dialog = colors.BackdropDialog(
+        initial_label="plates_fg\nDenoise + grade before comp",
+        initial_color=0x6F3399FF,
+        initial_font_size=66,
+        initial_filled=True,
+        custom_colors=prefs.custom_colors,
+    )
+    dialog.setWindowTitle("Setup Backdrop")
+    _live_dialogs.append(dialog)
+    dialog.show()
+
+
 def _register_doc_commands():
     """Register the documentation capture commands with stable shortcuts."""
     docs_menu = nuke.menu("Nuke").addMenu("DocsCapture")
     docs_menu.addCommand("Show Colour Palette", _show_color_palette, "F6")
     docs_menu.addCommand("Show Create Dialog", _show_create_dialog, "F7")
+    docs_menu.addCommand("Show Backdrop Dialog", _show_backdrop_dialog, "F8")
 
 
 if nuke.GUI:

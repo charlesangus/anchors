@@ -56,5 +56,16 @@
         "filename": "anchor-create-dialog.png" },
       { "type": "keys", "keys": ["Esc"] }
     ]
+  },
+  {
+    "name": "backdrop_setup",
+    "steps": [
+      { "type": "keys", "keys": ["F8"] },
+      { "type": "wait", "duration": 1.0 },
+      { "type": "screenshot",
+        "target": { "object_name": "BackdropDialog", "class_name": "BackdropDialog" },
+        "filename": "backdrop-setup-dialog.png" },
+      { "type": "keys", "keys": ["Esc"] }
+    ]
   }
 ]

@@ -81,6 +81,7 @@ _add_gated_command(anchors_menu, "Label (Large)",  "labels.create_large_label()"
 _add_gated_command(anchors_menu, "Label (Medium)", "labels.create_medium_label()", "+N")
 _add_gated_command(anchors_menu, "Label (Small)",  "labels.create_small_label()",  "+B")
 _add_gated_command(anchors_menu, "Append Label",   "labels.append_to_label()",     "^M")
+_add_gated_command(anchors_menu, "Setup Backdrop", "labels.setup_selected_backdrop()")
 
 anchors_menu.addSeparator()
 
@@ -99,6 +100,9 @@ anchors_menu.addCommand(
     "Anchor Migrate from Old Version",
     "anchors.migrate_to_stemless_names()"
 )
+# Adopting another tool's anchor-like nodes creates real anchors, so it is gated
+# on plugin_enabled like every other anchor-creating command.
+_add_gated_command(anchors_menu, "Upgrade to Anchors...", "anchors.upgrade_to_anchors()")
 
 # Automatically migrate old-style knob names on every script load.
 # migrate_script() is idempotent — it only acts when the old knob names are

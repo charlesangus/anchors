@@ -52,15 +52,17 @@ The anchor system is a reusable named-input mechanism for the node graph.
 
 ## Concepts
 
-- **Anchor** — a named NoOp (node name prefixed `Anchor_`) or labelled Dot node that sits below an input node and acts as a stable reference point. NoOp anchors carry "Reconnect Child Links", "Rename", and "Set Color" buttons in their properties panel; Dot anchors carry only "Reconnect Child Links" and "Rename".
+- **Anchor** — a named NoOp (node name prefixed `Anchor_`) or labelled Dot node that sits below an input node and acts as a stable reference point. NoOp anchors carry "Reconnect Child Links", "Rename", and "Set Color" buttons in their properties panel; Dot anchors carry only "Reconnect Child Links" and "Rename". Both tiers carry a "Jump to anchor only" checkbox that controls what a jump to the anchor frames.
 - **Link** — a PostageStamp, NoOp, or Dot node that references an anchor by fully-qualified name. Carries a "Reconnect" button and re-pipes itself when reconnected. Displays a `Link: <name>` label.
 - **Local Dot** — a hidden-input Dot used purely for layout cleanup. Created automatically when a hidden-input Dot is copied whose upstream is a plain node (not an anchor). Reconnects same-script only and never crosses scripts. Stamped with a burnt-orange tile color and a `Local: <source>` label.
 
 ## Creating Anchors
 
 - Select a node and press `A` (or `Edit > Anchors > Create Anchor`) — a combined name + color dialog appears, pre-filled from the input node's file path and the smallest containing backdrop label.
+- A Link node is created directly below the new anchor, centred on it, so the anchor is immediately usable. Turn this off with the "Create a link below each new anchor" preference. The behaviour applies to the interactive command only — the `api.create_anchor()` Python API always creates just the anchor.
 - **Dot anchors**: select a plain Dot and press `Shift+B`, `Shift+N`, or `Shift+M`. The label prompt appears; entering a label and confirming applies a small/medium/large font and promotes the Dot to a Dot anchor in place.
 - **Rename**: if an anchor is already selected when you press `A`, the rename dialog opens instead of creating a new anchor.
+- **Backdrops**: if a single BackdropNode is selected when you press `A`, the backdrop setup dialog opens instead — see [Backdrops](#backdrops).
 
 ## Creating Links
 
@@ -78,6 +80,10 @@ The anchor system is a reusable named-input mechanism for the node graph.
 - `Alt+J` (or `Edit > Anchors > Anchor Jump`) — with a Link selected, jump to its source anchor.
 - `Alt+L` (or `Edit > Anchors > Cycle Links`) — with an anchor selected, cycle through each Link node that references it. After the last one, returns to the anchor.
 - `Alt+Z` (or `Edit > Anchors > Anchor Back`) — restore the DAG viewport to the position before the last Alt+A / Alt+J / Alt+L jump. Single-slot — consumes the saved position.
+
+### Jump scope
+
+Jumps frame the anchor together with its upstream tree (hidden inputs ignored). Tick **"Jump to anchor only"** on an anchor to make jumps to it centre on the anchor alone at 100% zoom — for anchors that are navigation landmarks rather than the head of a module. The checkbox lives on the anchor, so `Alt+A` and `Alt+J` both honour it, and it is unticked by default. Anchors saved by earlier versions have the checkbox added (unticked, i.e. unchanged behaviour) the next time the script is loaded.
 
 ## Leader Key
 
@@ -105,6 +111,14 @@ Set your keyboard layout in `Edit > Anchors > Anchor Preferences…` (QWERTY, AZ
 When the plugin is disabled in Preferences, the `Shift+A` shortcut is disabled along with every other gated anchor command. Re-enable from `Edit > Anchors > Anchor Preferences…`, which stays active in the menu.
 
 The existing `Alt+A`, `Alt+J`, `Alt+L`, `Alt+Z` shortcuts continue to work alongside the leader for muscle-memory parity.
+
+## Upgrading Another Tool's Anchors
+
+`Edit > Anchors > Upgrade to Anchors...` adopts an anchor-like rig built with a different tool — a labelled, coloured NoOp/Dot/PostageStamp with hidden-input nodes pointing back at it — as real anchors and Links. Nodes are converted **in place**, so each keeps its class, position, and downstream connections.
+
+The dialog previews every conversion before anything changes, and offers: the scope (selected nodes or the whole script); which parent kinds to include (NoOp/PostageStamp and Dot, configured separately); where each kind takes its name from (label, node name, or label-else-name); leading/trailing text to strip from that name (`Pointer_Foo` → `Foo`); and whether to keep the existing tile colours or take the derived anchor colours.
+
+Derived names are sanitized and de-duplicated (`Anchor_Foo`, `Anchor_Foo1`). A node that is both a parent and another parent's hidden-input child stays a parent. Nodes that are already anchors keep their name and colour — only their children are upgraded — so re-running the command is a no-op. Like the other migrators, it is not undoable: save a backup first.
 
 ## Reconnecting
 
@@ -145,6 +159,17 @@ All three Label shortcuts apply a font size at or above the Dot-anchor threshold
 
 For Dot anchors, applying or appending a label also propagates the change to all link nodes pointing at that Dot.
 
+# Backdrops
+
+Select a single BackdropNode and press `A` (or `Edit > Anchors > Setup Backdrop`) to open the backdrop setup dialog. It is the anchor rename dialog plus the two things a backdrop needs:
+
+- **Label** — a multi-line field, so a backdrop's notes are not flattened on a round trip.
+- **Colour** — the same palette as the anchor dialogs, including custom colors and hint-mode navigation. Clicking a swatch confirms the dialog.
+- **Font size** — Small (33), Medium (66), Large (111) — the Dot-anchor sizes — plus **Custom** with a spin box. A backdrop already set to one of the presets re-opens on that size; anything else (including Nuke's own default) opens on Large.
+- **Filled** — drives Nuke's `appearance` knob: checked is `Fill`, unchecked is `Border`. Ignored on Nuke versions that predate the knob.
+
+Inside the multi-line label field, `Enter` inserts a newline; `Ctrl+Enter`, the **OK** button, or a swatch click confirms. Selecting a backdrop together with its contents is unchanged — that still creates an anchor from the selection.
+
 # Keyboard Shortcuts
 
 | Shortcut | Action |
@@ -153,7 +178,7 @@ For Dot anchors, applying or appending a label also propagates the change to all
 | `Ctrl+X` | Cut (hidden) |
 | `Ctrl+V` | Paste (hidden) |
 | `Ctrl+Shift+D` | Paste (old-style, no re-piping) |
-| `A` | Anchor shortcut (context-sensitive: create anchor, rename, or open link picker) |
+| `A` | Anchor shortcut (context-sensitive: create anchor, rename, set up a backdrop, or open link picker) |
 | `Shift+A` | Leader Key — opens the command overlay (see Leader Key section above) |
 | `Alt+A` | Anchor Find (navigate DAG to any anchor or labelled BackdropNode) |
 | `Alt+J` | Anchor Jump (Link → source anchor) |
@@ -173,6 +198,7 @@ All anchor shortcuts are scoped to the **DAG (Node Graph) context** — they onl
 - **Enable anchors plugin** — master toggle. When unchecked, all gated menu items disable and `Ctrl+C/X/V` fall through to plain Nuke copy/cut/paste.
 - **Keyboard layout** — QWERTY / AZERTY / QWERTZ, used to draw the leader overlay grid.
 - **Space-prefix search modes** — which search mode the fuzzy-find menus use for 0, 1, and 2 leading spaces (anchored fuzzy, non-anchored fuzzy, or consecutive substring; the default order is exactly that). Each mode must be assigned to exactly one leading-space level. Tick **Use tabtabtab-nuke preferences** to follow the same preference from a [tabtabtab-nuke](https://github.com/charlesangus/tabtabtab-nuke) install instead (read from that install's own preferences file — the path `tabtabtab_prefs.PREFS_FILE` gives when the module is importable, otherwise `~/.nuke/tabtabtab_prefs.json`); the dropdowns then grey out and mirror it, and the checkbox is disabled when no tabtabtab-nuke install is found.
+- **Create a link below each new anchor** — on by default. When unchecked, `Edit > Anchors > Create Anchor` (and `A` with a node selected) creates the anchor alone.
 - **Custom Colors** — a palette of user-defined colors. Available in the anchor create / rename dialogs and in the "Set Color" picker on NoOp anchors.
 - **Anchor Naming (Advanced)** — user-configurable regex + template for deriving anchor names from file paths. Includes a live preview against a test filename and an "Override Site Config" checkbox. Admins can publish the current values to a site config JSON via the "Publish Naming…" button.
 
@@ -294,6 +320,7 @@ anchor.anchor_shortcut()
 ```
 Context-sensitive handler for the `A` keybind. Behaviour depends on the current selection:
 - One anchor selected → rename dialog.
+- One BackdropNode selected → backdrop setup dialog (label, color, font size, fill).
 - Any other selection → create-anchor dialog (combined name + color).
 - Nothing selected → open the link-creation fuzzy picker.
 
@@ -312,7 +339,12 @@ Opens the fuzzy-search picker for DAG navigation. Lists all anchors plus all lab
 ```python
 anchor.navigate_to_anchor(anchor_node: nuke.Node)
 ```
-Zooms the DAG to fit the anchor and its visible-path upstream nodes.
+Zooms the DAG to fit the anchor and its visible-path upstream nodes. When the anchor's "Jump to anchor only" checkbox is ticked, delegates to `navigate_to_node_only()` instead.
+
+```python
+anchor.navigate_to_node_only(anchor_node: nuke.Node)
+```
+Centres the DAG on the anchor alone at 100% zoom, leaving its upstream tree unframed and the selection untouched.
 
 ```python
 anchor.navigate_back()
@@ -386,6 +418,21 @@ labels.append_to_label()
 ```
 Prompts for a suffix and appends it to the selected node's existing label. For Dot anchors, propagates the updated label to all linked nodes.
 
+```python
+labels.setup_backdrop(backdrop_node: nuke.Node)
+```
+Opens the backdrop setup dialog for `backdrop_node` and applies the label, color, font size, and fill the user chose. No-op if the plugin is disabled or the dialog is cancelled. Without Qt, falls back to a plain label prompt.
+
+```python
+labels.setup_selected_backdrop()
+```
+Same, for the current selection. Does nothing unless exactly one BackdropNode is selected.
+
+```python
+labels.apply_backdrop_setup(backdrop_node: nuke.Node, label_text=None, font_size=None, filled=None, color=None)
+```
+Applies backdrop styling without any dialog — useful from pipeline scripts. Each argument is optional; `None` leaves that aspect untouched. `filled=True` sets the `appearance` knob to `Fill`, `False` to `Border`.
+
 ---
 
 ## Copy / Paste (`import anchors`)
@@ -418,9 +465,36 @@ The legacy → new knob mapping covers:
 | `rename_anchor` | `anchors_rename_anchor` |
 | `set_anchor_color` | `anchors_set_anchor_color` |
 
+`migrate_script()` also backfills the `anchors_jump_to_node_only` checkbox onto anchors created before it existed, so the jump-scope toggle is reachable on older scripts. Backfilled checkboxes are unticked, which is the framing those anchors already had.
+
 A second migrator, available from `Edit > Anchors > Anchor Migrate from Old Version`, calls `anchors.migrate_to_stemless_names()`. This rewrites stored anchor references on link nodes from the very-old `scriptStem.fullName` format (e.g. `myScript.Anchor_Foo`) to the current `fullName`-only format (e.g. `Anchor_Foo` or `Group1.Anchor_Foo`). It is safe to run on already-migrated scripts (no-op).
 
 Both migrators print a summary of the nodes/knobs updated. Neither is undoable — save a backup of your script first.
+
+### Upgrading another tool's anchors
+
+`anchors.upgrade_to_anchors()` (wired to `Edit > Anchors > Upgrade to Anchors...`) opens the options dialog described in [Upgrading Another Tool's Anchors](#upgrading-another-tools-anchors) and applies the chosen conversion.
+
+For scripted use, `anchors.upgrade_nodes_to_anchors(nodes, options=None)` does the same without prompting and returns an `(anchor_count, link_count)` tuple:
+
+```python
+import nuke
+import anchors
+from migrations import UpgradeOptions
+from constants import NAME_SOURCE_NODE_NAME
+
+options = UpgradeOptions(
+    include_noop_parents=True,      # upgrade NoOp / PostageStamp parents
+    include_dot_parents=True,       # upgrade Dot parents
+    noop_name_source=NAME_SOURCE_NODE_NAME,   # or NAME_SOURCE_LABEL / NAME_SOURCE_AUTO
+    strip_prefix='Pointer_',        # Pointer_Foo -> Foo
+    strip_suffix='',
+    keep_colors=True,               # False takes the derived anchor colours
+)
+anchor_count, link_count = anchors.upgrade_nodes_to_anchors(nuke.allNodes(), options)
+```
+
+`migrations.plan_upgrades(nodes, options)` returns the same work as a list of `UpgradePlanEntry` objects without mutating anything — that is what the dialog previews.
 
 # Development
 
