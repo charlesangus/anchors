@@ -314,6 +314,44 @@ node):
 
 
 
+## Upgrading a script built with another tool
+
+Plenty of scripts already contain an anchor rig built by a different tool: a
+labelled, coloured NoOp under a Read, with hidden-input nodes dotted around the
+comp pointing back at it. It is the same idea as anchors, without the anchor
+machinery — so the picker, navigation, reconnect and colour propagation all
+ignore it.
+
+**Edit > Anchors > Upgrade to Anchors...** adopts that rig. Each parent node
+becomes a real anchor, and every hidden-input node pointing at it becomes a real
+Link. Nodes are converted **in place**: a PostageStamp stays a PostageStamp, and
+every node keeps its position and its downstream connections.
+
+The dialog previews exactly what will change before anything is touched, and
+offers:
+
+- **Scope** — the selected nodes, or every anchor-like node in the script.
+- **Parent nodes to upgrade** — NoOp and PostageStamp parents, Dot parents, or
+  both. They are listed separately because the two usually want different naming.
+- **Anchor names** — take the name from the node's label, its node name, or
+  (the default) its label falling back to its node name. Set separately for NoOp
+  and Dot parents, since a foreign NoOp usually carries a meaningful node name
+  while a Dot is called something like `Dot17` and keeps its meaning in the label.
+- **Strip leading / trailing text** — drop a tool's fixed affix, turning
+  `Pointer_Foo` into `Foo`. A strip that would leave nothing behind is ignored.
+- **Colours** — keep each node's existing tile colour, or take the colour the
+  plugin would derive for a new anchor. Dot anchors always take the default
+  anchor colour, as they do everywhere else.
+
+Names are sanitised and made unique, so two parents that reduce to the same name
+become `Anchor_Foo` and `Anchor_Foo1`. A node that is *both* a parent and someone
+else's hidden-input child stays a parent — it becomes an anchor rather than a
+Link. Nodes that are already anchors keep their name and colour; only their
+children are upgraded. Running the upgrade a second time does nothing.
+
+Like the other migrators, this is not undoable — save a backup of your script
+first.
+
 ## Preferences and site configuration
 
 **Edit > Anchors > Anchor Preferences...** controls:
