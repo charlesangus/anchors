@@ -328,7 +328,7 @@ node):
 Backdrops carry the comp's structure, so `A` treats them as something to set up
 rather than something to anchor. Select a single backdrop, press `A` (or use
 **Edit > Anchors > Setup Backdrop**), and a dialog opens with everything a
-backdrop needs in one place:
+backdrop needs in one place `(Figure \ref{fig:backdrop-setup})`{=latex}:
 
 - a **label** field — multi-line, so a backdrop's notes survive a round trip;
 - the same **colour palette** as the anchor dialogs, including your custom
@@ -344,6 +344,8 @@ so a label and a colour are two keystrokes and a click. Pressing `Enter` inside
 the multi-line label field adds a line; `Ctrl`+`Enter`, the **OK** button, or a
 swatch click confirms. Selecting a backdrop *together with* its contents keeps
 the old behaviour and creates an anchor from the selection.
+
+![Setting up a backdrop: label, colour, font size, and fill in one dialog.](img/backdrop-setup-dialog.png){#fig:backdrop-setup}
 
 ## Upgrading a script built with another tool
 
