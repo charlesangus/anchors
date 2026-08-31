@@ -2,10 +2,12 @@
 
 This module is the single source of truth for:
 
-- ``migrate_script()`` — rewrite legacy ``paste_hidden_*`` and ``copy_hidden_*``
-  knobs (and the legacy PyScript_Knob button knobs ``reconnect_link``,
-  ``reconnect_child_links``, ``rename_anchor``, ``set_anchor_color``) on every
-  node in the current script to the unified ``anchors_*`` namespace.
+- ``migrate_script()`` — in a single pass over the current script, rewrite legacy
+  ``paste_hidden_*`` and ``copy_hidden_*`` knobs (and the legacy PyScript_Knob
+  button knobs ``reconnect_link``, ``reconnect_child_links``, ``rename_anchor``,
+  ``set_anchor_color``) on every node to the unified ``anchors_*`` namespace, and
+  add the ``anchors_jump_to_node_only`` checkbox to anchors created before it
+  existed.
 - ``migrate_to_stemless_names()`` — rewrite stored anchor references from the
   old ``scriptStem.fullName`` format to the new ``fullName``-only format.
 - ``migrate_prefs_files()`` — copy the legacy ``paste_hidden_prefs.json`` to
@@ -32,6 +34,7 @@ import nuke
 
 import constants
 from constants import (
+    ANCHOR_JUMP_NODE_ONLY_KNOB_NAME,
     ANCHOR_PREFIX,
     ANCHOR_RECONNECT_KNOB_NAME,
     ANCHOR_RENAME_KNOB_NAME,
@@ -51,6 +54,7 @@ from constants import (
     UPGRADE_SCOPE_SELECTED,
 )
 from link import (
+    add_jump_scope_knob,
     get_fully_qualified_node_name,
     is_anchor,
     is_link,
@@ -173,13 +177,40 @@ def _migrate_one_knob(node, old_name, spec):
     return True
 
 
+def _backfill_jump_scope_knob(node):
+    """Add the "Jump to anchor only" checkbox to *node* if it is an anchor missing it.
+
+    Anchors written by earlier versions carry no
+    ``ANCHOR_JUMP_NODE_ONLY_KNOB_NAME`` knob, so the jump-scope toggle would be
+    unreachable on them (issue #66).  The checkbox is added unticked, i.e. the
+    tree-framing behaviour those anchors already had.
+
+    Idempotency contract: anchors that already carry the checkbox — and nodes
+    that are not anchors at all — are left untouched, so the second load of a
+    script does nothing.
+    Returns True iff the checkbox was added, False otherwise.
+    """
+    if not is_anchor(node):
+        return False
+    if ANCHOR_JUMP_NODE_ONLY_KNOB_NAME in node.knobs():
+        return False
+    add_jump_scope_knob(node)
+    return True
+
+
 def migrate_script():
     """Rewrite legacy knob names on every node in the current script.
 
-    Scans every node (including inside Groups) and rewrites legacy
-    ``paste_hidden_*``, ``copy_hidden_*``, ``reconnect_link``,
-    ``reconnect_child_links``, ``rename_anchor`` and ``set_anchor_color``
-    knobs to their unified ``anchors_*`` equivalents.
+    Scans every node (including inside Groups) exactly once and, per node,
+    rewrites legacy ``paste_hidden_*``, ``copy_hidden_*``, ``reconnect_link``,
+    ``reconnect_child_links``, ``rename_anchor`` and ``set_anchor_color`` knobs
+    to their unified ``anchors_*`` equivalents, then backfills the jump-scope
+    checkbox onto anchors that predate it (issue #66).
+
+    ORDERING: the knob rename runs before the backfill *for the same node*,
+    because ``is_anchor()`` recognises a legacy Dot anchor by the migrated
+    ``DOT_ANCHOR_KNOB_NAME`` knob, not by its ``paste_hidden_dot_anchor``
+    predecessor.
 
     Idempotent: re-running on an already-migrated script is a no-op.
 
@@ -192,6 +223,7 @@ def migrate_script():
     """
     nodes_updated = 0
     knobs_renamed = 0
+    anchors_backfilled = 0
 
     for node in nuke.allNodes(recurseGroups=True):
         node_changed = False
@@ -199,12 +231,16 @@ def migrate_script():
             if _migrate_one_knob(node, old_name, spec):
                 knobs_renamed += 1
                 node_changed = True
+        if _backfill_jump_scope_knob(node):
+            anchors_backfilled += 1
+            node_changed = True
         if node_changed:
             nodes_updated += 1
 
     print(
         "anchors.migrate_script(): updated "
-        f"{nodes_updated} node(s), renamed {knobs_renamed} knob(s)."
+        f"{nodes_updated} node(s), renamed {knobs_renamed} knob(s), "
+        f"added the jump-scope checkbox to {anchors_backfilled} anchor(s)."
     )
 
 

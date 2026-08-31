@@ -52,7 +52,7 @@ The anchor system is a reusable named-input mechanism for the node graph.
 
 ## Concepts
 
-- **Anchor** — a named NoOp (node name prefixed `Anchor_`) or labelled Dot node that sits below an input node and acts as a stable reference point. NoOp anchors carry "Reconnect Child Links", "Rename", and "Set Color" buttons in their properties panel; Dot anchors carry only "Reconnect Child Links" and "Rename".
+- **Anchor** — a named NoOp (node name prefixed `Anchor_`) or labelled Dot node that sits below an input node and acts as a stable reference point. NoOp anchors carry "Reconnect Child Links", "Rename", and "Set Color" buttons in their properties panel; Dot anchors carry only "Reconnect Child Links" and "Rename". Both tiers carry a "Jump to anchor only" checkbox that controls what a jump to the anchor frames.
 - **Link** — a PostageStamp, NoOp, or Dot node that references an anchor by fully-qualified name. Carries a "Reconnect" button and re-pipes itself when reconnected. Displays a `Link: <name>` label.
 - **Local Dot** — a hidden-input Dot used purely for layout cleanup. Created automatically when a hidden-input Dot is copied whose upstream is a plain node (not an anchor). Reconnects same-script only and never crosses scripts. Stamped with a burnt-orange tile color and a `Local: <source>` label.
 
@@ -80,6 +80,10 @@ The anchor system is a reusable named-input mechanism for the node graph.
 - `Alt+J` (or `Edit > Anchors > Anchor Jump`) — with a Link selected, jump to its source anchor.
 - `Alt+L` (or `Edit > Anchors > Cycle Links`) — with an anchor selected, cycle through each Link node that references it. After the last one, returns to the anchor.
 - `Alt+Z` (or `Edit > Anchors > Anchor Back`) — restore the DAG viewport to the position before the last Alt+A / Alt+J / Alt+L jump. Single-slot — consumes the saved position.
+
+### Jump scope
+
+Jumps frame the anchor together with its upstream tree (hidden inputs ignored). Tick **"Jump to anchor only"** on an anchor to make jumps to it centre on the anchor alone at 100% zoom — for anchors that are navigation landmarks rather than the head of a module. The checkbox lives on the anchor, so `Alt+A` and `Alt+J` both honour it, and it is unticked by default. Anchors saved by earlier versions have the checkbox added (unticked, i.e. unchanged behaviour) the next time the script is loaded.
 
 ## Leader Key
 
@@ -333,7 +337,12 @@ Opens the fuzzy-search picker for DAG navigation. Lists all anchors plus all lab
 ```python
 anchor.navigate_to_anchor(anchor_node: nuke.Node)
 ```
-Zooms the DAG to fit the anchor and its visible-path upstream nodes.
+Zooms the DAG to fit the anchor and its visible-path upstream nodes. When the anchor's "Jump to anchor only" checkbox is ticked, delegates to `navigate_to_node_only()` instead.
+
+```python
+anchor.navigate_to_node_only(anchor_node: nuke.Node)
+```
+Centres the DAG on the anchor alone at 100% zoom, leaving its upstream tree unframed and the selection untouched.
 
 ```python
 anchor.navigate_back()
@@ -453,6 +462,8 @@ The legacy → new knob mapping covers:
 | `reconnect_child_links` | `anchors_reconnect_child_links` |
 | `rename_anchor` | `anchors_rename_anchor` |
 | `set_anchor_color` | `anchors_set_anchor_color` |
+
+`migrate_script()` also backfills the `anchors_jump_to_node_only` checkbox onto anchors created before it existed, so the jump-scope toggle is reachable on older scripts. Backfilled checkboxes are unticked, which is the framing those anchors already had.
 
 A second migrator, available from `Edit > Anchors > Anchor Migrate from Old Version`, calls `anchors.migrate_to_stemless_names()`. This rewrites stored anchor references on link nodes from the very-old `scriptStem.fullName` format (e.g. `myScript.Anchor_Foo`) to the current `fullName`-only format (e.g. `Anchor_Foo` or `Group1.Anchor_Foo`). It is safe to run on already-migrated scripts (no-op).
 
