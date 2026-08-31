@@ -10,7 +10,7 @@ Lifecycle
 2. ``arm()`` flips ``_leader_active`` to True, installs a single ``LeaderKeyFilter``
    on QApplication, and schedules the overlay to appear after a brief delay.
 3. The next QKeyEvent is intercepted by the filter:
-     - A *single-shot* binding (Q, W, E, R, F, J, Z, X, comma) disarms first,
+     - A *single-shot* binding (Q, W, E, R, S, F, J, Z, X, comma) disarms first,
        then dispatches.
      - A *chaining* binding (L) hides the overlay, dispatches, and stays armed
        for further chaining keys.
@@ -73,6 +73,11 @@ def _dispatch_set_input_first_available():
 def _dispatch_anchor_find():
     import anchor
     anchor.select_anchor_and_navigate()
+
+
+def _dispatch_spatial_view():
+    import spatial_view
+    spatial_view.open_navigate_view()
 
 
 def _dispatch_anchor_jump():
@@ -165,6 +170,7 @@ _DISPATCH_BY_LETTER = {
     'W': _dispatch_set_input_to_a,
     'E': _dispatch_set_input_to_mask,
     'R': _dispatch_set_input_first_available,
+    'S': _dispatch_spatial_view,
     'F': _dispatch_anchor_find,
     'J': _dispatch_anchor_jump,
     'L': _dispatch_cycle_links,
@@ -326,7 +332,7 @@ def _is_binding_enabled(letter):
         import anchor
         return anchor._back_position is not None
 
-    # F / X — always available when the plugin is enabled.
+    # F / S / X — always available when the plugin is enabled.
     return True
 
 

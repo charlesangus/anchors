@@ -65,12 +65,16 @@ def _add_gated_command(menu, name, command, shortcut=None, shortcut_context=None
 _add_gated_command(anchors_menu, "Create Anchor",       "anchor.create_anchor()")
 _add_gated_command(anchors_menu, "Rename Anchor",       "anchor.rename_selected_anchor()")
 _add_gated_command(anchors_menu, "Create Link",                "anchor.select_anchor_and_create()")
+_add_gated_command(anchors_menu, "Spatial View (Create Link)",
+                   "import spatial_view; spatial_view.open_create_link_view()")
 _add_gated_command(anchors_menu, "Clear Link State",    "anchors.clear_link_state()")
 _add_gated_command(anchors_menu, "Anchor",              "anchor.anchor_shortcut()",            "A")
 _add_gated_command(anchors_menu, "Leader Key",          "import leader; leader.arm()",         "+A",
                    shortcut_context=DAG_SHORTCUT_CONTEXT)
 _add_gated_command(anchors_menu, "Reconnect All Links", "anchor.reconnect_all_links()")
 _add_gated_command(anchors_menu, "Anchor Find", "anchor.select_anchor_and_navigate()", "alt+A")
+_add_gated_command(anchors_menu, "Spatial View",
+                   "import spatial_view; spatial_view.open_navigate_view()", "alt+S")
 _add_gated_command(anchors_menu, "Anchor Jump", "anchor.jump_to_selected_anchor()", "alt+J")
 _add_gated_command(anchors_menu, "Cycle Links", "anchor.cycle_next_link()", "alt+L")
 _add_gated_command(anchors_menu, "Anchor Back", "anchor.navigate_back()", "alt+Z")
