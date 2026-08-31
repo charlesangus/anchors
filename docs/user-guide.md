@@ -278,6 +278,12 @@ own saved palette; **Custom Color...** opens a full picker.
 
 ![The colour palette.](img/anchor-color-picker.png){#fig:colour-palette}
 
+Picking a colour applies it and closes the palette straight away. If you would
+rather compare a few colours before committing, untick **Selecting a color closes
+the color palette** in Preferences: the palette then only highlights each colour
+you pick and stays open until you confirm with `Enter` or **OK** (or discard it
+with `Esc`).
+
 When you create an anchor, the dialog also offers a name field `(Figure \ref{fig:create-dialog})`{=latex} so you can name and
 colour it in one step. New anchors pick a colour that contrasts with their
 containing backdrop, so an anchor inside a coloured backdrop stays legible. Dot
@@ -353,6 +359,8 @@ first.
 - **Enable anchors plugin** — the master toggle.
 - **Keyboard layout** — QWERTY / AZERTY / QWERTZ for the leader overlay.
 - **Custom Colors** — add, edit, and remove the colours in your personal palette.
+- **Selecting a color closes the color palette** — on by default; turn it off to
+  keep the palette open until you confirm with `Enter` or **OK**.
 - **Advanced** — the anchor **naming regex** and **template**, plus a **site
   config override**.
 
