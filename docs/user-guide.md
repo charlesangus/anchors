@@ -258,7 +258,9 @@ Press **`Alt`+`S`** for the **spatial view**: a popup that lays the script's
 anchors out as cards on a simplified grid, each card roughly where its anchor
 sits in the DAG, with every labelled backdrop drawn as an outline around the
 cards inside it. It is the same information the picker lists, arranged as a map
-of the comp instead of a list of names.
+of the comp instead of a list of names `(Figure \ref{fig:spatial-view})`{=latex}.
+
+![The spatial view: anchors as cards, labelled backdrops as outlines.](img/spatial-view.png){#fig:spatial-view}
 
 The grid is deliberately coarse. Anchors close together in the DAG share a row or
 a column; the empty space between modules is squeezed out; anchors that land on
@@ -279,10 +281,6 @@ in the pickers too, so a card you use often also floats to the top of `A` and
 **Edit > Anchors > Spatial View (Create Link)** opens the same map to create a
 link instead of navigating: cards are anchors to link to, and backdrops are drawn
 for context only.
-
-<!-- Figure to add on the next `make screenshots` run (needs a licensed Nuke):
-![The spatial view: anchors as cards, backdrops as outlines.](img/spatial-view.png){#fig:spatial-view}
-The `spatial_view` scenario in docs/screenshots/scenarios/gui.json captures it. -->
 
 
 ## The leader key
