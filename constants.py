@@ -129,6 +129,29 @@ DEFAULT_SPACE_MODE_ORDER = (
     SPACE_MODE_CONSECUTIVE,
 )
 
+# === Spatial view (issue #83). ===
+# The spatial view lays anchors out as cards on a coarse grid whose cells echo
+# where each anchor sits in the DAG, so the popup reads like a simplified map of
+# the script rather than a flat list.
+#
+# Two DAG coordinates land in the same grid row/column when they are within this
+# many DAG units of the first coordinate in that row/column. Roughly one node
+# width plus its gap, so nodes stacked in an input block share a column while
+# separate modules get their own.
+SPATIAL_CELL_TOLERANCE = 140
+# Upper bounds on the grid. When the anchors in a script spread over more rows or
+# columns than this, the tolerance is doubled until the grid fits — a big script
+# stays a readable map instead of a wall of cards.
+SPATIAL_MAX_COLUMNS = 10
+SPATIAL_MAX_ROWS = 8
+# Card geometry, in pixels. Wide enough for a typical anchor name at the popup's
+# small font without the grid outgrowing the screen at the maximum size above.
+SPATIAL_CARD_WIDTH = 132
+SPATIAL_CARD_HEIGHT = 40
+SPATIAL_GRID_SPACING = 10
+# Fraction of the available screen the popup may occupy before it scrolls.
+SPATIAL_MAX_SCREEN_FRACTION = 0.9
+
 # === Leader-key bindings — single source of truth for leader.py and leader_overlay.py. ===
 # Each entry: (key_letter, action_label, row, col, kind)
 #   kind: 'single' (disarm-then-dispatch) or 'chaining' (stay-armed)
@@ -144,6 +167,7 @@ LEADER_BINDINGS = (
     ('W', 'Set A Input',     0, 1, 'single'),
     ('E', 'Set Mask Input',  0, 2, 'single'),
     ('R', 'Set First Free',  0, 3, 'single'),
+    ('S', 'Spatial View',    1, 1, 'single'),
     ('F', 'Anchor Find',     1, 3, 'single'),
     ('J', 'Anchor Jump',     1, 6, 'single'),
     ('L', 'Cycle Links',     1, 8, 'chaining'),

@@ -226,6 +226,72 @@ def nonconsec_find(needle, haystack, anchored=False):
     return True
 
 
+def menupath_uiname(menupath):
+    """Turn a menu path into the name shown (and searched) in the palette.
+
+    "3D/Shader/Phong" becomes "Phong [3D/Shader]".  Ampersands (Qt menu
+    accelerators) are dropped.
+    """
+    menupath = menupath.replace("&", "")
+    return "%s [%s]" % (menupath.rpartition("/")[2], menupath.rpartition("/")[0])
+
+
+def parse_search_modes(filtertext, space_mode_order=None):
+    """Split *filtertext* into its search text and the match flags it selects.
+
+    The leading-space prefixes (none, one, two) pick a search mode out of
+    *space_mode_order*; the legacy ``*`` / ``[`` prefixes force non-anchored
+    fuzzy matching regardless of that mapping.
+
+    Returns ``(text, anchored, force_non_anchored, force_consecutive)`` where
+    *text* is *filtertext* with the leading spaces and every ``*`` stripped.  A
+    leading ``[`` is deliberately kept: it is part of the bracketed menu path in
+    an item's ui-name (see :func:`menupath_uiname`), so it has to reach the
+    matcher.  Callers that do their own matching (the spatial view) share this
+    parsing with NodeModel so every search field in the plugin honours the same
+    preference.
+    """
+    if (space_mode_order is None
+            or len(space_mode_order) != len(DEFAULT_SPACE_MODE_ORDER)
+            or not all(mode in VALID_MODES for mode in space_mode_order)):
+        space_mode_order = DEFAULT_SPACE_MODE_ORDER
+
+    anchored = True
+    force_non_anchored = False
+    force_consecutive = False
+
+    # Determine space-prefix level (0, 1, or 2 leading spaces)
+    if filtertext.startswith('  '):
+        space_level = 2
+        filtertext = filtertext[2:]
+    elif filtertext.startswith(' '):
+        space_level = 1
+        filtertext = filtertext[1:]
+    # * or [ prefix: non-anchored fuzzy (legacy shortcuts, unchanged)
+    elif filtertext.startswith('*') or filtertext.startswith('['):
+        space_level = None
+        anchored = False
+        filtertext = filtertext.replace("*", "", 1)
+        if filtertext.startswith('*'):
+            force_non_anchored = True
+        filtertext = filtertext.replace("*", "")
+    else:
+        space_level = 0
+
+    # Apply mode from the configurable space-prefix mapping
+    if space_level is not None:
+        mode = space_mode_order[space_level]
+        if mode == MODE_ANCHORED_FUZZY:
+            anchored = True
+        elif mode == MODE_NON_ANCHORED_FUZZY:
+            anchored = False
+        elif mode == MODE_CONSECUTIVE:
+            anchored = False
+            force_consecutive = True
+
+    return filtertext, anchored, force_non_anchored, force_consecutive
+
+
 class NodeWeights(object):
     def __init__(self, fname=None):
         self.fname = fname
@@ -336,47 +402,14 @@ class NodeModel(QtCore.QAbstractListModel):
         self.update()
 
     def update(self):
-        filtertext = self._filtertext.lower()
-
-        anchored = True
-        force_non_anchored = False
-        force_consecutive = False
-
-        # Determine space-prefix level (0, 1, or 2 leading spaces)
-        if filtertext.startswith('  '):
-            space_level = 2
-            filtertext = filtertext[2:]
-        elif filtertext.startswith(' '):
-            space_level = 1
-            filtertext = filtertext[1:]
-        # * or [ prefix: non-anchored fuzzy (legacy shortcuts, unchanged)
-        elif filtertext.startswith('*') or filtertext.startswith('['):
-            space_level = None
-            anchored = False
-            filtertext = filtertext.replace("*", "", 1)
-            if filtertext.startswith('*'):
-                force_non_anchored = True
-            filtertext = filtertext.replace("*", "")
-        else:
-            space_level = 0
-
-        # Apply mode from the configurable space-prefix mapping
-        if space_level is not None:
-            mode = self._space_mode_order[space_level]
-            if mode == MODE_ANCHORED_FUZZY:
-                anchored = True
-            elif mode == MODE_NON_ANCHORED_FUZZY:
-                anchored = False
-            elif mode == MODE_CONSECUTIVE:
-                anchored = False
-                force_consecutive = True
+        filtertext, anchored, force_non_anchored, force_consecutive = parse_search_modes(
+            self._filtertext.lower(), self._space_mode_order)
 
         scored_a = []
         scored_b = []
         for n in self._all:
             # Turn "3D/Shader/Phong" into "Phong [3D/Shader]"
-            menupath = n['menupath'].replace("&", "")
-            uiname = "%s [%s]" % (menupath.rpartition("/")[2], menupath.rpartition("/")[0])
+            uiname = menupath_uiname(n['menupath'])
             search_string = uiname.lower()
 
             if force_non_anchored:

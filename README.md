@@ -80,6 +80,15 @@ The anchor system is a reusable named-input mechanism for the node graph.
 - `Alt+J` (or `Edit > Anchors > Anchor Jump`) — with a Link selected, jump to its source anchor.
 - `Alt+L` (or `Edit > Anchors > Cycle Links`) — with an anchor selected, cycle through each Link node that references it. After the last one, returns to the anchor.
 - `Alt+Z` (or `Edit > Anchors > Anchor Back`) — restore the DAG viewport to the position before the last Alt+A / Alt+J / Alt+L jump. Single-slot — consumes the saved position.
+- `Alt+S` (or `Edit > Anchors > Spatial View`) — the **spatial view**: the same anchors and labelled BackdropNodes laid out as a map instead of a list (see below).
+
+### Spatial view
+
+`Alt+S` opens a popup that places each anchor as a card on a coarse grid, roughly where it sits in the DAG, with each labelled BackdropNode drawn as an outline around the cards inside it. Anchors close together in the DAG share a row or column, the empty space between modules is squeezed out, and anchors landing on the same cell stack down their own column — so a card never drifts into a neighbouring module's column.
+
+The picker's fuzzy search comes with it: type in the field at the top and non-matching cards grey out rather than disappearing, so the map keeps its shape while you narrow it down (the leading-space search modes behave exactly as in the pickers). Arrow keys move between matching cards *spatially*, `Enter` activates the highlighted card, a click activates any card, `Esc` closes. Selections update the same weights the pickers use, so a card you pick often also sorts first in `A` / `Alt+A`.
+
+`Edit > Anchors > Spatial View (Create Link)` opens the same map in link-creation mode: cards are anchors to link to, and backdrops are drawn for context only.
 
 ### Jump scope
 
@@ -97,6 +106,7 @@ Press `Shift+A`, then one of the keys below:
 | `W` | Set A Input To… (input 1) |
 | `E` | Set Mask Input To… (input 2 on Merge-style multi-input nodes — `maxInputs() > 100` — last input on everything else) |
 | `R` | Set First Free Input To… (lowest free slot only — never overwrites existing wiring) |
+| `S` | Spatial View (same as `Alt+S`) |
 | `F` | Anchor Find (same as `Alt+A`) |
 | `J` | Anchor Jump (same as `Alt+J`) |
 | `L` | Cycle Links (same as `Alt+L`) — *chaining*: stays armed so repeated `L` advances through the cycle. Any other key or a mouse click disarms. |
@@ -110,7 +120,7 @@ Set your keyboard layout in `Edit > Anchors > Anchor Preferences…` (QWERTY, AZ
 
 When the plugin is disabled in Preferences, the `Shift+A` shortcut is disabled along with every other gated anchor command. Re-enable from `Edit > Anchors > Anchor Preferences…`, which stays active in the menu.
 
-The existing `Alt+A`, `Alt+J`, `Alt+L`, `Alt+Z` shortcuts continue to work alongside the leader for muscle-memory parity.
+The existing `Alt+A`, `Alt+S`, `Alt+J`, `Alt+L`, `Alt+Z` shortcuts continue to work alongside the leader for muscle-memory parity.
 
 ## Upgrading Another Tool's Anchors
 
@@ -181,6 +191,7 @@ Inside the multi-line label field, `Enter` inserts a newline; `Ctrl+Enter`, the 
 | `A` | Anchor shortcut (context-sensitive: create anchor, rename, set up a backdrop, or open link picker) |
 | `Shift+A` | Leader Key — opens the command overlay (see Leader Key section above) |
 | `Alt+A` | Anchor Find (navigate DAG to any anchor or labelled BackdropNode) |
+| `Alt+S` | Spatial View (map of the script's anchors and labelled BackdropNodes) |
 | `Alt+J` | Anchor Jump (Link → source anchor) |
 | `Alt+L` | Cycle Links (anchor → each referencing Link) |
 | `Alt+Z` | Anchor Back (restore previous DAG position) |
@@ -335,6 +346,13 @@ Opens the fuzzy-search picker for link creation. Selecting an entry creates a li
 anchor.select_anchor_and_navigate()
 ```
 Opens the fuzzy-search picker for DAG navigation. Lists all anchors plus all labelled BackdropNodes. Selecting an entry zooms the DAG to fit it.
+
+```python
+import spatial_view
+spatial_view.open_navigate_view()
+spatial_view.open_create_link_view()
+```
+Opens the spatial view — the anchors and labelled BackdropNodes of the current group laid out as a map. `open_navigate_view()` zooms the DAG to the chosen entry; `open_create_link_view()` creates a link to the chosen anchor. Both are silent no-ops when the plugin is disabled, when Qt is unavailable, or when the group has nothing to show.
 
 ```python
 anchor.navigate_to_anchor(anchor_node: nuke.Node)
