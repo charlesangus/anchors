@@ -924,6 +924,7 @@ else:
             prefs_module.refresh_tabtabtab_prefs()
             self._local_space_mode_order = list(prefs_module._user_space_mode_order)
             self._local_use_tabtabtab_prefs = prefs_module.use_tabtabtab_prefs
+            self._local_picker_scroll_enabled = prefs_module.picker_scroll_enabled
             self._local_close_palette_on_select = prefs_module.close_palette_on_select
             self._pre_reset_naming_snapshot = None  # (regex_text, template_text) tuple or None
             import os as os_module
@@ -994,6 +995,20 @@ else:
                 self._space_mode_comboboxes.append(space_mode_combobox)
 
             outer_layout.addWidget(space_modes_group_box)
+
+            # Checkbox: keep (and scroll to) picker matches past the visible rows
+            self._picker_scroll_enabled_checkbox = QtWidgets.QCheckBox(
+                "Scroll through all fuzzy-find results"
+            )
+            self._picker_scroll_enabled_checkbox.setChecked(self._local_picker_scroll_enabled)
+            self._picker_scroll_enabled_checkbox.setToolTip(
+                "When checked, a search that matches more anchors than fit in the "
+                "picker keeps the rest and lets you reach them with the mouse wheel, "
+                "the scrollbar, or the down arrow. When unchecked, only the first "
+                "screenful of matches is kept. The picker is the same size either "
+                "way. Takes effect the next time a picker is opened."
+            )
+            outer_layout.addWidget(self._picker_scroll_enabled_checkbox)
             self._populate_space_mode_comboboxes()
             self._update_space_mode_fields_lock_state()
 
@@ -1634,6 +1649,11 @@ else:
             prefs_module._user_space_mode_order = list(self._local_space_mode_order)
             prefs_module.use_tabtabtab_prefs = self._local_use_tabtabtab_prefs
             prefs_module.refresh_tabtabtab_prefs()
+            # Flush the picker scrolling toggle. anchor.py reads it when it builds
+            # a picker and re-applies it to the cached ones on the reuse path, so
+            # the change lands on the next picker rather than the next session.
+            self._local_picker_scroll_enabled = self._picker_scroll_enabled_checkbox.isChecked()
+            prefs_module.picker_scroll_enabled = self._local_picker_scroll_enabled
             # Persist to disk (save() reads _user_naming_* shadow vars — correct)
             prefs_module.save()
             # Recolor is applied immediately in _on_edit_color (on color picker confirm),
