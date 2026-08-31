@@ -10,6 +10,9 @@ from constants import (
     NAME_SOURCE_AUTO,
     NAME_SOURCE_LABEL,
     NAME_SOURCE_NODE_NAME,
+    SPACE_MODE_ANCHORED_FUZZY,
+    SPACE_MODE_CONSECUTIVE,
+    SPACE_MODE_NON_ANCHORED_FUZZY,
     UPGRADE_SCOPE_SCRIPT,
     UPGRADE_SCOPE_SELECTED,
 )
@@ -26,6 +29,23 @@ except ImportError:
     QtWidgets = None
     QtCore = None
     Qt = None
+
+# Space-prefix search modes offered in the preferences dialog. The mode ids are
+# the values shared with tabtabtab-nuke's space_mode_order preference and the
+# wording matches its own dialog, so the two read the same way side by side.
+_SPACE_MODE_CHOICES = (
+    (SPACE_MODE_ANCHORED_FUZZY, "Anchored fuzzy"),
+    (SPACE_MODE_NON_ANCHORED_FUZZY, "Non-anchored fuzzy"),
+    (SPACE_MODE_CONSECUTIVE, "Consecutive substring"),
+)
+
+# One row per number of leading spaces typed in a picker: 0, 1, then 2.
+_SPACE_LEVEL_LABELS = (
+    "No leading space:",
+    "One leading space:",
+    "Two leading spaces:",
+)
+
 
 # ---------------------------------------------------------------------------
 # Non-Qt helpers — always available
@@ -899,6 +919,11 @@ else:
             self._local_naming_demo_filename = prefs_module._user_naming_demo_filename
             self._local_site_config_override = prefs_module.site_config_override
             self._local_keyboard_layout = prefs_module.keyboard_layout
+            # Re-read the tabtabtab-nuke install now: it may have been added, or
+            # had its own preferences changed, since this Nuke session started.
+            prefs_module.refresh_tabtabtab_prefs()
+            self._local_space_mode_order = list(prefs_module._user_space_mode_order)
+            self._local_use_tabtabtab_prefs = prefs_module.use_tabtabtab_prefs
             self._local_close_palette_on_select = prefs_module.close_palette_on_select
             self._pre_reset_naming_snapshot = None  # (regex_text, template_text) tuple or None
             import os as os_module
@@ -942,6 +967,35 @@ else:
             keyboard_layout_row.addWidget(self._keyboard_layout_combobox)
             keyboard_layout_row.addStretch()
             outer_layout.addLayout(keyboard_layout_row)
+
+            # ---- Space-prefix search modes ----
+            # Typing one or two spaces before the search text in a fuzzy-find
+            # picker switches search mode; this group maps each leading-space
+            # count to a mode, or defers the whole mapping to tabtabtab-nuke.
+            space_modes_group_box = QtWidgets.QGroupBox("Space-prefix search modes")
+            space_modes_layout = QtWidgets.QFormLayout()
+            space_modes_group_box.setLayout(space_modes_layout)
+
+            self._use_tabtabtab_prefs_checkbox = QtWidgets.QCheckBox(
+                "Use tabtabtab-nuke preferences"
+            )
+            self._use_tabtabtab_prefs_checkbox.setChecked(self._local_use_tabtabtab_prefs)
+            self._use_tabtabtab_prefs_checkbox.toggled.connect(
+                self._on_use_tabtabtab_prefs_toggled
+            )
+            space_modes_layout.addRow(self._use_tabtabtab_prefs_checkbox)
+
+            self._space_mode_comboboxes = []
+            for space_level_label in _SPACE_LEVEL_LABELS:
+                space_mode_combobox = QtWidgets.QComboBox()
+                for mode_id, mode_label in _SPACE_MODE_CHOICES:
+                    space_mode_combobox.addItem(mode_label, mode_id)
+                space_modes_layout.addRow(space_level_label, space_mode_combobox)
+                self._space_mode_comboboxes.append(space_mode_combobox)
+
+            outer_layout.addWidget(space_modes_group_box)
+            self._populate_space_mode_comboboxes()
+            self._update_space_mode_fields_lock_state()
 
             # ---- Anchor Naming section ----
             naming_section_label = QtWidgets.QLabel("Anchor Naming")
@@ -1122,6 +1176,86 @@ else:
             ok_cancel_row_layout.addWidget(self._ok_button)      # OK on left
             ok_cancel_row_layout.addWidget(self._cancel_button)  # Cancel on right
             outer_layout.addLayout(ok_cancel_row_layout)
+
+        def _selected_space_mode_order(self):
+            """Return the mode order currently shown by the three combo boxes."""
+            return [combobox.currentData() for combobox in self._space_mode_comboboxes]
+
+        def _is_following_tabtabtab_prefs(self):
+            """Return True when the mapping is currently tabtabtab-nuke's to set.
+
+            Both halves matter: the user has to have asked for it, and there has
+            to be an install to follow. A saved choice is inert while
+            tabtabtab-nuke is absent — which is exactly how prefs resolves the
+            effective mapping, so the dialog must not claim otherwise.
+            """
+            import prefs as prefs_module
+            return (self._local_use_tabtabtab_prefs
+                    and prefs_module.tabtabtab_prefs_available())
+
+        def _displayed_space_mode_order(self):
+            """Return the mode order the combo boxes should show right now.
+
+            While a tabtabtab-nuke install is being followed the boxes mirror
+            that install (greyed out); otherwise they show the user's own
+            working copy.
+            """
+            import prefs as prefs_module
+            if self._is_following_tabtabtab_prefs():
+                return prefs_module.tabtabtab_space_mode_order()
+            return list(self._local_space_mode_order)
+
+        def _populate_space_mode_comboboxes(self):
+            """Select the mode each combo box should display."""
+            displayed_order = self._displayed_space_mode_order()
+            for space_level, combobox in enumerate(self._space_mode_comboboxes):
+                mode_index = combobox.findData(displayed_order[space_level])
+                if mode_index < 0:
+                    mode_index = space_level  # unknown mode — show the default mapping
+                combobox.setCurrentIndex(mode_index)
+
+        def _update_space_mode_fields_lock_state(self):
+            """Enable or disable the space-mode widgets.
+
+            The combo boxes grey out while tabtabtab-nuke's settings are being
+            followed, and the checkbox itself greys out when no tabtabtab-nuke
+            install was found to follow.
+            """
+            import prefs as prefs_module
+            tabtabtab_is_available = prefs_module.tabtabtab_prefs_available()
+            self._use_tabtabtab_prefs_checkbox.setEnabled(tabtabtab_is_available)
+            if tabtabtab_is_available:
+                self._use_tabtabtab_prefs_checkbox.setToolTip(
+                    "Follow the space-prefix search modes configured in "
+                    "tabtabtab-nuke's own preferences."
+                )
+            else:
+                self._use_tabtabtab_prefs_checkbox.setToolTip(
+                    "No tabtabtab-nuke installation was found (looked for "
+                    "tabtabtab_prefs.py on NUKE_PATH and for the preferences "
+                    "file it points at, falling back to "
+                    "~/.nuke/tabtabtab_prefs.json)."
+                )
+            combo_boxes_are_editable = not self._is_following_tabtabtab_prefs()
+            for combobox in self._space_mode_comboboxes:
+                combobox.setEnabled(combo_boxes_are_editable)
+
+        def _on_use_tabtabtab_prefs_toggled(self, is_checked):
+            """Respond to the Use tabtabtab-nuke preferences checkbox being toggled.
+
+            Keeps the user's own mapping in the working copy so unticking the
+            box restores it rather than leaving tabtabtab's values behind. A
+            half-edited mapping (one mode picked twice) is not worth keeping —
+            OK would reject it anyway.
+            """
+            import prefs as prefs_module
+            if not self._is_following_tabtabtab_prefs():
+                selected_space_mode_order = self._selected_space_mode_order()
+                if prefs_module.is_valid_space_mode_order(selected_space_mode_order):
+                    self._local_space_mode_order = selected_space_mode_order
+            self._local_use_tabtabtab_prefs = is_checked
+            self._populate_space_mode_comboboxes()
+            self._update_space_mode_fields_lock_state()
 
         def _update_naming_fields_lock_state(self):
             """Enable or disable naming fields based on site config lock state and override flag.
@@ -1439,6 +1573,22 @@ else:
         def _on_accept(self):
             """Flush local working copies to prefs module, persist, and close."""
             import prefs as prefs_module
+            # Validate the space-mode mapping before anything is flushed, so a
+            # rejected dialog leaves every preference untouched. The mapping is
+            # only the user's to get wrong when they own it — when a
+            # tabtabtab-nuke install is being followed the combo boxes merely
+            # mirror it and the user's own mapping is left as it was.
+            if not self._is_following_tabtabtab_prefs():
+                selected_space_mode_order = self._selected_space_mode_order()
+                if not prefs_module.is_valid_space_mode_order(selected_space_mode_order):
+                    QtWidgets.QMessageBox.warning(
+                        self,
+                        "Invalid search modes",
+                        "Each search mode must be assigned to exactly one "
+                        "leading-space level.",
+                    )
+                    return
+                self._local_space_mode_order = selected_space_mode_order
             # Read current checkbox state into local var (user may have changed it)
             self._local_plugin_enabled = self._plugin_checkbox.isChecked()
             # Flush plugin_enabled to prefs module immediately
@@ -1478,6 +1628,12 @@ else:
                 leader.rebuild_layout()
             except Exception:
                 pass
+            # Flush the space-prefix search modes. refresh_tabtabtab_prefs()
+            # re-reads the followed install and re-applies the effective order,
+            # which the pickers read on their next launch.
+            prefs_module._user_space_mode_order = list(self._local_space_mode_order)
+            prefs_module.use_tabtabtab_prefs = self._local_use_tabtabtab_prefs
+            prefs_module.refresh_tabtabtab_prefs()
             # Persist to disk (save() reads _user_naming_* shadow vars — correct)
             prefs_module.save()
             # Recolor is applied immediately in _on_edit_color (on color picker confirm),

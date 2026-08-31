@@ -1524,6 +1524,17 @@ class TestMenuCallbackStoredOnPrefsModule(unittest.TestCase):
                 self._link_mode_checkbox.isChecked.return_value = True
                 self._local_custom_colors = []
                 self._original_custom_colors = []
+                # Space-prefix search modes: _on_accept validates the mapping
+                # before it flushes anything, so the harness has to answer for it.
+                self._local_use_tabtabtab_prefs = False
+                self._local_space_mode_order = [
+                    'anchored_fuzzy', 'non_anchored_fuzzy', 'consecutive']
+
+                def selected_space_mode_order():
+                    return list(self._local_space_mode_order)
+
+                self._selected_space_mode_order = selected_space_mode_order
+                self._is_following_tabtabtab_prefs = lambda: False
                 self.accept = MagicMock()
                 self._recolor_anchors_for_changed_custom_colors = recolor_mock
 
