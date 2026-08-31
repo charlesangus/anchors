@@ -36,13 +36,26 @@ ANCHOR_DEFAULT_COLOR = 0x6f3399ff
 # darkened burnt orange: R=122,G=58,B=0 (~30% darker than previous 0xB35A00FF)
 LOCAL_DOT_COLOR = 0x7A3A00FF
 
+# === "Upgrade to Anchors" options. ===
+# Shared by the upgrade logic in migrations.py and the dialog in colors.py.
+# These are option values only — they are never written to .nk files, so unlike
+# the knob names above they are free to change.
+# Where an upgraded anchor takes its name from.
+NAME_SOURCE_AUTO = 'auto'       # the node's label when it has one, else its name
+NAME_SOURCE_NODE_NAME = 'name'
+NAME_SOURCE_LABEL = 'label'
+# Which nodes the upgrade considers.
+UPGRADE_SCOPE_SELECTED = 'selected'
+UPGRADE_SCOPE_SCRIPT = 'script'
+
 # === Navigation framing. ===
 # After nuke.zoomToFitSelected() frames a module edge-to-edge, navigate_to_anchor
-# zooms out by this factor to leave a margin around the module (issue #61).
-# Nuke's zoomToFitSelected() has no padding parameter, so the margin is applied
-# as a post-fit zoom-out: 0.85 leaves ~7.5% of the viewport as margin per side,
-# which lands in the requested ~100-200px range on a typical DAG panel.
-MODULE_ZOOM_MARGIN_FACTOR = 0.85
+# zooms out by this factor to leave a margin around the module, for every anchor
+# type (issue #61, widened by issue #73). Nuke's zoomToFitSelected() has no
+# padding parameter, so the margin is applied as a post-fit zoom-out: 0.75 leaves
+# ~12.5% of the viewport as margin per side, which lands in the requested
+# ~200-300px range on a typical DAG panel.
+MODULE_ZOOM_MARGIN_FACTOR = 0.75
 
 # An anchor whose "Jump to anchor only" checkbox is ticked is a pure jump site:
 # navigate_to_anchor centres the DAG on the anchor at this zoom scale instead of
@@ -66,6 +79,26 @@ DOT_LABEL_FONT_SIZE_SMALL = 33
 NODE_LABEL_FONT_SIZE_LARGE = 33
 DOT_LINK_LABEL_FONT_SIZE = 33
 DOT_ANCHOR_MIN_FONT_SIZE = 33
+
+# === Backdrop setup (issue #68). ===
+# The backdrop dialog offers the same font sizes as the Dot-anchor label keys so
+# a backdrop caption sits on the same visual scale as the Dot captions under it.
+# Each entry is (menu_text, point_size); "Custom" is appended by the dialog.
+BACKDROP_FONT_SIZE_PRESETS = (
+    ('Small', DOT_LABEL_FONT_SIZE_SMALL),
+    ('Medium', DOT_LABEL_FONT_SIZE_MEDIUM),
+    ('Large', DOT_LABEL_FONT_SIZE_LARGE),
+)
+BACKDROP_DEFAULT_FONT_SIZE = DOT_LABEL_FONT_SIZE_LARGE
+# Bounds for the dialog's custom font-size spin box — wide enough for any
+# readable caption without letting a stray keypress produce an unusable value.
+BACKDROP_MIN_FONT_SIZE = 1
+BACKDROP_MAX_FONT_SIZE = 500
+# Nuke's own BackdropNode knob controlling fill vs. outline. Not a plugin knob,
+# so it needs no migration, but it is absent on Nuke versions before 11.
+BACKDROP_APPEARANCE_KNOB_NAME = 'appearance'
+BACKDROP_APPEARANCE_FILLED = 'Fill'
+BACKDROP_APPEARANCE_BORDER = 'Border'
 
 # === On-disk preferences paths. ===
 USER_PALETTE_PATH = os.path.expanduser('~/.nuke/paste_hidden_user_palette.json')

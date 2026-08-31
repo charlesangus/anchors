@@ -545,7 +545,12 @@ def paste_multiple_anchors():
             node["selected"].setValue(True)
 
 
-from migrations import migrate_script, migrate_to_stemless_names  # noqa: E402,F401  re-export for public API
+from migrations import (  # noqa: E402,F401  re-export for public API
+    migrate_script,
+    migrate_to_stemless_names,
+    upgrade_nodes_to_anchors,
+    upgrade_to_anchors,
+)
 
 
 def copy_old():

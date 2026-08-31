@@ -135,6 +135,11 @@ The standard anchor. Select a node and press **`A`** (or **Edit > Anchors >
 Create Anchor**). A `NoOp` anchor is created beneath the node, wired to it, and
 named from the source `(Figure \ref{fig:create-anchor})`{=latex}.
 
+A matching **link** is created directly below the new anchor, so you get both
+halves of the pair from one gesture — drag the link wherever you need it. If you
+would rather create links yourself, switch off **Create a link below each new
+anchor** in Preferences.
+
 Each NoOp anchor's properties panel carries three buttons and a checkbox:
 
 - **Reconnect Child Links** — rewire every link that points at this anchor.
@@ -180,6 +185,10 @@ These are handy for re-using sections of a module within the module. If you're r
 
 
 ## Creating links
+
+Unless you have switched the preference off, every new anchor already arrives
+with a link beneath it (see **Anchors** above). To create further links to an
+existing anchor:
 
 With **nothing selected**, press **`A`** to open the Anchor selection menu. It lists every
 anchor `(Figure \ref{fig:link-picker})`{=latex} in the script with its colour; choose one and a link is created at the
@@ -293,6 +302,12 @@ own saved palette; **Custom Color...** opens a full picker.
 
 ![The colour palette.](img/anchor-color-picker.png){#fig:colour-palette}
 
+Picking a colour applies it and closes the palette straight away. If you would
+rather compare a few colours before committing, untick **Selecting a color closes
+the color palette** in Preferences: the palette then only highlights each colour
+you pick and stays open until you confirm with `Enter` or **OK** (or discard it
+with `Esc`).
+
 When you create an anchor, the dialog also offers a name field `(Figure \ref{fig:create-dialog})`{=latex} so you can name and
 colour it in one step. New anchors pick a colour that contrasts with their
 containing backdrop, so an anchor inside a coloured backdrop stays legible. Dot
@@ -323,13 +338,79 @@ node):
 
 
 
+## Setting up a backdrop
+
+Backdrops carry the comp's structure, so `A` treats them as something to set up
+rather than something to anchor. Select a single backdrop, press `A` (or use
+**Edit > Anchors > Setup Backdrop**), and a dialog opens with everything a
+backdrop needs in one place `(Figure \ref{fig:backdrop-setup})`{=latex}:
+
+- a **label** field — multi-line, so a backdrop's notes survive a round trip;
+- the same **colour palette** as the anchor dialogs, including your custom
+  colours and hint-mode navigation;
+- a **font size** dropdown offering the Dot-anchor sizes — Small (33), Medium
+  (66), Large (111) — plus **Custom** for anything else. A backdrop already set
+  to one of the three presets re-opens on that size; anything else, including
+  Nuke's own default, opens on Large;
+- a **Filled** checkbox — off draws the backdrop as an outline only.
+
+Clicking a swatch confirms the whole dialog, as it does when renaming an anchor,
+so a label and a colour are two keystrokes and a click. Pressing `Enter` inside
+the multi-line label field adds a line; `Ctrl`+`Enter`, the **OK** button, or a
+swatch click confirms. Selecting a backdrop *together with* its contents keeps
+the old behaviour and creates an anchor from the selection.
+
+![Setting up a backdrop: label, colour, font size, and fill in one dialog.](img/backdrop-setup-dialog.png){#fig:backdrop-setup}
+
+## Upgrading a script built with another tool
+
+Plenty of scripts already contain an anchor rig built by a different tool: a
+labelled, coloured NoOp under a Read, with hidden-input nodes dotted around the
+comp pointing back at it. It is the same idea as anchors, without the anchor
+machinery — so the picker, navigation, reconnect and colour propagation all
+ignore it.
+
+**Edit > Anchors > Upgrade to Anchors...** adopts that rig. Each parent node
+becomes a real anchor, and every hidden-input node pointing at it becomes a real
+Link. Nodes are converted **in place**: a PostageStamp stays a PostageStamp, and
+every node keeps its position and its downstream connections.
+
+The dialog previews exactly what will change before anything is touched, and
+offers:
+
+- **Scope** — the selected nodes, or every anchor-like node in the script.
+- **Parent nodes to upgrade** — NoOp and PostageStamp parents, Dot parents, or
+  both. They are listed separately because the two usually want different naming.
+- **Anchor names** — take the name from the node's label, its node name, or
+  (the default) its label falling back to its node name. Set separately for NoOp
+  and Dot parents, since a foreign NoOp usually carries a meaningful node name
+  while a Dot is called something like `Dot17` and keeps its meaning in the label.
+- **Strip leading / trailing text** — drop a tool's fixed affix, turning
+  `Pointer_Foo` into `Foo`. A strip that would leave nothing behind is ignored.
+- **Colours** — keep each node's existing tile colour, or take the colour the
+  plugin would derive for a new anchor. Dot anchors always take the default
+  anchor colour, as they do everywhere else.
+
+Names are sanitised and made unique, so two parents that reduce to the same name
+become `Anchor_Foo` and `Anchor_Foo1`. A node that is *both* a parent and someone
+else's hidden-input child stays a parent — it becomes an anchor rather than a
+Link. Nodes that are already anchors keep their name and colour; only their
+children are upgraded. Running the upgrade a second time does nothing.
+
+Like the other migrators, this is not undoable — save a backup of your script
+first.
+
 ## Preferences and site configuration
 
 **Edit > Anchors > Anchor Preferences...** controls:
 
 - **Enable anchors plugin** — the master toggle.
+- **Create a link below each new anchor** — on by default; uncheck it if you
+  prefer creating links yourself.
 - **Keyboard layout** — QWERTY / AZERTY / QWERTZ for the leader overlay.
 - **Custom Colors** — add, edit, and remove the colours in your personal palette.
+- **Selecting a color closes the color palette** — on by default; turn it off to
+  keep the palette open until you confirm with `Enter` or **OK**.
 - **Advanced** — the anchor **naming regex** and **template**, plus a **site
   config override**.
 
@@ -368,7 +449,7 @@ if existing is None:
 
 | Shortcut | Action |
 |----------|--------|
-| `A` | Create anchor (selection) / Anchor selection menu (no selection) |
+| `A` | Create anchor (selection) / Set up backdrop (one backdrop selected) / Anchor selection menu (no selection) |
 | `Shift`+`A` | Leader-key overlay |
 | `Alt`+`A` | Anchor Find / navigate |
 | `Alt`+`J` | Anchor Jump (Link -> anchor) |

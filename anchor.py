@@ -18,6 +18,7 @@ except ImportError:
     QtWidgets = None
     QtCore = None
 
+import labels
 import prefs
 import tabtabtab_anchors as _tabtabtab
 from colors import ColorPaletteDialog, adjust_color_for_backdrop_contrast
@@ -171,14 +172,10 @@ def propagate_anchor_color(anchor_node, color_int):
 def _persist_custom_colors_from_dialog(dialog):
     """Save any newly staged custom colors from *dialog* back to prefs and disk.
 
-    Call this on every accepted ColorPaletteDialog so custom colors added via
-    "Custom Color..." persist across sessions.  Only saves when the staged list
-    differs from the current prefs.custom_colors to avoid spurious disk writes.
+    Thin wrapper over prefs.persist_custom_colors_from_dialog, which is shared
+    with the backdrop dialog in labels.py.
     """
-    staged = dialog.chosen_custom_colors()
-    if staged != prefs.custom_colors:
-        prefs.custom_colors = staged
-        prefs.save()
+    prefs.persist_custom_colors_from_dialog(dialog)
 
 
 def set_anchor_color(anchor_node):
@@ -195,6 +192,7 @@ def set_anchor_color(anchor_node):
         initial_color=current_color,
         show_name_field=False,
         custom_colors=prefs.custom_colors,
+        close_on_select=prefs.close_palette_on_select,
     )
     if dialog.exec_() == ColorPaletteDialog.Accepted:
         _persist_custom_colors_from_dialog(dialog)
@@ -459,6 +457,7 @@ def rename_anchor(anchor_node):
         initial_name=suggested,
         custom_colors=prefs.custom_colors,
         default_color=auto_derived_color,
+        close_on_select=prefs.close_palette_on_select,
     )
     if dialog.exec_() != QtWidgets.QDialog.Accepted:
         return
@@ -527,6 +526,34 @@ def _derive_dialog_default_color(input_node):
     return int(find_node_color(color_source_node))
 
 
+def create_link_below_anchor(anchor_node):
+    """Create a link for *anchor_node* and place it directly beneath the anchor.
+
+    Mirrors how create_anchor_named() positions a new anchor under its input
+    node: horizontally centred on the anchor, one node height plus a 20-unit gap
+    below it.  Returns the new link node.
+    """
+    link_node = create_from_anchor(anchor_node)
+    link_node.setXYpos(
+        anchor_node.xpos() + anchor_node.screenWidth() // 2 - link_node.screenWidth() // 2,
+        anchor_node.ypos() + anchor_node.screenHeight() + 20,
+    )
+    return link_node
+
+
+def _create_anchor_and_optional_link(name, input_node, color=None):
+    """Create an anchor and, unless the user has turned it off, a link below it.
+
+    The auto-created link is what makes the anchor immediately usable: the user
+    names the anchor once and gets both halves of the pair (issue #69).  Callers
+    must already be inside the correct group context.
+    """
+    anchor_node = create_anchor_named(name, input_node, color=color)
+    if prefs.auto_create_link:
+        create_link_below_anchor(anchor_node)
+    return anchor_node
+
+
 def create_anchor():
     if not prefs.plugin_enabled:
         return
@@ -547,7 +574,7 @@ def create_anchor():
         if not sanitize_anchor_name(name):
             return  # Name sanitises to empty — silently skip, matching prior behaviour.
         with hit_group:
-            create_anchor_named(name, input_node)
+            _create_anchor_and_optional_link(name, input_node)
         return
 
     pre_color = _derive_dialog_default_color(input_node)
@@ -558,6 +585,7 @@ def create_anchor():
         initial_name=suggested,
         custom_colors=prefs.custom_colors,
         default_color=pre_color,
+        close_on_select=prefs.close_palette_on_select,
     )
     if dialog.exec_() != QtWidgets.QDialog.Accepted:
         return
@@ -569,7 +597,7 @@ def create_anchor():
         return  # Name sanitises to empty — silently skip, matching prior behaviour.
     chosen_color = dialog.selected_color_int()
     with hit_group:
-        create_anchor_named(chosen_name, input_node, color=chosen_color)
+        _create_anchor_and_optional_link(chosen_name, input_node, color=chosen_color)
 
 
 def create_from_anchor(anchor_node):
@@ -847,6 +875,10 @@ def anchor_shortcut():
         selected = nuke.selectedNodes()
     if len(selected) == 1 and is_anchor(selected[0]):
         rename_anchor(selected[0])
+    elif len(selected) == 1 and labels.is_backdrop(selected[0]):
+        # A lone backdrop is a container, not an anchor source — set it up
+        # instead of anchoring it (issue #68).
+        labels.setup_backdrop(selected[0])
     elif selected:
         create_anchor()
     else:
@@ -1074,15 +1106,14 @@ def navigate_to_anchor(anchor_node):
 
     nuke.zoomToFitSelected()
 
-    # A labelled-dot module (the nodes above a Dot anchor) frames too tight with
-    # zoomToFitSelected, which has no padding parameter (issue #61). Zoom out
-    # slightly from the fitted framing to leave a margin around the module. Only
-    # Dot anchors get this margin; other anchor types keep the tight fit they had
-    # before, matching the framing that already worked for them.
-    if anchor_node.Class() == 'Dot':
-        fitted_scale = nuke.zoom()
-        fitted_center = nuke.center()
-        nuke.zoom(fitted_scale * MODULE_ZOOM_MARGIN_FACTOR, fitted_center)
+    # zoomToFitSelected frames the module edge-to-edge, which has no padding
+    # parameter and crops the anchor and outermost nodes at the viewport edge
+    # (issue #73). Zoom out slightly from the fitted framing to leave a margin
+    # around the module, for every anchor type — matching the margin that
+    # navigate_to_backdrop already gets for free from the backdrop's own bounds.
+    fitted_scale = nuke.zoom()
+    fitted_center = nuke.center()
+    nuke.zoom(fitted_scale * MODULE_ZOOM_MARGIN_FACTOR, fitted_center)
 
     nukescripts.clear_selection_recursive()
     for node in saved_selection:
