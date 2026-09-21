@@ -518,6 +518,19 @@ class TestCopyAnchorsEmptySelection(unittest.TestCase):
         mock_nuke.nodeCopy.assert_not_called()
         mock_nuke.delete.assert_not_called()
 
+    def test_cut_anchors_enabled_does_not_call_nodecopy_or_delete(self):
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts'), \
+             patch('anchors.prefs') as mock_prefs:
+
+            _patch_copy(mock_nuke, [], mock_prefs)
+
+            from anchors import cut_anchors
+            cut_anchors()
+
+        mock_nuke.nodeCopy.assert_not_called()
+        mock_nuke.delete.assert_not_called()
+
 
 if __name__ == '__main__':
     unittest.main()
