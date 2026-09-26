@@ -30,6 +30,15 @@ DEFAULT_SPACE_MODE_ORDER = [
     MODE_CONSECUTIVE,          # 2 spaces
 ]
 
+# Upper bound on how many matched rows NodeModel retains when scrolling is
+# enabled. The popup window stays a fixed height (num_items visible rows);
+# this only controls how many additional off-screen rows are reachable by
+# scrolling. Kept well above any realistic match count — a script with more
+# than a few hundred anchors is already past the point where the picker is
+# the right tool — so "see all the results" holds in practice, while still
+# bounding the work done per keystroke.
+DEFAULT_SCROLL_MAX_ITEMS = 300
+
 
 class TabTabTabPlugin:
     def get_items(self):
@@ -305,11 +314,17 @@ class NodeWeights(object):
 
 
 class NodeModel(QtCore.QAbstractListModel):
-    def __init__(self, mlist, weights, num_items=18, filtertext="", icon_fn=None, color_fn=None, space_mode_order=None):
+    def __init__(self, mlist, weights, num_items=18, filtertext="", icon_fn=None, color_fn=None,
+                 space_mode_order=None, scroll_enabled=False,
+                 scroll_max_items=DEFAULT_SCROLL_MAX_ITEMS):
         super(NodeModel, self).__init__()
 
         self.weights = weights
+        # num_items is the number of rows the popup window is sized to show at
+        # once (see TabTabTabWidget._resize_list_to_contents) — it is NOT the
+        # row-retention cap; that is self.max_items below.
         self.num_items = num_items
+        self._scroll_max_items = scroll_max_items
 
         self._all = mlist
         self._filtertext = filtertext
@@ -323,6 +338,12 @@ class NodeModel(QtCore.QAbstractListModel):
         else:
             self._space_mode_order = list(DEFAULT_SPACE_MODE_ORDER)
 
+        # max_items is how many matched rows are actually retained in the model
+        # (and therefore reachable, by scrolling, beyond the num_items visible
+        # in the fixed-height window). When scrolling is disabled this equals
+        # num_items, reproducing the old capped behaviour exactly.
+        self.max_items = self._scroll_max_items if scroll_enabled else self.num_items
+
         # _items is the list of objects to be shown, update sets this
         self._items = []
         self.update()
@@ -333,6 +354,19 @@ class NodeModel(QtCore.QAbstractListModel):
 
     def refresh_items(self, mlist):
         self._all = mlist
+        self.update()
+
+    def set_scroll_enabled(self, enabled):
+        """Adjust the row-retention cap and re-render.
+
+        Called when the scrolling preference changes on an already-built
+        (cached) picker, so the new setting takes effect on the next open
+        rather than the next Nuke session.
+        """
+        new_max_items = self._scroll_max_items if enabled else self.num_items
+        if new_max_items == self.max_items:
+            return
+        self.max_items = new_max_items
         self.update()
 
     def update(self):
@@ -414,11 +448,16 @@ class NodeModel(QtCore.QAbstractListModel):
         sort_b = sorted(scored_b, key=lambda k: (-k['score'], k['text']))
         s = sort_a + sort_b
 
-        self._items = s
+        # Cap to max_items — the number of rows retained in the model. With
+        # scrolling disabled this equals num_items (the old capped-to-window
+        # behaviour); with scrolling enabled it is a much larger bound, so
+        # matches past the visible window are still reachable by scrolling
+        # instead of being discarded outright.
+        self._items = s[:self.max_items]
         self.modelReset.emit()
 
     def rowCount(self, parent=QtCore.QModelIndex()):
-        return min(self.num_items, len(self._items))
+        return len(self._items)
 
     def data(self, index, role=Qt.DisplayRole):
         if role == Qt.DisplayRole:
@@ -568,7 +607,8 @@ class _ItemDelegate(QtWidgets.QStyledItemDelegate):
 
 
 class TabTabTabWidget(QtWidgets.QDialog):
-    def __init__(self, plugin, parent=None, winflags=None, space_mode_order=None):
+    def __init__(self, plugin, parent=None, winflags=None, space_mode_order=None,
+                 scroll_enabled=False):
         super(TabTabTabWidget, self).__init__(parent=parent)
         if winflags is not None:
             self.setWindowFlags(winflags)
@@ -585,7 +625,9 @@ class TabTabTabWidget(QtWidgets.QDialog):
         items = plugin.get_items()
 
         # List of stuff, and associated model
-        self.things_model = NodeModel(items, weights=self.weights, icon_fn=plugin.get_icon, color_fn=plugin.get_color, space_mode_order=space_mode_order)
+        self.things_model = NodeModel(items, weights=self.weights, icon_fn=plugin.get_icon,
+                                      color_fn=plugin.get_color, space_mode_order=space_mode_order,
+                                      scroll_enabled=scroll_enabled)
         self.things = QtWidgets.QListView()
         self.things.setModel(self.things_model)
         self.things.setUniformItemSizes(True)
@@ -595,6 +637,14 @@ class TabTabTabWidget(QtWidgets.QDialog):
         _row_h = _font_h * 2
         self.things.setItemDelegate(_ItemDelegate(_row_h, _row_h, self.things))
         self.things.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        # Vertical scrolling is plain QListView behaviour (mouse wheel, scrollbar
+        # drag, and — via setCurrentIndex()'s built-in autoScroll — up/down arrow
+        # navigation past the visible window). The popup itself never grows:
+        # _resize_list_to_contents fixes self.things' height to exactly num_items
+        # rows however many rows the model holds (see NodeModel.max_items).
+        # ScrollPerPixel gives smoother wheel scrolling than per-item stepping.
+        self.things.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.things.setVerticalScrollMode(QtWidgets.QAbstractItemView.ScrollPerPixel)
         self.input.setTextMargins(2, _font_h // 2, 2, _font_h // 2)
 
         # Add input and items to layout
@@ -626,7 +676,12 @@ class TabTabTabWidget(QtWidgets.QDialog):
         self.adjustSize()
 
     def _resize_list_to_contents(self):
-        """Set list height to always show num_items rows, giving a fixed popup size."""
+        """Set list height to always show num_items rows, giving a fixed popup size.
+
+        Deliberately sized from num_items rather than the model's row count:
+        with scrolling enabled the model retains far more rows (max_items) than
+        the window shows, and the popup must stay the same size either way.
+        """
         num_rows = self.things_model.num_items
 
         row_h = self.things.sizeHintForRow(0)
@@ -863,7 +918,7 @@ def _try_reparent_preloaded(widget, attempts_remaining):
         )
 
 
-def _create_tabtabtab_widget(plugin, space_mode_order):
+def _create_tabtabtab_widget(plugin, space_mode_order, scroll_enabled=False):
     parent = _find_host_main_window()
     # Qt.Dialog keeps the widget a top-level window even with a parent set.
     # Without it, setWindowFlags(FramelessWindowHint) drops the dialog type
@@ -875,12 +930,13 @@ def _create_tabtabtab_widget(plugin, space_mode_order):
         parent=parent,
         winflags=Qt.Dialog | Qt.FramelessWindowHint,
         space_mode_order=space_mode_order,
+        scroll_enabled=scroll_enabled,
     )
     widget.destroyed.connect(_clear_tabtabtab_instance)
     return widget
 
 
-def launch(plugin, space_mode_order=None):
+def launch(plugin, space_mode_order=None, scroll_enabled=False):
     global _tabtabtab_instance
 
     if _tabtabtab_instance is not None:
@@ -912,6 +968,10 @@ def launch(plugin, space_mode_order=None):
                     and len(space_mode_order) == len(DEFAULT_SPACE_MODE_ORDER)
                     and all(m in VALID_MODES for m in space_mode_order)):
                 _tabtabtab_instance.things_model._space_mode_order = list(space_mode_order)
+            # Re-applied on every launch (like space_mode_order above) so a
+            # scrolling preference changed while the host is already running
+            # takes effect on the cached instance without a restart.
+            _tabtabtab_instance.things_model.set_scroll_enabled(scroll_enabled)
             _tabtabtab_instance.under_cursor()
             _tabtabtab_instance.show()
             _tabtabtab_instance.raise_()
@@ -924,13 +984,14 @@ def launch(plugin, space_mode_order=None):
             # destroyed connection was ever severed or never wired up.
             _tabtabtab_instance = None
 
-    _tabtabtab_instance = _create_tabtabtab_widget(plugin, space_mode_order)
+    _tabtabtab_instance = _create_tabtabtab_widget(plugin, space_mode_order,
+                                                   scroll_enabled=scroll_enabled)
     _tabtabtab_instance.under_cursor()
     _tabtabtab_instance.show()
     _tabtabtab_instance.raise_()
 
 
-def preload(plugin, space_mode_order=None):
+def preload(plugin, space_mode_order=None, scroll_enabled=False):
     """Eagerly construct the popup widget so the first user invocation hits
     the warm reuse path inside launch().
 
@@ -947,7 +1008,8 @@ def preload(plugin, space_mode_order=None):
     if _tabtabtab_instance is not None:
         return
 
-    _tabtabtab_instance = _create_tabtabtab_widget(plugin, space_mode_order)
+    _tabtabtab_instance = _create_tabtabtab_widget(plugin, space_mode_order,
+                                                   scroll_enabled=scroll_enabled)
 
     # If the main window hadn't appeared yet, _create_tabtabtab_widget left
     # the instance parentless. Schedule background retries so a preload-only
@@ -961,7 +1023,7 @@ def preload(plugin, space_mode_order=None):
         )
 
 
-def schedule_preload(plugin, space_mode_order=None):
+def schedule_preload(plugin, space_mode_order=None, scroll_enabled=False):
     """Defer preload() to the next event-loop tick.
 
     Use this from the host's plugin entry point. Deferring guarantees
@@ -970,5 +1032,6 @@ def schedule_preload(plugin, space_mode_order=None):
     """
     QtCore.QTimer.singleShot(
         0,
-        lambda: preload(plugin, space_mode_order=space_mode_order),
+        lambda: preload(plugin, space_mode_order=space_mode_order,
+                        scroll_enabled=scroll_enabled),
     )
