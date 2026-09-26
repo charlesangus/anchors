@@ -969,6 +969,20 @@ else:
             keyboard_layout_row.addStretch()
             outer_layout.addLayout(keyboard_layout_row)
 
+            # Checkbox: keep (and scroll to) picker matches past the visible rows
+            self._picker_scroll_enabled_checkbox = QtWidgets.QCheckBox(
+                "Scroll through all fuzzy-find results"
+            )
+            self._picker_scroll_enabled_checkbox.setChecked(self._local_picker_scroll_enabled)
+            self._picker_scroll_enabled_checkbox.setToolTip(
+                "When checked, a search that matches more anchors than fit in the "
+                "picker keeps the rest and lets you reach them with the mouse wheel, "
+                "the scrollbar, or the down arrow. When unchecked, only the first "
+                "screenful of matches is kept. The picker is the same size either "
+                "way. Takes effect the next time a picker is opened."
+            )
+            outer_layout.addWidget(self._picker_scroll_enabled_checkbox)
+
             # ---- Space-prefix search modes ----
             # Typing one or two spaces before the search text in a fuzzy-find
             # picker switches search mode; this group maps each leading-space
@@ -996,19 +1010,6 @@ else:
 
             outer_layout.addWidget(space_modes_group_box)
 
-            # Checkbox: keep (and scroll to) picker matches past the visible rows
-            self._picker_scroll_enabled_checkbox = QtWidgets.QCheckBox(
-                "Scroll through all fuzzy-find results"
-            )
-            self._picker_scroll_enabled_checkbox.setChecked(self._local_picker_scroll_enabled)
-            self._picker_scroll_enabled_checkbox.setToolTip(
-                "When checked, a search that matches more anchors than fit in the "
-                "picker keeps the rest and lets you reach them with the mouse wheel, "
-                "the scrollbar, or the down arrow. When unchecked, only the first "
-                "screenful of matches is kept. The picker is the same size either "
-                "way. Takes effect the next time a picker is opened."
-            )
-            outer_layout.addWidget(self._picker_scroll_enabled_checkbox)
             self._populate_space_mode_comboboxes()
             self._update_space_mode_fields_lock_state()
 
