@@ -221,6 +221,9 @@ The plugin overrides the standard clipboard shortcuts (scoped to the Node Graph)
   - **Pasting only anchors:** If you copy *only* Anchors, each pasted anchor is replaced by a Link pointing
     back to the original, so you do not get duplicate anchors.
 
+With nothing selected, `Ctrl`+`C` and `Ctrl`+`X` are a silent no-op rather than
+raising Nuke's "Cannot copy across multiple groups" error.
+
 ![A reusable block containing two Links, before copying.](img/reconnect_before.png){#fig:paste-before}
 
 ![After pasting, both Links have reconnected themselves to their anchors.](img/reconnect_after.png){#fig:paste-after}

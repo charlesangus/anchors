@@ -193,13 +193,17 @@ def copy_anchors(cut=False):
     was inside a Group), nuke.selectedNodes() and nuke.nodeCopy() operate in the
     correct group context.
     """
-    if not prefs.plugin_enabled:
-        with nuke.lastHitGroup():
-            nuke.nodeCopy(nukescripts.cut_paste_file())
-        return
     with nuke.lastHitGroup():
         selected_nodes = nuke.selectedNodes()
-        selection_is_all_anchors = bool(selected_nodes) and all(is_anchor(n) for n in selected_nodes)
+        if not selected_nodes:
+            # Nothing to copy: bail out before nuke.nodeCopy(), which otherwise
+            # raises a spurious "Cannot copy across multiple groups" error on an
+            # empty selection.
+            return
+        if not prefs.plugin_enabled:
+            nuke.nodeCopy(nukescripts.cut_paste_file())
+            return
+        selection_is_all_anchors = all(is_anchor(n) for n in selected_nodes)
         script_stem = _get_script_stem()
         # Snapshot every selected node before stamping so the live originals can
         # be restored afterwards.  The stamps only need to reach the clipboard
@@ -237,7 +241,8 @@ def cut_anchors():
     if not prefs.plugin_enabled:
         with nuke.lastHitGroup():
             selected_nodes = nuke.selectedNodes()
-            nuke.nodeCopy(nukescripts.cut_paste_file())
+            if selected_nodes:
+                nuke.nodeCopy(nukescripts.cut_paste_file())
         for node in selected_nodes:
             nuke.delete(node)
         return
