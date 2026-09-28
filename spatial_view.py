@@ -7,11 +7,11 @@ circles with their label beside them, and labelled backdrops as frames around
 what they really enclose.  Recognising a place is faster than recalling a name.
 
 The map keeps the script's real arrangement but squeezes out the empty space
-between items (``compress_axis``), then nudges items apart until nothing
-collides (``build_layout``).  Typing in the search field filters the list
-exactly as before and dims the map items that no longer match; the row
-highlighted in the list is highlighted on the map, and clicking a map item picks
-it as if its row had been chosen.
+between items (``compress_axis``), packing them only as close as their order
+allows so that nothing collides and nothing changes places (``build_layout``).
+Typing in the search field filters the list exactly as before and dims the map
+items that no longer match; the row highlighted in the list is highlighted on
+the map, and clicking a map item picks it as if its row had been chosen.
 
 ``SpatialPicker`` is the tabtabtab picker widget itself with the map added, so
 the search, the item list, the selection weights, and what picking an item does
@@ -60,9 +60,6 @@ KIND_BACKDROP = 'backdrop'
 _DEFAULT_BACKDROP_COLOR = 0x5A5A5AFF
 _DOT_LABEL_SPACING = 5
 _LABEL_POINT_SIZE = 8
-# Bounds how long the de-overlap pass may run on a pathological pile-up; in
-# practice it settles in a handful of passes.
-_MAX_SEPARATION_PASSES = 400
 
 
 # ---------------------------------------------------------------------------
@@ -113,10 +110,14 @@ def _smallest(backdrops):
     return min(backdrops, key=lambda backdrop: (_area(backdrop), str(backdrop['key'])))
 
 
-def _centre(item):
+def _dag_box(item):
+    """Return the (left, top, right, bottom) *item* covers in the DAG."""
     if item['kind'] == KIND_BACKDROP:
-        return item['x'] + item['width'] / 2.0, item['y'] + item['height'] / 2.0
-    return item['x'], item['y']
+        return (item['x'], item['y'],
+                item['x'] + item['width'], item['y'] + item['height'])
+    half_width, half_height = (size / 2.0 for size in item.get('dag_size', (0, 0)))
+    return (item['x'] - half_width, item['y'] - half_height,
+            item['x'] + half_width, item['y'] + half_height)
 
 
 def _translate(rects, descendants, key, dx, dy):
@@ -125,49 +126,75 @@ def _translate(rects, descendants, key, dx, dy):
         rects[moved_key] = (x + dx, y + dy, width, height)
 
 
-def _separate(keys, rects, descendants, gap=SPATIAL_ITEM_GAP):
-    """Push the rectangles of *keys* apart until none overlap (with *gap* clearance).
+def _separation_axis(first_box, second_box, first_size, second_size):
+    """Return 0 (x) or 1 (y): the axis along which two siblings are kept apart.
 
-    Each overlapping pair is split half each way along the axis where the pair
-    overlaps least *relative to its size*: tiles are far wider than tall, so the
-    raw smaller push would stack side-by-side neighbours vertically and lose
-    the left/right relationship the DAG gave them.  A key with descendants (a
-    backdrop frame) moves as a rigid group with everything inside it.
+    It is the axis along which the DAG already separates them most, relative to
+    their size on the map: tiles are far wider than tall, so a raw comparison
+    would stack side-by-side neighbours and lose their left/right relationship.
     """
-    for _pass in range(_MAX_SEPARATION_PASSES):
-        moved = False
-        order = sorted(keys, key=lambda key: (rects[key][0], str(key)))
-        for index, first in enumerate(order):
-            for second in order[index + 1:]:
-                ax, ay, aw, ah = rects[first]
-                bx, by, bw, bh = rects[second]
-                if bx >= ax + aw + gap:
-                    break
-                if ax + aw / 2.0 <= bx + bw / 2.0:
-                    push_x = ax + aw + gap - bx
-                    sign_x = 1
-                else:
-                    push_x = bx + bw + gap - ax
-                    sign_x = -1
-                if ay + ah / 2.0 <= by + bh / 2.0:
-                    push_y = ay + ah + gap - by
-                    sign_y = 1
-                else:
-                    push_y = by + bh + gap - ay
-                    sign_y = -1
-                if push_x <= 0 or push_y <= 0:
-                    continue
-                if push_x / (aw + bw) <= push_y / (ah + bh):
-                    half = push_x / 2.0
-                    _translate(rects, descendants, first, -sign_x * half, 0)
-                    _translate(rects, descendants, second, sign_x * half, 0)
-                else:
-                    half = push_y / 2.0
-                    _translate(rects, descendants, first, 0, -sign_y * half)
-                    _translate(rects, descendants, second, 0, sign_y * half)
-                moved = True
-        if not moved:
-            return
+    clearances = []
+    for axis in (0, 1):
+        clearance = max(second_box[axis] - first_box[axis + 2],
+                        first_box[axis] - second_box[axis + 2])
+        clearances.append(clearance / float(first_size[axis] + second_size[axis]))
+    return 0 if clearances[0] >= clearances[1] else 1
+
+
+def _place_siblings(keys, dag_boxes, sizes, origins, scale, max_gap, gap):
+    """Return {key: (left, top)} for sibling items packed as tightly as their order allows.
+
+    Along each axis the items keep the order of their DAG centres and are pushed
+    forward only: each lands as far back as it can while (a) keeping at least the
+    ``compress_axis`` spacing from every item before it, so the empty space
+    between them shrinks but what is left of / above what never changes, and (b)
+    clearing, by *gap*, every earlier sibling that it is kept apart from along
+    this axis (see ``_separation_axis``).  Rows are settled first: a pair side by
+    side in the DAG is always kept side by side, but a pair lying diagonally is
+    only pushed apart sideways if their rows still overlap on the map.  Every
+    pair is kept apart along one axis, so no two siblings overlap.
+    """
+    separation_axis = {}
+    for first, second in _pairs(keys):
+        axis = _separation_axis(dag_boxes[first], dag_boxes[second],
+                                sizes[first], sizes[second])
+        separation_axis[first, second] = separation_axis[second, first] = axis
+
+    anchor_positions = {key: [0.0, 0.0] for key in keys}
+
+    def rows_overlap(first, second):
+        if (dag_boxes[first][1] < dag_boxes[second][3]
+                and dag_boxes[second][1] < dag_boxes[first][3]):
+            return True
+        first_top = anchor_positions[first][1] - origins[first][1]
+        second_top = anchor_positions[second][1] - origins[second][1]
+        return (first_top < second_top + sizes[second][1] + gap
+                and second_top < first_top + sizes[first][1] + gap)
+
+    for axis in (1, 0):
+        def dag_centre(key):
+            return (dag_boxes[key][axis] + dag_boxes[key][axis + 2]) / 2.0
+        compressed = compress_axis([dag_centre(key) for key in keys], scale, max_gap)
+        order = sorted(keys, key=lambda key: (dag_centre(key), str(key)))
+        for index, second in enumerate(order):
+            position = 0.0
+            for first in order[:index]:
+                offset = compressed[dag_centre(second)] - compressed[dag_centre(first)]
+                if (separation_axis[first, second] == axis
+                        and (axis == 1 or rows_overlap(first, second))):
+                    offset = max(offset, sizes[first][axis] - origins[first][axis]
+                                 + origins[second][axis] + gap)
+                position = max(position, anchor_positions[first][axis] + offset)
+            anchor_positions[second][axis] = position
+    return {key: (anchor_positions[key][0] - origins[key][0],
+                  anchor_positions[key][1] - origins[key][1])
+            for key in keys}
+
+
+def _pairs(keys):
+    for index, first in enumerate(keys):
+        for second in keys[index + 1:]:
+            yield first, second
 
 
 def _bounding_box(rect_list):
@@ -186,16 +213,22 @@ def build_layout(items,
                  gap=SPATIAL_ITEM_GAP):
     """Place *items* on the map.
 
+    Frames are laid out innermost first: the items directly inside a frame are
+    packed by ``_place_siblings``, the frame is sized around them, and the frame
+    then moves as one block when its own siblings are packed.  Packing only
+    closes up empty space, so every item keeps its position relative to its
+    siblings.
+
     Parameters
     ----------
     items : sequence of dict
         Every item has 'key' and 'kind'.  Tiles and dots carry 'x' / 'y' (their
-        DAG centre), 'size' (width, height in pixels) and 'origin' (the pixel
-        offset of the DAG centre inside that box — a dot's circle sits at the
-        left of its box, its label to the right).  Backdrops carry their DAG
-        bounds 'x' / 'y' / 'width' / 'height', 'size' (the box drawn when they
-        enclose no anchor) and 'min_width' (room for their label when drawn as a
-        frame).
+        DAG centre), optionally 'dag_size' (their DAG width, height), 'size'
+        (width, height in pixels) and 'origin' (the pixel offset of the DAG
+        centre inside that box — a dot's circle sits at the left of its box, its
+        label to the right).  Backdrops carry their DAG bounds 'x' / 'y' /
+        'width' / 'height', 'size' (the box drawn when they enclose no anchor)
+        and 'min_width' (room for their label when drawn as a frame).
 
     Returns
     -------
@@ -243,29 +276,11 @@ def build_layout(items,
     for backdrop in backdrops:
         parent[backdrop['key']] = framing_parent(backdrop_container[backdrop['key']])
 
-    leaves = [item for item in items if item['key'] not in frames]
-    leaf_centres = {leaf['key']: _centre(leaf) for leaf in leaves}
-    x_positions = compress_axis([x for x, _y in leaf_centres.values()], scale, max_gap)
-    y_positions = compress_axis([y for _x, y in leaf_centres.values()], scale, max_gap)
-
-    rects = {}
-    for leaf in leaves:
-        centre_x, centre_y = leaf_centres[leaf['key']]
-        width, height = leaf['size']
-        if leaf['kind'] == KIND_BACKDROP:
-            origin_x, origin_y = width / 2.0, height / 2.0
-        else:
-            origin_x, origin_y = leaf['origin']
-        rects[leaf['key']] = (x_positions[centre_x] - origin_x,
-                              y_positions[centre_y] - origin_y,
-                              width, height)
-
     children = {}
     for key, parent_key in parent.items():
         children.setdefault(parent_key, []).append(key)
     for child_keys in children.values():
-        child_keys.sort(key=lambda key: (_centre(items_by_key[key])[1],
-                                         _centre(items_by_key[key])[0], str(key)))
+        child_keys.sort(key=str)
 
     depth = {}
     for frame_key in frames:
@@ -276,20 +291,49 @@ def build_layout(items,
             ancestor = parent[ancestor]
         depth[frame_key] = level
 
+    dag_boxes = {key: _dag_box(item) for key, item in items_by_key.items()}
+    sizes = {}
+    origins = {}
+    for item in items:
+        if item['key'] in frames:
+            continue
+        width, height = item['size']
+        sizes[item['key']] = (width, height)
+        if item['kind'] == KIND_BACKDROP:
+            origins[item['key']] = (width / 2.0, height / 2.0)
+        else:
+            origins[item['key']] = item['origin']
+
+    rects = {}
     descendants = {}
+
+    def place(child_keys):
+        placements = _place_siblings(child_keys, dag_boxes, sizes, origins,
+                                     scale, max_gap, gap)
+        for key in child_keys:
+            left, top = placements[key]
+            if key in frames:
+                frame_x, frame_y, _width, _height = rects[key]
+                _translate(rects, descendants, key, left - frame_x, top - frame_y)
+            else:
+                width, height = sizes[key]
+                rects[key] = (left, top, width, height)
+
     for frame_key in sorted(frames, key=lambda key: (-depth[key], str(key))):
         child_keys = children.get(frame_key, [])
-        _separate(child_keys, rects, descendants, gap)
+        place(child_keys)
         descendants[frame_key] = []
         for child_key in child_keys:
             descendants[frame_key].append(child_key)
             descendants[frame_key].extend(descendants.get(child_key, []))
         left, top, right, bottom = _bounding_box([rects[key] for key in child_keys])
         width = max(right - left + 2 * padding, items_by_key[frame_key].get('min_width', 0))
-        rects[frame_key] = (left - padding, top - padding - header,
-                            width, bottom - top + 2 * padding + header)
+        height = bottom - top + 2 * padding + header
+        rects[frame_key] = (left - padding, top - padding - header, width, height)
+        sizes[frame_key] = (width, height)
+        origins[frame_key] = (width / 2.0, height / 2.0)
 
-    _separate(children.get(None, []), rects, descendants, gap)
+    place(children.get(None, []))
 
     left, top, right, bottom = _bounding_box(list(rects.values()))
     rects = {key: (x - left, y - top, w, h) for key, (x, y, w, h) in rects.items()}
@@ -461,6 +505,7 @@ def layout_items_for(entries, text_width):
             'kind': entry['kind'],
             'x': centre_x,
             'y': centre_y,
+            'dag_size': (node.screenWidth(), node.screenHeight()),
             'size': (width, height),
             'origin': origin,
         })

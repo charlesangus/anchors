@@ -274,8 +274,9 @@ the way you remember it:
   is drawn as a faded, dashed box so it never reads as an anchor.
 - **Local Dots** are not shown.
 
-Items that would overlap are nudged apart just enough to keep every tile and
-label readable.
+Items are packed only as close as they can come without overlapping: the empty
+space shrinks, but nothing changes places — a module to the right of another in
+the DAG is to its right on the map, and one above another stays above it.
 
 As you type, the list filters as usual and the map items that no longer match
 grey out rather than disappearing, so the map keeps its shape while you narrow

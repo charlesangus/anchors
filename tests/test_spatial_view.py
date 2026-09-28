@@ -148,6 +148,44 @@ class TestBuildLayoutPlacement(unittest.TestCase):
         for permutation in itertools.permutations(items):
             self.assertEqual(spatial_view.build_layout(list(permutation))['rects'], expected)
 
+    def test_backdrop_modules_keep_their_order(self):
+        # A row of modules, staggered vertically, as in a typical comp: packing
+        # must close the gaps between them without swapping or stacking any.
+        items = [
+            _backdrop('plates', 0, 330, 870, 500), _tile('plates_main', 200, 700),
+            _tile('plates_ref', 530, 540),
+            _backdrop('cg', 960, 70, 690, 560), _tile('cg_main', 1130, 370),
+            _tile('cg_atmo', 1350, 370),
+            _backdrop('camera', 1670, -330, 440, 500), _tile('camera_main', 1780, -20),
+            _backdrop('foo', 2150, 0, 500, 470), _tile('foo_foo', 2330, 300),
+            _backdrop('roto', 2750, 50, 530, 480), _tile('roto_head', 2900, 300),
+        ]
+        rects = spatial_view.build_layout(items)['rects']
+        modules = ['plates', 'cg', 'camera', 'foo', 'roto']
+        for left_module, right_module in zip(modules, modules[1:]):
+            self.assertLessEqual(rects[left_module][0] + rects[left_module][2],
+                                 rects[right_module][0])
+        tops = sorted(modules, key=lambda module: rects[module][1])
+        self.assertEqual(tops, ['camera', 'foo', 'roto', 'cg', 'plates'])
+
+    def test_diagonal_neighbours_tuck_in_without_a_sideways_push(self):
+        rects = spatial_view.build_layout([_tile('a', 0, 0), _tile('b', 100, 400)])['rects']
+        self.assertLess(_centre_x(rects['a']), _centre_x(rects['b']))
+        self.assertLess(_centre_x(rects['b']) - _centre_x(rects['a']), SPATIAL_TILE_WIDTH)
+        self.assertFalse(_overlaps(rects['a'], rects['b']))
+
+    def test_packing_never_swaps_two_items(self):
+        dag_positions = [(column * 37 % 290, row * 23 % 170)
+                         for row in range(6) for column in range(7)]
+        items = [_tile('t%d' % index, x, y) for index, (x, y) in enumerate(dag_positions)]
+        rects = spatial_view.build_layout(items)['rects']
+        for first, second in itertools.combinations(items, 2):
+            first_rect, second_rect = rects[first['key']], rects[second['key']]
+            if first['x'] < second['x']:
+                self.assertLess(_centre_x(first_rect), _centre_x(second_rect))
+            if first['y'] < second['y']:
+                self.assertLess(_centre_y(first_rect), _centre_y(second_rect))
+
 
 class TestBuildLayoutDeOverlap(unittest.TestCase):
     """Nothing collides, however crowded the DAG is."""
