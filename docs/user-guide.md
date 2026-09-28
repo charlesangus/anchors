@@ -118,7 +118,7 @@ ask for it.
 After jumping with **`Alt`+`A`** or **`Alt`+`J`**, **`Alt`+`Z`** jumps you back
 to where you were.
 
-This enables a wonderfully quick way of getting around your script. As you document your work with labelled dots, you're also creating a map of the script for quick navigation. **`Alt`+`S`** shows you that map directly — see [The spatial view](#the-spatial-view).
+This enables a wonderfully quick way of getting around your script. As you document your work with labelled dots, you're also creating a map of the script for quick navigation. Turn on the **spatial view** and the menu shows you that map directly — see [The spatial view](#the-spatial-view).
 
 ![The navigation picker (Alt+A).](img/anchor-navigate-picker.png){#fig:nav-picker-first}
 
@@ -240,7 +240,6 @@ copy. For a plain paste with no reconnection magic, use **Paste (old)**
 | `Alt`+`J` | **Anchor Jump** — with a Link selected, jump to its source anchor. |
 | `Alt`+`L` | **Cycle Links** — with an anchor selected, step through each of its links. Keep pressing `L` to advance; any other key stops. |
 | `Alt`+`Z` | **Anchor Back** — return to the viewport position from before the last jump. |
-| `Alt`+`S` | **Spatial View** — a map of the script's anchors and backdrops; see below. |
 
 Both **Anchor Find** and **Anchor Jump** frame the anchor and the tree feeding it.
 Tick **Jump to anchor only** on an anchor to make jumps to it land on the anchor
@@ -254,33 +253,39 @@ module. The setting lives on the anchor, so it applies however you jump to it.
 ## The spatial view
 
 Sometimes you know *where* an anchor is without remembering what it is called.
-Press **`Alt`+`S`** for the **spatial view**: a popup that lays the script's
-anchors out as cards on a simplified grid, each card roughly where its anchor
-sits in the DAG, with every labelled backdrop drawn as an outline around the
-cards inside it. It is the same information the picker lists, arranged as a map
-of the comp instead of a list of names `(Figure \ref{fig:spatial-view})`{=latex}.
+Tick **Show the spatial view beside the A and Alt+A menus** in Preferences and
+both menus — and the leader's **Set Input** commands, which use the same
+anchor menu — open with a map of the script beside their search list
+`(Figure \ref{fig:spatial-view})`{=latex}. The search field and list work exactly
+as before; the map is an addition.
 
-![The spatial view: anchors as cards, labelled backdrops as outlines.](img/spatial-view.png){#fig:spatial-view}
+![The spatial view beside the Alt+A menu.](img/spatial-view.png){#fig:spatial-view}
 
-The grid is deliberately coarse. Anchors close together in the DAG share a row or
-a column; the empty space between modules is squeezed out; anchors that land on
-the same cell stack down their own column, so a card never drifts into a
-neighbouring module's column. What survives is the arrangement you remember —
-what is left of what, what is above what.
+The map draws each item where it really sits in the DAG, with the empty space
+between items squeezed out, so what is left of what and what is above what stays
+the way you remember it:
 
-The search from the pickers comes with it. Type in the field at the top and the
-cards that no longer match grey out instead of disappearing, so the map keeps its
-shape while you narrow it down; the leading-space search modes work exactly as
-they do in the pickers. The arrow keys walk between the matching cards
-spatially — `Right` steps to the card to the right, not to the next name in a
-list — **`Enter`** goes to the highlighted card, a click goes straight to any
-card, and **`Esc`** closes the popup. Picking an anchor here counts as picking it
-in the pickers too, so a card you use often also floats to the top of `A` and
-`Alt`+`A`.
+- **Anchors** are coloured tiles.
+- **Dot anchors** are circles with their label beside them, in three sizes that
+  follow the Dot's label size — small, medium, or large, whichever of the
+  `Shift`+`B` / `N` / `M` presets it is nearest.
+- **Labelled backdrops** are frames drawn around the anchors, Dot anchors, and
+  other backdrops they enclose in the DAG. A backdrop with no anchors inside it
+  is drawn as a faded, dashed box so it never reads as an anchor.
+- **Local Dots** are not shown.
 
-**Edit > Anchors > Spatial View (Create Link)** opens the same map to create a
-link instead of navigating: cards are anchors to link to, and backdrops are drawn
-for context only.
+Items that would overlap are nudged apart just enough to keep every tile and
+label readable.
+
+As you type, the list filters as usual and the map items that no longer match
+grey out rather than disappearing, so the map keeps its shape while you narrow
+it down. The entry highlighted in the list is outlined in white on the map, so
+`Up` / `Down` walk the map too. Click any map item to pick it, exactly as if you
+had chosen its row. In the **`A`** menu the backdrops are drawn for context only:
+you link to anchors, so only the anchors can be clicked.
+
+With the preference off (the default), these menus are the plain lists shown
+elsewhere in this guide.
 
 
 ## The leader key
@@ -298,7 +303,6 @@ is disabled on a single-input node).
 | `W` | Set **A** input from an anchor (input 1) |
 | `E` | Set **Mask** input from an anchor |
 | `R` | Set the **first free** input from an anchor |
-| `S` | Spatial View (as `Alt`+`S`) |
 | `F` | Anchor Find (as `Alt`+`A`) |
 | `J` | Anchor Jump (as `Alt`+`J`) |
 | `L` | Cycle Links (as `Alt`+`L`; keep pressing to chain) |
@@ -441,6 +445,8 @@ first.
 - **Enable anchors plugin** — the master toggle.
 - **Create a link below each new anchor** — on by default; uncheck it if you
   prefer creating links yourself.
+- **Show the spatial view beside the A and Alt+A menus** — off by default; tick it
+  to add a map of the script to the anchor menus (see [The spatial view](#the-spatial-view)).
 - **Keyboard layout** — QWERTY / AZERTY / QWERTZ for the leader overlay.
 - **Space-prefix search modes** — what leading spaces do in the fuzzy-find menus
   (see below).
@@ -457,9 +463,8 @@ names; individuals can opt out with the site-config override.
 
 ### Space-prefix search modes
 
-The `A` and `Alt`+`A` menus — and the spatial view's search field — filter as you
-type, and typing one or two spaces before your search text switches how that text
-is matched:
+The `A` and `Alt`+`A` menus filter as you type, and typing one or two spaces
+before your search text switches how that text is matched:
 
 - **Anchored fuzzy** — the letters appear in order, starting at the first letter
   of the name: `bgp` finds `BG_Plate`.
@@ -473,7 +478,7 @@ search modes** group in Preferences maps each of the three levels to whichever
 mode you prefer; every mode must be used exactly once, so OK is refused if you
 assign the same mode twice.
 
-These search fields share their core with
+These menus share their search core with
 [tabtabtab-nuke](https://github.com/charlesangus/tabtabtab-nuke), which offers the
 same preference. If you run both, tick **Use tabtabtab-nuke preferences** and
 anchors follows the mapping set there instead — the three dropdowns grey out and
@@ -514,7 +519,6 @@ if existing is None:
 | `A` | Create anchor (selection) / Set up backdrop (one backdrop selected) / Anchor selection menu (no selection) |
 | `Shift`+`A` | Leader-key overlay |
 | `Alt`+`A` | Anchor Find / navigate |
-| `Alt`+`S` | Spatial view — map of the script's anchors and backdrops |
 | `Alt`+`J` | Anchor Jump (Link -> anchor) |
 | `Alt`+`L` | Cycle Links |
 | `Alt`+`Z` | Anchor Back |

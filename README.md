@@ -80,15 +80,10 @@ The anchor system is a reusable named-input mechanism for the node graph.
 - `Alt+J` (or `Edit > Anchors > Anchor Jump`) — with a Link selected, jump to its source anchor.
 - `Alt+L` (or `Edit > Anchors > Cycle Links`) — with an anchor selected, cycle through each Link node that references it. After the last one, returns to the anchor.
 - `Alt+Z` (or `Edit > Anchors > Anchor Back`) — restore the DAG viewport to the position before the last Alt+A / Alt+J / Alt+L jump. Single-slot — consumes the saved position.
-- `Alt+S` (or `Edit > Anchors > Spatial View`) — the **spatial view**: the same anchors and labelled BackdropNodes laid out as a map instead of a list (see below).
 
 ### Spatial view
 
-`Alt+S` opens a popup that places each anchor as a card on a coarse grid, roughly where it sits in the DAG, with each labelled BackdropNode drawn as an outline around the cards inside it. Anchors close together in the DAG share a row or column, the empty space between modules is squeezed out, and anchors landing on the same cell stack down their own column — so a card never drifts into a neighbouring module's column.
-
-The picker's fuzzy search comes with it: type in the field at the top and non-matching cards grey out rather than disappearing, so the map keeps its shape while you narrow it down (the leading-space search modes behave exactly as in the pickers). Arrow keys move between matching cards *spatially*, `Enter` activates the highlighted card, a click activates any card, `Esc` closes. Selections update the same weights the pickers use, so a card you pick often also sorts first in `A` / `Alt+A`.
-
-`Edit > Anchors > Spatial View (Create Link)` opens the same map in link-creation mode: cards are anchors to link to, and backdrops are drawn for context only.
+Tick **"Show the spatial view beside the A and Alt+A menus"** in Preferences (off by default) and both pickers — plus the leader's Set Input pickers, which share the `A` picker — open with a map of the current group beside their search list. Items sit where they really are in the DAG with the blank space between them collapsed: anchors are coloured tiles, Dot anchors circles with their label beside them (small, medium, or large, following whichever Dot label preset the Dot's label size is nearest), and labelled BackdropNodes frames around the items they enclose — a backdrop enclosing no anchor is a faded, dashed box. Local Dots are not shown, and overlapping items are nudged apart. Typing filters the list as usual and greys out the map items that no longer match; the highlighted row is outlined on the map, and clicking a map item picks it. In the `A` picker, backdrops are context only. With the preference off, all these pickers are unchanged.
 
 ### Jump scope
 
@@ -106,7 +101,6 @@ Press `Shift+A`, then one of the keys below:
 | `W` | Set A Input To… (input 1) |
 | `E` | Set Mask Input To… (input 2 on Merge-style multi-input nodes — `maxInputs() > 100` — last input on everything else) |
 | `R` | Set First Free Input To… (lowest free slot only — never overwrites existing wiring) |
-| `S` | Spatial View (same as `Alt+S`) |
 | `F` | Anchor Find (same as `Alt+A`) |
 | `J` | Anchor Jump (same as `Alt+J`) |
 | `L` | Cycle Links (same as `Alt+L`) — *chaining*: stays armed so repeated `L` advances through the cycle. Any other key or a mouse click disarms. |
@@ -120,7 +114,7 @@ Set your keyboard layout in `Edit > Anchors > Anchor Preferences…` (QWERTY, AZ
 
 When the plugin is disabled in Preferences, the `Shift+A` shortcut is disabled along with every other gated anchor command. Re-enable from `Edit > Anchors > Anchor Preferences…`, which stays active in the menu.
 
-The existing `Alt+A`, `Alt+S`, `Alt+J`, `Alt+L`, `Alt+Z` shortcuts continue to work alongside the leader for muscle-memory parity.
+The existing `Alt+A`, `Alt+J`, `Alt+L`, `Alt+Z` shortcuts continue to work alongside the leader for muscle-memory parity.
 
 ## Upgrading Another Tool's Anchors
 
@@ -191,7 +185,6 @@ Inside the multi-line label field, `Enter` inserts a newline; `Ctrl+Enter`, the 
 | `A` | Anchor shortcut (context-sensitive: create anchor, rename, set up a backdrop, or open link picker) |
 | `Shift+A` | Leader Key — opens the command overlay (see Leader Key section above) |
 | `Alt+A` | Anchor Find (navigate DAG to any anchor or labelled BackdropNode) |
-| `Alt+S` | Spatial View (map of the script's anchors and labelled BackdropNodes) |
 | `Alt+J` | Anchor Jump (Link → source anchor) |
 | `Alt+L` | Cycle Links (anchor → each referencing Link) |
 | `Alt+Z` | Anchor Back (restore previous DAG position) |
@@ -210,6 +203,7 @@ All anchor shortcuts are scoped to the **DAG (Node Graph) context** — they onl
 - **Keyboard layout** — QWERTY / AZERTY / QWERTZ, used to draw the leader overlay grid.
 - **Space-prefix search modes** — which search mode the fuzzy-find menus use for 0, 1, and 2 leading spaces (anchored fuzzy, non-anchored fuzzy, or consecutive substring; the default order is exactly that). Each mode must be assigned to exactly one leading-space level. Tick **Use tabtabtab-nuke preferences** to follow the same preference from a [tabtabtab-nuke](https://github.com/charlesangus/tabtabtab-nuke) install instead (read from that install's own preferences file — the path `tabtabtab_prefs.PREFS_FILE` gives when the module is importable, otherwise `~/.nuke/tabtabtab_prefs.json`); the dropdowns then grey out and mirror it, and the checkbox is disabled when no tabtabtab-nuke install is found.
 - **Create a link below each new anchor** — on by default. When unchecked, `Edit > Anchors > Create Anchor` (and `A` with a node selected) creates the anchor alone.
+- **Show the spatial view beside the A and Alt+A menus** — off by default. When checked, the `A`, `Alt+A`, and leader Set Input pickers show a map of the script beside their list (see *Spatial view* above).
 - **Custom Colors** — a palette of user-defined colors. Available in the anchor create / rename dialogs and in the "Set Color" picker on NoOp anchors.
 - **Anchor Naming (Advanced)** — user-configurable regex + template for deriving anchor names from file paths. Includes a live preview against a test filename and an "Override Site Config" checkbox. Admins can publish the current values to a site config JSON via the "Publish Naming…" button.
 
@@ -346,13 +340,6 @@ Opens the fuzzy-search picker for link creation. Selecting an entry creates a li
 anchor.select_anchor_and_navigate()
 ```
 Opens the fuzzy-search picker for DAG navigation. Lists all anchors plus all labelled BackdropNodes. Selecting an entry zooms the DAG to fit it.
-
-```python
-import spatial_view
-spatial_view.open_navigate_view()
-spatial_view.open_create_link_view()
-```
-Opens the spatial view — the anchors and labelled BackdropNodes of the current group laid out as a map. `open_navigate_view()` zooms the DAG to the chosen entry; `open_create_link_view()` creates a link to the chosen anchor. Both are silent no-ops when the plugin is disabled, when Qt is unavailable, or when the group has nothing to show.
 
 ```python
 anchor.navigate_to_anchor(anchor_node: nuke.Node)
