@@ -827,6 +827,8 @@ else:
             self.unsetCursor()
 
         def mousePressEvent(self, event):  # noqa: N802 — Qt naming
+            if event.button() != Qt.LeftButton:
+                return
             key = self._selectable_key_at(QtCore.QPointF(event.pos()))
             if key is not None and self.on_activate is not None:
                 # Picking closes the popup under a still mouse, so no leave or
@@ -918,6 +920,10 @@ else:
             if event.buttons() & Qt.LeftButton:
                 self._centre_view_on(event.pos())
 
+        def wheelEvent(self, event):  # noqa: N802 — Qt naming
+            # Swallowed, so it does not fall through to scroll the view.
+            event.accept()
+
     class ZoomControls(QtWidgets.QWidget):
         """Zoom out / zoom level / zoom in / fit buttons in the view's bottom-right corner."""
 
@@ -936,9 +942,9 @@ else:
             layout = QtWidgets.QHBoxLayout(self)
             layout.setContentsMargins(2, 2, 2, 2)
             layout.setSpacing(0)
-            for text, tip, callback in (('\u2212', 'Zoom out (Ctrl+-, Ctrl+wheel)', on_zoom_out),
+            for text, tip, callback in (('\u2212', 'Zoom out (Ctrl+-, mouse wheel)', on_zoom_out),
                                         (None, None, None),
-                                        ('+', 'Zoom in (Ctrl+=, Ctrl+wheel)', on_zoom_in),
+                                        ('+', 'Zoom in (Ctrl+=, mouse wheel)', on_zoom_in),
                                         ('Fit', 'Fit the matches (Ctrl+0)', on_fit)):
                 if text is None:
                     self._level = QtWidgets.QLabel('100%')
@@ -954,6 +960,10 @@ else:
                 layout.addWidget(button)
             scroll_area.installEventFilter(self)
 
+        def wheelEvent(self, event):  # noqa: N802 — Qt naming
+            # Swallowed, so it does not fall through to scroll the view.
+            event.accept()
+
         def set_zoom(self, zoom):
             self._level.setText('%d%%' % round(zoom * 100))
 
@@ -968,6 +978,12 @@ else:
             if event.type() in (QtCore.QEvent.Resize, QtCore.QEvent.Show):
                 QtCore.QTimer.singleShot(0, self.reposition)
             return False
+
+    def _global_position(event):
+        """The mouse event's global position, as a QPointF under PySide2 or PySide6."""
+        if hasattr(event, 'globalPosition'):
+            return event.globalPosition()
+        return QtCore.QPointF(event.globalPos())
 
     class SpatialPicker(_tabtabtab.TabTabTabWidget):
         """The anchor picker with a map of the script beside its search panel."""
@@ -1000,7 +1016,11 @@ else:
                 on_fit=self.fit_matched)
             self._minimap = Minimap(self.map_canvas, self._map_scroll, self._zoom_controls)
             self._minimap.hide()
+            # Where a middle-button drag started: its global position and the
+            # scroll position then; None while no drag is under way.
+            self._pan_start = None
             self._map_scroll.viewport().installEventFilter(self)
+            self.map_canvas.installEventFilter(self)
             for keys, callback in (('Ctrl+=', lambda: self.zoom_by(SPATIAL_ZOOM_STEP)),
                                    ('Ctrl++', lambda: self.zoom_by(SPATIAL_ZOOM_STEP)),
                                    ('Ctrl+-', lambda: self.zoom_by(1.0 / SPATIAL_ZOOM_STEP)),
@@ -1063,15 +1083,42 @@ else:
         # -- zoom --------------------------------------------------------------
 
         def eventFilter(self, watched, event):  # noqa: N802 — Qt naming
-            if (watched is self._map_scroll.viewport()
-                    and event.type() == QtCore.QEvent.Wheel
-                    and event.modifiers() & Qt.ControlModifier):
+            viewport = self._map_scroll.viewport()
+            if watched in (viewport, self.map_canvas) and event.type() == QtCore.QEvent.Wheel:
+                # The wheel zooms, as in the Node Graph; dragging with the middle
+                # button and the minimap move the view.
                 steps = event.angleDelta().y() / 120.0
                 if steps:
                     position = event.position() if hasattr(event, 'position') else event.pos()
-                    self.zoom_by(SPATIAL_ZOOM_STEP ** steps, QtCore.QPointF(position))
+                    focus = watched.mapTo(viewport, QtCore.QPointF(position).toPoint())
+                    self.zoom_by(SPATIAL_ZOOM_STEP ** steps, QtCore.QPointF(focus))
+                return True
+            if watched in (viewport, self.map_canvas) and self._pan(event):
                 return True
             return super(SpatialPicker, self).eventFilter(watched, event)
+
+        def _pan(self, event):
+            """Move the view with a middle-button drag, as in the Node Graph; True if handled."""
+            event_type = event.type()
+            if event_type == QtCore.QEvent.MouseButtonPress and event.button() == Qt.MiddleButton:
+                self._pan_start = (_global_position(event),
+                                   self._map_scroll.horizontalScrollBar().value(),
+                                   self._map_scroll.verticalScrollBar().value())
+                self.map_canvas.setCursor(Qt.ClosedHandCursor)
+                return True
+            if self._pan_start is None:
+                return False
+            if event_type == QtCore.QEvent.MouseMove:
+                start_position, start_x, start_y = self._pan_start
+                offset = _global_position(event) - start_position
+                self._map_scroll.horizontalScrollBar().setValue(int(start_x - offset.x()))
+                self._map_scroll.verticalScrollBar().setValue(int(start_y - offset.y()))
+                return True
+            if event_type == QtCore.QEvent.MouseButtonRelease and event.button() == Qt.MiddleButton:
+                self._pan_start = None
+                self.map_canvas.unsetCursor()
+                return True
+            return False
 
         def zoom_by(self, factor, focus=None):
             """Zoom by *factor*, keeping the map point under the viewport point *focus* still.
@@ -1201,7 +1248,7 @@ else:
             chrome_height = margins.top() + margins.bottom()
             max_width = int(available.width() * SPATIAL_MAX_SCREEN_FRACTION) - chrome_width
             max_height = int(available.height() * SPATIAL_MAX_SCREEN_FRACTION) - chrome_height
-            # The minimap and the wheel stand in for scrollbars.
+            # The minimap and middle-button dragging stand in for scrollbars.
             self._map_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
             self._map_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
             self._map_scroll.setFixedSize(min(canvas_size.width(), max_width),
