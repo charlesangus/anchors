@@ -1,35 +1,22 @@
-"""Spatial view — a popup map of the script's anchors and labelled backdrops.
+"""Spatial view — a map of the script beside the ``A`` / ``Alt``+``A`` pickers.
 
-Where the ``A`` / ``Alt``+``A`` pickers present anchors as a flat, weight-ordered
-list, the spatial view (issue #83) presents them as *cards on a coarse grid whose
-cells echo where each anchor sits in the DAG*, with labelled backdrops drawn as
-outlines around the cards they contain.  Recognising a place is faster than
-recalling a name, so the view is the quickest route to an anchor you know the
-position of.
+With **Show the spatial view beside the A and Alt+A menus** ticked in
+Preferences, the two anchor pickers open as a wider popup: the usual search
+field and list on the left, and on the right a map of the current group — anchors as coloured tiles, Dot anchors as small
+circles with their label beside them, and labelled backdrops as frames around
+what they really enclose.  Recognising a place is faster than recalling a name.
 
-The same fuzzy search the pickers use carries into this view: the filter field
-honours the space-prefix search modes from preferences (see
-``tabtabtab_anchors.parse_search_modes``), and as you type, cards that no longer
-match grey out rather than disappearing — the map keeps its shape while you
-narrow it down.
+The map keeps the script's real arrangement but squeezes out the empty space
+between items (``compress_axis``), then nudges items apart until nothing
+collides (``build_layout``).  Typing in the search field filters the list
+exactly as before and dims the map items that no longer match; the row
+highlighted in the list is highlighted on the map, and clicking a map item picks
+it as if its row had been chosen.
 
-Two modes, mirroring the two existing pickers:
-
-- ``MODE_NAVIGATE`` (``Alt``+``S``, leader ``S``) — activating a card navigates
-  to that anchor or backdrop, exactly as **Anchor Find** does.
-- ``MODE_CREATE_LINK`` (**Edit > Anchors > Spatial View (Create Link)**) —
-  activating a card creates a link to that anchor, exactly as **Create Link**
-  does.  Backdrops are drawn for context but are not selectable, matching the
-  link picker's item list.
-
-Both modes borrow the matching picker's tabtabtab plugin, so item collection,
-node colours, invocation, and the on-disk selection weights are shared with the
-pickers rather than reimplemented here — pick an anchor in either UI and it
-sorts first in both.
-
-The grid maths and the filtering live in module-level functions above the Qt
-classes so they can be unit-tested without a Qt session; the widgets below are
-only defined when Qt is importable, following the pattern in colors.py.
+``SpatialPicker`` is the tabtabtab picker widget itself with the map added, so
+the search, the item list, the selection weights, and what picking an item does
+are all the pickers' own.  The layout maths is in module-level functions so it
+can be unit-tested without a Qt session.
 """
 
 import nuke
@@ -47,287 +34,289 @@ except ImportError:
     QtWidgets = None
     Qt = None
 
-import prefs
 import tabtabtab_anchors as _tabtabtab
 from constants import (
     ANCHOR_DEFAULT_COLOR,
-    SPATIAL_CARD_HEIGHT,
-    SPATIAL_CARD_WIDTH,
-    SPATIAL_CELL_TOLERANCE,
-    SPATIAL_GRID_SPACING,
-    SPATIAL_MAX_COLUMNS,
-    SPATIAL_MAX_ROWS,
+    SPATIAL_BACKDROP_HEADER,
+    SPATIAL_BACKDROP_PADDING,
+    SPATIAL_DOT_TIERS,
+    SPATIAL_EMPTY_BACKDROP_SCALE,
+    SPATIAL_ITEM_GAP,
+    SPATIAL_MAX_GAP,
     SPATIAL_MAX_SCREEN_FRACTION,
+    SPATIAL_SCALE,
+    SPATIAL_SEARCH_PANEL_WIDTH,
+    SPATIAL_TILE_HEIGHT,
+    SPATIAL_TILE_WIDTH,
 )
 
-# The two things the view can be opened to do.  Plain strings so the menu
-# commands in menu.py read clearly.
 MODE_NAVIGATE = 'navigate'
 MODE_CREATE_LINK = 'create_link'
 
-# Fallback tile colour for a backdrop that has never been coloured.
+KIND_TILE = 'tile'
+KIND_DOT = 'dot'
+KIND_BACKDROP = 'backdrop'
+
 _DEFAULT_BACKDROP_COLOR = 0x5A5A5AFF
+_DOT_LABEL_SPACING = 5
+_LABEL_POINT_SIZE = 8
+# Bounds how long the de-overlap pass may run on a pathological pile-up; in
+# practice it settles in a handful of passes.
+_MAX_SEPARATION_PASSES = 400
 
 
 # ---------------------------------------------------------------------------
-# Grid layout — pure functions, no Qt and no nuke.
-#
-# The DAG is sparse: nodes sit hundreds of units apart with nothing in between,
-# so reproducing their coordinates to scale would give a mostly-empty map.
-# Instead each axis is *binned* — coordinates within a tolerance of each other
-# collapse onto one row or column — which keeps the relative arrangement (what
-# is left of what, what is above what) while squeezing out the empty space.
+# Layout — pure functions, no Qt and no nuke.
 # ---------------------------------------------------------------------------
 
-def _bin_coordinates(values, tolerance):
-    """Return a {coordinate: index} map placing nearby coordinates in one bin.
+def compress_axis(values, scale=SPATIAL_SCALE, max_gap=SPATIAL_MAX_GAP):
+    """Return {value: pixel position} keeping the order of *values* but not their gaps.
 
-    Walking the sorted coordinates, a new bin starts whenever the coordinate is
-    more than *tolerance* beyond the one that opened the current bin.
+    Each gap between neighbouring distinct values is scaled by *scale* and then
+    capped at *max_gap*, so near neighbours keep their proportions while a wide
+    empty stretch of DAG collapses to a short one.
     """
-    bins = {}
-    index = -1
-    bin_start = None
+    positions = {}
+    position = 0.0
+    previous_value = None
     for value in sorted(set(values)):
-        if bin_start is None or value - bin_start > tolerance:
-            index += 1
-            bin_start = value
-        bins[value] = index
-    return bins
+        if previous_value is not None:
+            position += min((value - previous_value) * scale, max_gap)
+        positions[value] = position
+        previous_value = value
+    return positions
 
 
-def _binned_axis(values, tolerance, maximum):
-    """Bin *values*, doubling *tolerance* until the axis fits in *maximum* bins.
+def _area(backdrop):
+    return backdrop['width'] * backdrop['height']
 
-    A script whose anchors are spread over a huge area would otherwise produce a
-    grid too large to read; widening the tolerance merges the closest neighbours
-    first, so the coarser map still groups what the DAG groups.
+
+def _contains_point(backdrop, x, y):
+    return (backdrop['x'] <= x < backdrop['x'] + backdrop['width']
+            and backdrop['y'] <= y < backdrop['y'] + backdrop['height'])
+
+
+def _contains_backdrop(outer, inner):
+    if outer['key'] == inner['key']:
+        return False
+    if (_area(outer), str(outer['key'])) <= (_area(inner), str(inner['key'])):
+        return False
+    return (outer['x'] <= inner['x']
+            and outer['y'] <= inner['y']
+            and inner['x'] + inner['width'] <= outer['x'] + outer['width']
+            and inner['y'] + inner['height'] <= outer['y'] + outer['height'])
+
+
+def _smallest(backdrops):
+    if not backdrops:
+        return None
+    return min(backdrops, key=lambda backdrop: (_area(backdrop), str(backdrop['key'])))
+
+
+def _centre(item):
+    if item['kind'] == KIND_BACKDROP:
+        return item['x'] + item['width'] / 2.0, item['y'] + item['height'] / 2.0
+    return item['x'], item['y']
+
+
+def _translate(rects, descendants, key, dx, dy):
+    for moved_key in [key] + descendants.get(key, []):
+        x, y, width, height = rects[moved_key]
+        rects[moved_key] = (x + dx, y + dy, width, height)
+
+
+def _separate(keys, rects, descendants, gap=SPATIAL_ITEM_GAP):
+    """Push the rectangles of *keys* apart until none overlap (with *gap* clearance).
+
+    Each overlapping pair is split half each way along the axis where the pair
+    overlaps least *relative to its size*: tiles are far wider than tall, so the
+    raw smaller push would stack side-by-side neighbours vertically and lose
+    the left/right relationship the DAG gave them.  A key with descendants (a
+    backdrop frame) moves as a rigid group with everything inside it.
     """
-    bins = _bin_coordinates(values, tolerance)
-    while bins and maximum > 0 and tolerance > 0 and max(bins.values()) + 1 > maximum:
-        tolerance *= 2
-        bins = _bin_coordinates(values, tolerance)
-    return bins
+    for _pass in range(_MAX_SEPARATION_PASSES):
+        moved = False
+        order = sorted(keys, key=lambda key: (rects[key][0], str(key)))
+        for index, first in enumerate(order):
+            for second in order[index + 1:]:
+                ax, ay, aw, ah = rects[first]
+                bx, by, bw, bh = rects[second]
+                if bx >= ax + aw + gap:
+                    break
+                if ax + aw / 2.0 <= bx + bw / 2.0:
+                    push_x = ax + aw + gap - bx
+                    sign_x = 1
+                else:
+                    push_x = bx + bw + gap - ax
+                    sign_x = -1
+                if ay + ah / 2.0 <= by + bh / 2.0:
+                    push_y = ay + ah + gap - by
+                    sign_y = 1
+                else:
+                    push_y = by + bh + gap - ay
+                    sign_y = -1
+                if push_x <= 0 or push_y <= 0:
+                    continue
+                if push_x / (aw + bw) <= push_y / (ah + bh):
+                    half = push_x / 2.0
+                    _translate(rects, descendants, first, -sign_x * half, 0)
+                    _translate(rects, descendants, second, sign_x * half, 0)
+                else:
+                    half = push_y / 2.0
+                    _translate(rects, descendants, first, 0, -sign_y * half)
+                    _translate(rects, descendants, second, 0, sign_y * half)
+                moved = True
+        if not moved:
+            return
 
 
-def _free_cell_near(row, column, taken_cells):
-    """Return (row, column) if free, else the first free cell below it.
-
-    Nuke comps run down a vertical spine with modules laid out left to right, so
-    a column of the grid stands for a module.  Resolving a collision by stacking
-    downwards therefore keeps every card in the column its node sits in, which is
-    the stronger half of the spatial analogy; the grid grows taller rather than
-    scattering cards sideways into other modules' columns.
-    """
-    while (row, column) in taken_cells:
-        row += 1
-    return (row, column)
+def _bounding_box(rect_list):
+    left = min(x for x, _y, _w, _h in rect_list)
+    top = min(y for _x, y, _w, _h in rect_list)
+    right = max(x + w for x, _y, w, _h in rect_list)
+    bottom = max(y + h for _x, y, _w, h in rect_list)
+    return left, top, right, bottom
 
 
-def assign_cells(placements,
-                 tolerance=SPATIAL_CELL_TOLERANCE,
-                 max_rows=SPATIAL_MAX_ROWS,
-                 max_columns=SPATIAL_MAX_COLUMNS):
-    """Map each placement onto a distinct grid cell echoing its DAG position.
+def build_layout(items,
+                 scale=SPATIAL_SCALE,
+                 max_gap=SPATIAL_MAX_GAP,
+                 padding=SPATIAL_BACKDROP_PADDING,
+                 header=SPATIAL_BACKDROP_HEADER,
+                 gap=SPATIAL_ITEM_GAP):
+    """Place *items* on the map.
 
     Parameters
     ----------
-    placements : sequence of (key, x, y)
-        *key* identifies the item; *x* / *y* are its DAG coordinates.  DAG y
-        grows downwards, as grid rows do, so neither axis needs flipping.
+    items : sequence of dict
+        Every item has 'key' and 'kind'.  Tiles and dots carry 'x' / 'y' (their
+        DAG centre), 'size' (width, height in pixels) and 'origin' (the pixel
+        offset of the DAG centre inside that box — a dot's circle sits at the
+        left of its box, its label to the right).  Backdrops carry their DAG
+        bounds 'x' / 'y' / 'width' / 'height', 'size' (the box drawn when they
+        enclose no anchor) and 'min_width' (room for their label when drawn as a
+        frame).
 
     Returns
     -------
     dict
-        {key: (row, column)}, normalised so the top-left cell is (0, 0).
+        ``rects``   {key: (x, y, width, height)} in pixels, top-left at (0, 0).
+        ``frames``  keys of the backdrops drawn as frames around anchors; every
+                    other backdrop is drawn as a box of its own.
+        ``depth``   {frame key: nesting depth}, outermost 0, for draw order.
+        ``parent``  {key: key of the frame drawn around it, or None}.
+        ``width`` / ``height``  the extent of the map.
     """
-    if not placements:
-        return {}
+    if not items:
+        return {'rects': {}, 'frames': set(), 'depth': {}, 'parent': {},
+                'width': 0, 'height': 0}
 
-    column_bins = _binned_axis([x for _key, x, _y in placements], tolerance, max_columns)
-    row_bins = _binned_axis([y for _key, _x, y in placements], tolerance, max_rows)
+    items_by_key = {item['key']: item for item in items}
+    backdrops = [item for item in items if item['kind'] == KIND_BACKDROP]
+    anchors = [item for item in items if item['kind'] != KIND_BACKDROP]
 
-    # Assign in reading order of the binned grid rather than in whatever order
-    # nuke.allNodes() returned, so the same script always lays out the same way.
-    ordered_placements = sorted(
-        placements,
-        key=lambda placement: (row_bins[placement[2]], column_bins[placement[1]],
-                               placement[2], placement[1], str(placement[0])),
-    )
+    # Same rule as link.find_smallest_containing_backdrop: the innermost
+    # backdrop around a node is the one it belongs to.
+    anchor_container = {
+        anchor['key']: _smallest([b for b in backdrops if _contains_point(b, anchor['x'], anchor['y'])])
+        for anchor in anchors
+    }
+    backdrop_container = {
+        backdrop['key']: _smallest([b for b in backdrops if _contains_backdrop(b, backdrop)])
+        for backdrop in backdrops
+    }
 
-    keys_by_cell = {}
-    for key, x, y in ordered_placements:
-        cell = _free_cell_near(row_bins[y], column_bins[x], keys_by_cell)
-        keys_by_cell[cell] = key
+    frames = set()
+    for container in anchor_container.values():
+        while container is not None and container['key'] not in frames:
+            frames.add(container['key'])
+            container = backdrop_container[container['key']]
 
-    top_row = min(row for row, _column in keys_by_cell)
-    left_column = min(column for _row, column in keys_by_cell)
+    def framing_parent(container):
+        while container is not None and container['key'] not in frames:
+            container = backdrop_container[container['key']]
+        return container['key'] if container is not None else None
+
+    parent = {}
+    for anchor in anchors:
+        parent[anchor['key']] = framing_parent(anchor_container[anchor['key']])
+    for backdrop in backdrops:
+        parent[backdrop['key']] = framing_parent(backdrop_container[backdrop['key']])
+
+    leaves = [item for item in items if item['key'] not in frames]
+    leaf_centres = {leaf['key']: _centre(leaf) for leaf in leaves}
+    x_positions = compress_axis([x for x, _y in leaf_centres.values()], scale, max_gap)
+    y_positions = compress_axis([y for _x, y in leaf_centres.values()], scale, max_gap)
+
+    rects = {}
+    for leaf in leaves:
+        centre_x, centre_y = leaf_centres[leaf['key']]
+        width, height = leaf['size']
+        if leaf['kind'] == KIND_BACKDROP:
+            origin_x, origin_y = width / 2.0, height / 2.0
+        else:
+            origin_x, origin_y = leaf['origin']
+        rects[leaf['key']] = (x_positions[centre_x] - origin_x,
+                              y_positions[centre_y] - origin_y,
+                              width, height)
+
+    children = {}
+    for key, parent_key in parent.items():
+        children.setdefault(parent_key, []).append(key)
+    for child_keys in children.values():
+        child_keys.sort(key=lambda key: (_centre(items_by_key[key])[1],
+                                         _centre(items_by_key[key])[0], str(key)))
+
+    depth = {}
+    for frame_key in frames:
+        level = 0
+        ancestor = parent[frame_key]
+        while ancestor is not None:
+            level += 1
+            ancestor = parent[ancestor]
+        depth[frame_key] = level
+
+    descendants = {}
+    for frame_key in sorted(frames, key=lambda key: (-depth[key], str(key))):
+        child_keys = children.get(frame_key, [])
+        _separate(child_keys, rects, descendants, gap)
+        descendants[frame_key] = []
+        for child_key in child_keys:
+            descendants[frame_key].append(child_key)
+            descendants[frame_key].extend(descendants.get(child_key, []))
+        left, top, right, bottom = _bounding_box([rects[key] for key in child_keys])
+        width = max(right - left + 2 * padding, items_by_key[frame_key].get('min_width', 0))
+        rects[frame_key] = (left - padding, top - padding - header,
+                            width, bottom - top + 2 * padding + header)
+
+    _separate(children.get(None, []), rects, descendants, gap)
+
+    left, top, right, bottom = _bounding_box(list(rects.values()))
+    rects = {key: (x - left, y - top, w, h) for key, (x, y, w, h) in rects.items()}
     return {
-        key: (row - top_row, column - left_column)
-        for (row, column), key in keys_by_cell.items()
+        'rects': rects,
+        'frames': frames,
+        'depth': depth,
+        'parent': parent,
+        'width': right - left,
+        'height': bottom - top,
     }
 
 
-def build_layout(anchors, backdrops, **cell_options):
-    """Lay out *anchors* as cards and *backdrops* as spans around them.
-
-    Parameters
-    ----------
-    anchors : sequence of dict
-        Each with 'key', 'x', 'y' — the anchor's DAG position.
-    backdrops : sequence of dict
-        Each with 'key', 'x', 'y', 'width', 'height' — the backdrop's DAG bounds.
-
-    Returns
-    -------
-    dict
-        ``cells``   {key: (row, column)} for every anchor, plus every backdrop
-                    that contains no anchor (it has no cards to draw an outline
-                    around, so it takes a cell of its own and stays reachable).
-        ``spans``   {backdrop key: (top, left, bottom, right)} — the inclusive
-                    cell rectangle the backdrop's outline covers.
-        ``rows`` / ``columns``  the grid's extent.
-    """
-    anchor_keys_by_backdrop = {}
-    for backdrop in backdrops:
-        # Same containment test as link.find_smallest_containing_backdrop, so a
-        # card sits inside the same outline its node sits inside in the DAG.
-        anchor_keys_by_backdrop[backdrop['key']] = [
-            anchor['key'] for anchor in anchors
-            if (backdrop['x'] <= anchor['x'] < backdrop['x'] + backdrop['width']
-                and backdrop['y'] <= anchor['y'] < backdrop['y'] + backdrop['height'])
-        ]
-
-    placements = [(anchor['key'], anchor['x'], anchor['y']) for anchor in anchors]
-    placements += [
-        (backdrop['key'], backdrop['x'], backdrop['y'])
-        for backdrop in backdrops if not anchor_keys_by_backdrop[backdrop['key']]
-    ]
-    cells = assign_cells(placements, **cell_options)
-
-    spans = {}
-    for backdrop in backdrops:
-        member_cells = [cells[key] for key in anchor_keys_by_backdrop[backdrop['key']]]
-        if not member_cells:
-            row, column = cells[backdrop['key']]
-            spans[backdrop['key']] = (row, column, row, column)
-            continue
-        spans[backdrop['key']] = (
-            min(row for row, _column in member_cells),
-            min(column for _row, column in member_cells),
-            max(row for row, _column in member_cells),
-            max(column for _row, column in member_cells),
-        )
-
-    rows = max((row for row, _column in cells.values()), default=-1) + 1
-    columns = max((column for _row, column in cells.values()), default=-1) + 1
-    return {'cells': cells, 'spans': spans, 'rows': rows, 'columns': columns}
-
-
 # ---------------------------------------------------------------------------
-# Filtering — the pickers' fuzzy search, applied to cards instead of rows.
+# Item collection — reads nodes, not Qt.
 # ---------------------------------------------------------------------------
 
-def rank_entries(query, entries, weight_fn=None, space_mode_order=None):
-    """Return the keys of the entries matching *query*, best match first.
-
-    Mirrors ``tabtabtab_anchors.NodeModel.update``: consecutive matches rank
-    above merely fuzzy ones, and within each group the most-used entry (by the
-    picker's own weights) comes first, then alphabetically.  So the card the view
-    highlights first is the row the picker would have put first.
-
-    Parameters
-    ----------
-    query : str
-        Raw filter text, including any leading-space or ``*`` mode prefix.
-    entries : sequence of dict
-        Each with 'key' and 'menupath'.
-    weight_fn : callable or None
-        Called with a menupath, returns its selection weight.  None means unweighted.
-    space_mode_order : sequence of str or None
-        The space-prefix mode mapping from preferences.
-    """
-    filtertext, anchored, force_non_anchored, force_consecutive = _tabtabtab.parse_search_modes(
-        query.lower(), space_mode_order)
-
-    consecutive_matches = []
-    fuzzy_matches = []
-    for entry in entries:
-        uiname = _tabtabtab.menupath_uiname(entry['menupath'])
-        search_string = uiname.lower()
-        if force_non_anchored:
-            search_string = search_string[1:]
-        score = weight_fn(entry['menupath']) if weight_fn is not None else 0
-        if _tabtabtab.consec_find(filtertext, search_string, anchored):
-            consecutive_matches.append((-score, uiname, entry['key']))
-        elif not force_consecutive and _tabtabtab.nonconsec_find(
-                filtertext, search_string, anchored):
-            fuzzy_matches.append((-score, uiname, entry['key']))
-
-    ranked = sorted(consecutive_matches) + sorted(fuzzy_matches)
-    return [key for _score, _uiname, key in ranked]
-
-
-def cell_in_direction(cells, current_key, direction, candidate_keys):
-    """Return the candidate key nearest to *current_key* in *direction*, or None.
-
-    Powers the arrow keys: movement is spatial, so pressing Right steps to the
-    card to the right on the map rather than to the next item in a list.  Cards
-    filtered out by the search are not candidates, so arrowing walks only the
-    matches while the greyed cards keep the map's shape.
-
-    Candidates are ranked by how far off the travelled line they sit first and
-    how far along it second, so Right stays on its row for as long as that row
-    has cards rather than drifting diagonally to a nearer neighbour.
-    """
-    if current_key not in cells:
-        return None
-    current_row, current_column = cells[current_key]
-
-    best_key = None
-    best_distance = None
-    for key in candidate_keys:
-        if key == current_key or key not in cells:
-            continue
-        row, column = cells[key]
-        if direction == 'left':
-            along, across = current_column - column, abs(row - current_row)
-        elif direction == 'right':
-            along, across = column - current_column, abs(row - current_row)
-        elif direction == 'up':
-            along, across = current_row - row, abs(column - current_column)
-        elif direction == 'down':
-            along, across = row - current_row, abs(column - current_column)
-        else:
-            return None
-        if along <= 0:
-            continue
-        distance = (across, along, row, column)
-        if best_distance is None or distance < best_distance:
-            best_distance = distance
-            best_key = key
-    return best_key
-
-
-# ---------------------------------------------------------------------------
-# Item collection — anchors, backdrops, colours.  Needs nuke, not Qt.
-# ---------------------------------------------------------------------------
-
-def display_name_for(entry):
-    """Return the text shown on an entry's card or outline.
-
-    The picker menu path already carries the display name the pickers use, so
-    both UIs always name an anchor the same way.
-    """
-    return entry['menupath'].rpartition('/')[2]
+def display_name_for(item):
+    """Return the name the picker lists *item* under — the leaf of its menu path."""
+    return item['menupath'].rpartition('/')[2]
 
 
 def node_color(node):
-    """Return the 0xRRGGBBAA colour to draw *node* with in the view.
+    """Return the 0xRRGGBBAA colour to draw *node* with.
 
-    Uses the colour the node actually carries; an uncoloured anchor falls back to
-    the colour the DAG would give it, so cards read like the nodes they stand for
-    rather than turning black.
+    Uses the colour the node carries; an uncoloured anchor falls back to the
+    colour the DAG would give it, so the map reads like the nodes it stands for.
     """
     try:
         color_int = int(node['tile_color'].value())
@@ -344,115 +333,154 @@ def node_color(node):
         return ANCHOR_DEFAULT_COLOR
 
 
-def _rgb_for(color_int):
+def rgb_for(color_int):
     from colors import _color_int_to_rgb
     return _color_int_to_rgb(color_int)
 
 
-def text_color_for(color_int):
-    """Return a near-black or near-white text colour that reads on *color_int*."""
-    red, green, blue = _rgb_for(color_int)
-    # Rec. 601 luma — good enough to choose between dark and light text.
-    luma = 0.299 * red + 0.587 * green + 0.114 * blue
-    return '#111111' if luma > 140 else '#eeeeee'
+def is_light(color_int):
+    """Return True when dark text reads better than light text on *color_int*."""
+    red, green, blue = rgb_for(color_int)
+    return 0.299 * red + 0.587 * green + 0.114 * blue > 140
 
 
-def _plugin_for_mode(mode, hit_group):
-    """Return the tabtabtab picker plugin whose behaviour *mode* mirrors."""
-    import anchor
-    if mode == MODE_CREATE_LINK:
-        plugin = anchor._make_anchor_picker_plugin()
-    else:
-        plugin = anchor._make_anchor_navigate_plugin()
-    plugin._hit_group = hit_group
-    return plugin
+def _is_local_dot(node):
+    if node.Class() != 'Dot':
+        return False
+    import link
+    try:
+        return link.is_link(node) or bool(node['hide_input'].getValue())
+    except Exception:
+        return False
 
 
-def collect_entries(mode, hit_group):
-    """Return (plugin, entries) — the picker plugin and what the view shows.
+def _kind_for(node):
+    node_class = node.Class()
+    if node_class == 'BackdropNode':
+        return KIND_BACKDROP
+    if node_class == 'Dot':
+        return KIND_DOT
+    return KIND_TILE
 
-    Each entry is a dict with:
-        key         stable index, unique within this view
-        menupath    the picker menu path ('Anchors/foo' or 'Backdrops/bar')
-        node        the nuke node
-        item        the picker item dict, handed straight back to plugin.invoke()
-        kind        'anchor' or 'backdrop'
-        selectable  whether activating it does anything in this mode
 
-    In link-creation mode the plugin lists anchors only, so labelled backdrops
-    are collected separately and drawn as unselectable context — the outlines are
-    half of what makes the map readable.
+def dot_tier(font_size):
+    """Return the index into SPATIAL_DOT_TIERS whose label size *font_size* is nearest."""
+    return min(range(len(SPATIAL_DOT_TIERS)),
+               key=lambda index: abs(SPATIAL_DOT_TIERS[index][0] - font_size))
+
+
+def _dot_tier_for(node):
+    try:
+        return dot_tier(float(node['note_font_size'].value()))
+    except (NameError, TypeError, ValueError):
+        return 0
+
+
+def _make_entry(node, item, selectable):
+    kind = _kind_for(node)
+    return {
+        'key': node.name(),
+        'name': display_name_for(item),
+        'kind': kind,
+        'tier': _dot_tier_for(node) if kind == KIND_DOT else None,
+        'node': node,
+        'item': item,
+        'selectable': selectable,
+        'color': node_color(node),
+    }
+
+
+def collect_entries(items, mode, hit_group):
+    """Return the map entries for the picker *items* in *mode*.
+
+    Each entry is keyed by node name, which is how the picker's matched rows are
+    tied back to map items.  Local Dots never appear.  In link-creation mode the
+    picker lists anchors only, so the labelled backdrops are added as
+    unselectable landmarks — without them the map would lose its modules.
     """
-    plugin = _plugin_for_mode(mode, hit_group)
-    items = plugin.get_items()
-
     entries = []
-    listed_node_names = set()
+    listed_names = set()
     for item in items:
         node = item['menuobj']
-        entries.append({
-            'key': len(entries),
-            'menupath': item['menupath'],
-            'node': node,
-            'item': item,
-            'kind': 'backdrop' if node.Class() == 'BackdropNode' else 'anchor',
-            'selectable': True,
-        })
-        listed_node_names.add(node.name())
+        if _is_local_dot(node):
+            continue
+        entries.append(_make_entry(node, item, selectable=True))
+        listed_names.add(node.name())
 
     if mode == MODE_CREATE_LINK:
         with (hit_group or nuke.root()):
             context_backdrops = [
                 backdrop for backdrop in nuke.allNodes('BackdropNode')
                 if backdrop['label'].value().strip()
-                and backdrop.name() not in listed_node_names
+                and backdrop.name() not in listed_names
             ]
         for backdrop in context_backdrops:
-            menupath = 'Backdrops/' + backdrop['label'].value().strip()
-            entries.append({
-                'key': len(entries),
-                'menupath': menupath,
-                'node': backdrop,
-                'item': {'menuobj': backdrop, 'menupath': menupath},
-                'kind': 'backdrop',
-                'selectable': False,
+            item = {'menuobj': backdrop,
+                    'menupath': 'Backdrops/' + backdrop['label'].value().strip()}
+            entries.append(_make_entry(backdrop, item, selectable=False))
+
+    return entries
+
+
+def layout_items_for(entries, text_width):
+    """Turn *entries* into ``build_layout`` items.
+
+    *text_width(text, point_size)* returns the pixel width of a label; tiles and
+    backdrop labels use _LABEL_POINT_SIZE, dot labels their tier's size.
+    """
+    empty_backdrop_size = (SPATIAL_TILE_WIDTH * SPATIAL_EMPTY_BACKDROP_SCALE,
+                           SPATIAL_TILE_HEIGHT * SPATIAL_EMPTY_BACKDROP_SCALE)
+    items = []
+    for entry in entries:
+        node = entry['node']
+        if entry['kind'] == KIND_BACKDROP:
+            items.append({
+                'key': entry['key'],
+                'kind': KIND_BACKDROP,
+                'x': node.xpos(),
+                'y': node.ypos(),
+                'width': node['bdwidth'].value(),
+                'height': node['bdheight'].value(),
+                'size': empty_backdrop_size,
+                'min_width': (text_width(entry['name'], _LABEL_POINT_SIZE)
+                              + 2 * SPATIAL_BACKDROP_PADDING),
             })
-
-    return plugin, entries
-
-
-def layout_for_entries(entries):
-    """Build the grid layout for *entries* from their nodes' DAG geometry."""
-    anchors = [
-        {'key': entry['key'], 'x': entry['node'].xpos(), 'y': entry['node'].ypos()}
-        for entry in entries if entry['kind'] == 'anchor'
-    ]
-    backdrops = [
-        {
+            continue
+        centre_x = node.xpos() + node.screenWidth() / 2.0
+        centre_y = node.ypos() + node.screenHeight() / 2.0
+        if entry['kind'] == KIND_DOT:
+            _font_size, diameter, point_size = SPATIAL_DOT_TIERS[entry['tier']]
+            height = max(diameter, point_size * 2)
+            width = diameter + _DOT_LABEL_SPACING + text_width(entry['name'], point_size)
+            origin = (diameter / 2.0, height / 2.0)
+        else:
+            width, height = SPATIAL_TILE_WIDTH, SPATIAL_TILE_HEIGHT
+            origin = (width / 2.0, height / 2.0)
+        items.append({
             'key': entry['key'],
-            'x': entry['node'].xpos(),
-            'y': entry['node'].ypos(),
-            'width': entry['node']['bdwidth'].value(),
-            'height': entry['node']['bdheight'].value(),
-        }
-        for entry in entries if entry['kind'] == 'backdrop'
-    ]
-    return build_layout(anchors, backdrops)
+            'kind': entry['kind'],
+            'x': centre_x,
+            'y': centre_y,
+            'size': (width, height),
+            'origin': origin,
+        })
+    return items
 
 
 def host_main_window():
-    """Return the Nuke main window to parent the popup to, or None.
-
-    Parenting to the host is what the pickers do — it hands the widget's
-    lifetime to Nuke, which destroys it in a defined order at shutdown.
-    """
     return _tabtabtab._find_host_main_window()
 
 
 def space_mode_order():
-    """Return the space-prefix search mode mapping the pickers are using."""
     import anchor
     return anchor._current_space_mode_order()
+
+
+def _plugin_for_mode(mode):
+    import anchor
+    if mode == MODE_CREATE_LINK:
+        return anchor._make_anchor_picker_plugin()
+    return anchor._make_anchor_navigate_plugin()
 
 
 # ---------------------------------------------------------------------------
@@ -460,477 +488,422 @@ def space_mode_order():
 # ---------------------------------------------------------------------------
 
 if QtWidgets is None:
-    AnchorCard = None
-    BackdropOutline = None
-    FilterLineEdit = None
-    SpatialView = None
+    MapCanvas = None
+    SpatialPicker = None
 else:
-    _TITLES = {
-        MODE_NAVIGATE: 'ANCHORS SPATIAL VIEW',
-        MODE_CREATE_LINK: 'ANCHORS SPATIAL VIEW — CREATE LINK',
-    }
-    _HINTS = {
-        MODE_NAVIGATE: 'type to filter  ·  arrows to move  ·  Enter to navigate  ·  Esc to close',
-        MODE_CREATE_LINK: 'type to filter  ·  arrows to move  ·  Enter to link  ·  Esc to close',
-    }
-    # Navigate mode lists labelled backdrops alongside the anchors and filters
-    # both; in link mode the backdrops are context only, so only anchors match.
-    _PLACEHOLDERS = {
-        MODE_NAVIGATE: 'Search anchors and backdrops',
-        MODE_CREATE_LINK: 'Search anchors',
-    }
-    _FILTERED_OUT_COLOR = QtGui.QColor(70, 70, 70)
-    _FILTERED_OUT_TEXT = '#888888'
-    _HIGHLIGHT_BORDER = '#ffffff'
-    _CARD_BORDER = 'rgba(0, 0, 0, 60)'
-    # Room the popup's chrome (title, filter field, hint) needs beside the grid.
-    _CHROME_HEIGHT = 130
+    _MAP_MARGIN = 10
+    _BACKGROUND = QtGui.QColor(38, 38, 38)
+    # The leader overlay's backdrop colour, opaque: Nuke's own grey would make the
+    # popup's border vanish against the DAG.
+    _POPUP_BACKGROUND = QtGui.QColor(20, 20, 20)
+    _DIMMED = QtGui.QColor(70, 70, 70)
+    _DIMMED_TEXT = QtGui.QColor(120, 120, 120)
+    _HIGHLIGHT = QtGui.QColor(255, 255, 255)
+    _DOT_LABEL_TEXT = QtGui.QColor(220, 220, 220)
 
-    def _rgb_string(color_int):
-        return "rgb(%d, %d, %d)" % _rgb_for(color_int)
+    def _qcolor(color_int, alpha=255):
+        red, green, blue = rgb_for(color_int)
+        return QtGui.QColor(red, green, blue, alpha)
 
-    def _direction_for_key(key):
-        """Return the arrow direction *key* means, or None if it is not an arrow."""
-        if key == Qt.Key_Left:
-            return 'left'
-        if key == Qt.Key_Right:
-            return 'right'
-        if key == Qt.Key_Up:
-            return 'up'
-        if key == Qt.Key_Down:
-            return 'down'
-        return None
+    def _label_font(bold=False, italic=False, point_size=_LABEL_POINT_SIZE):
+        font = QtGui.QFont()
+        font.setPointSize(point_size)
+        font.setBold(bold)
+        font.setItalic(italic)
+        return font
 
-    def _owning_view(widget):
-        """Return the SpatialView *widget* belongs to, or None."""
-        window = widget.window()
-        return window if isinstance(window, SpatialView) else None
+    def _available_screen_rect():
+        cursor_position = QtGui.QCursor.pos()
+        screen = None
+        if hasattr(QtWidgets.QApplication, 'screenAt'):
+            screen = QtWidgets.QApplication.screenAt(cursor_position)
+        if screen is None:
+            screen = QtWidgets.QApplication.primaryScreen()
+        if screen is None:
+            return None
+        return screen.availableGeometry()
 
-    class AnchorCard(QtWidgets.QFrame):
-        """One anchor as a coloured, clickable card.
+    class MapCanvas(QtWidgets.QWidget):
+        """Paints the map and turns clicks on it into picks."""
 
-        Greys out — rather than vanishing — when the search filters it out, so
-        the map keeps its shape as the user narrows the search.
-        """
+        def __init__(self, parent=None):
+            super(MapCanvas, self).__init__(parent)
+            self.setMouseTracking(True)
+            self.on_activate = None
+            self._entries = {}
+            self._rects = {}
+            self._frames = set()
+            self._depth = {}
+            self._matched = set()
+            self._highlighted_key = None
 
-        def __init__(self, entry, parent=None):
-            super(AnchorCard, self).__init__(parent)
-            self.entry = entry
-            self._color_int = node_color(entry['node'])
-            self._matched = True
-            self._highlighted = False
+        def set_entries(self, entries):
+            self.unsetCursor()
 
-            self.setFixedSize(SPATIAL_CARD_WIDTH, SPATIAL_CARD_HEIGHT)
-            self.setCursor(QtGui.QCursor(Qt.PointingHandCursor))
+            def text_width(text, point_size):
+                metrics = QtGui.QFontMetrics(_label_font(bold=True, point_size=point_size))
+                if hasattr(metrics, 'horizontalAdvance'):
+                    return metrics.horizontalAdvance(text)
+                return metrics.width(text)
 
-            self._name_label = QtWidgets.QLabel(display_name_for(entry))
-            self._name_label.setAlignment(Qt.AlignCenter)
-            self._name_label.setWordWrap(True)
-            name_font = QtGui.QFont()
-            name_font.setPointSize(8)
-            name_font.setBold(True)
-            self._name_label.setFont(name_font)
-
-            card_layout = QtWidgets.QVBoxLayout(self)
-            card_layout.setContentsMargins(4, 2, 4, 2)
-            card_layout.addWidget(self._name_label)
-
-            self._apply_style()
-
-        def set_matched(self, matched):
-            """Colour the card normally when *matched*, grey it out otherwise."""
-            if matched == self._matched:
-                return
-            self._matched = matched
-            self._apply_style()
-
-        def set_highlighted(self, highlighted):
-            """Draw (or clear) the border marking the card Enter would activate."""
-            if highlighted == self._highlighted:
-                return
-            self._highlighted = highlighted
-            self._apply_style()
-
-        def _apply_style(self):
-            if self._matched:
-                background = _rgb_string(self._color_int)
-                text_color = text_color_for(self._color_int)
-            else:
-                background = "rgb(%d, %d, %d)" % (
-                    _FILTERED_OUT_COLOR.red(),
-                    _FILTERED_OUT_COLOR.green(),
-                    _FILTERED_OUT_COLOR.blue(),
-                )
-                text_color = _FILTERED_OUT_TEXT
-            border_color = _HIGHLIGHT_BORDER if self._highlighted else _CARD_BORDER
-            self.setStyleSheet(
-                "QFrame { background-color: %s; border: 2px solid %s; border-radius: 5px; }"
-                % (background, border_color)
-            )
-            self._name_label.setStyleSheet(
-                "color: %s; background-color: transparent; border: none;" % text_color
-            )
-
-        def mousePressEvent(self, event):  # noqa: N802 — Qt naming
-            view = _owning_view(self)
-            if view is not None:
-                view.activate_key(self.entry['key'])
-
-    class BackdropOutline(QtWidgets.QWidget):
-        """A labelled backdrop, drawn as an outline around the cards it holds.
-
-        Sits behind the cards and paints nothing where they are, so a click on a
-        card hits the card and a click on the backdrop's own area hits this.
-        """
-
-        def __init__(self, entry, parent=None):
-            super(BackdropOutline, self).__init__(parent)
-            self.entry = entry
-            self._color = QtGui.QColor(*_rgb_for(node_color(entry['node'])))
-            self._label = display_name_for(entry)
-            self._matched = True
-            self._highlighted = False
-            if entry['selectable']:
-                self.setCursor(QtGui.QCursor(Qt.PointingHandCursor))
-
-        def set_matched(self, matched):
-            if matched == self._matched:
-                return
-            self._matched = matched
+            self._entries = {entry['key']: entry for entry in entries}
+            layout = build_layout(layout_items_for(entries, text_width))
+            self._rects = {
+                key: QtCore.QRectF(x + _MAP_MARGIN, y + _MAP_MARGIN, width, height)
+                for key, (x, y, width, height) in layout['rects'].items()
+            }
+            self._frames = layout['frames']
+            self._depth = layout['depth']
+            self._highlighted_key = None
+            self.setFixedSize(int(layout['width']) + 2 * _MAP_MARGIN + 1,
+                              int(layout['height']) + 2 * _MAP_MARGIN + 1)
             self.update()
 
-        def set_highlighted(self, highlighted):
-            if highlighted == self._highlighted:
-                return
-            self._highlighted = highlighted
+        def set_matched(self, keys):
+            self._matched = set(keys)
             self.update()
+
+        def set_highlighted(self, key):
+            """Highlight *key*; return its rect so the caller can scroll to it."""
+            self._highlighted_key = key
+            self.update()
+            return self._rects.get(key)
+
+        def entry(self, key):
+            return self._entries.get(key)
+
+        def _lit(self, key):
+            return key in self._matched or not self._entries[key]['selectable']
+
+        # -- painting ----------------------------------------------------------
 
         def paintEvent(self, event):  # noqa: N802 — Qt naming
             painter = QtGui.QPainter(self)
             painter.setRenderHint(QtGui.QPainter.Antialiasing)
-            color = self._color if self._matched else _FILTERED_OUT_COLOR
-            painter.setPen(QtGui.QPen(color, 3 if self._highlighted else 2))
-            fill = QtGui.QColor(color)
-            fill.setAlpha(40)
-            painter.setBrush(fill)
-            painter.drawRoundedRect(self.rect().adjusted(1, 1, -2, -2), 6, 6)
+            painter.fillRect(self.rect(), _BACKGROUND)
 
-            label_font = QtGui.QFont()
-            label_font.setPointSize(7)
-            painter.setFont(label_font)
-            painter.setPen(color)
-            painter.drawText(self.rect().adjusted(6, 3, -6, -3),
-                             Qt.AlignTop | Qt.AlignLeft, self._label)
+            for key in sorted(self._frames, key=lambda key: self._depth[key]):
+                self._paint_frame(painter, key)
+            for key, entry in self._entries.items():
+                if entry['kind'] == KIND_BACKDROP and key not in self._frames:
+                    self._paint_empty_backdrop(painter, key)
+            for key, entry in self._entries.items():
+                if entry['kind'] == KIND_DOT:
+                    self._paint_dot(painter, key)
+                elif entry['kind'] == KIND_TILE:
+                    self._paint_tile(painter, key)
+            painter.end()
+
+        def _paint_frame(self, painter, key):
+            entry = self._entries[key]
+            rect = self._rects[key]
+            lit = self._lit(key)
+            color = _qcolor(entry['color']) if lit else _DIMMED
+            fill = QtGui.QColor(color)
+            fill.setAlpha(70 if lit else 40)
+            painter.setBrush(fill)
+            if key == self._highlighted_key:
+                painter.setPen(QtGui.QPen(_HIGHLIGHT, 2.5))
+            else:
+                painter.setPen(QtGui.QPen(color.lighter(130), 1.5))
+            painter.drawRoundedRect(rect.adjusted(1, 1, -1, -1), 6, 6)
+
+            painter.setFont(_label_font(bold=True))
+            painter.setPen(color.lighter(170) if lit else _DIMMED_TEXT)
+            header = QtCore.QRectF(rect.left() + SPATIAL_BACKDROP_PADDING, rect.top() + 2,
+                                   rect.width() - 2 * SPATIAL_BACKDROP_PADDING,
+                                   SPATIAL_BACKDROP_HEADER)
+            painter.drawText(header, int(Qt.AlignVCenter | Qt.AlignLeft),
+                             self._elided(entry['name'], header.width()))
+
+        def _paint_empty_backdrop(self, painter, key):
+            entry = self._entries[key]
+            rect = self._rects[key]
+            lit = self._lit(key)
+            highlighted = key == self._highlighted_key
+            painter.save()
+            painter.setOpacity(1.0 if highlighted else (0.5 if lit else 0.25))
+            color = _qcolor(entry['color']) if lit else _DIMMED
+            fill = QtGui.QColor(color)
+            fill.setAlpha(80)
+            painter.setBrush(fill)
+            pen = QtGui.QPen(_HIGHLIGHT if highlighted else color.lighter(140),
+                             2 if highlighted else 1.2)
+            pen.setStyle(Qt.DashLine)
+            painter.setPen(pen)
+            painter.drawRoundedRect(rect.adjusted(1, 1, -1, -1), 6, 6)
+            painter.setFont(_label_font(italic=True))
+            painter.setPen(QtGui.QColor(230, 230, 230) if lit else _DIMMED_TEXT)
+            text_rect = rect.adjusted(6, 4, -6, -4)
+            painter.drawText(text_rect, int(Qt.AlignCenter),
+                             self._elided(entry['name'], text_rect.width()))
+            painter.restore()
+
+        def _paint_tile(self, painter, key):
+            entry = self._entries[key]
+            rect = self._rects[key]
+            lit = self._lit(key)
+            if lit:
+                painter.setBrush(_qcolor(entry['color']))
+                text_color = QtGui.QColor(17, 17, 17) if is_light(entry['color']) \
+                    else QtGui.QColor(238, 238, 238)
+            else:
+                painter.setBrush(_DIMMED)
+                text_color = _DIMMED_TEXT
+            if key == self._highlighted_key:
+                painter.setPen(QtGui.QPen(_HIGHLIGHT, 2.5))
+            else:
+                painter.setPen(QtGui.QPen(QtGui.QColor(0, 0, 0, 90), 1))
+            painter.drawRoundedRect(rect.adjusted(1, 1, -1, -1), 4, 4)
+            painter.setFont(_label_font(bold=True))
+            painter.setPen(text_color)
+            text_rect = rect.adjusted(5, 0, -5, 0)
+            painter.drawText(text_rect, int(Qt.AlignCenter),
+                             self._elided(entry['name'], text_rect.width()))
+
+        def _paint_dot(self, painter, key):
+            entry = self._entries[key]
+            rect = self._rects[key]
+            lit = self._lit(key)
+            highlighted = key == self._highlighted_key
+            _font_size, diameter, point_size = SPATIAL_DOT_TIERS[entry['tier']]
+            circle = QtCore.QRectF(rect.left(), rect.center().y() - diameter / 2.0,
+                                   diameter, diameter)
+            painter.setBrush(_qcolor(entry['color']) if lit else _DIMMED)
+            if highlighted:
+                painter.setPen(QtGui.QPen(_HIGHLIGHT, 2.5))
+            else:
+                painter.setPen(QtGui.QPen(QtGui.QColor(0, 0, 0, 120), 1))
+            painter.drawEllipse(circle)
+            painter.setFont(_label_font(bold=highlighted, point_size=point_size))
+            painter.setPen(_HIGHLIGHT if highlighted else (_DOT_LABEL_TEXT if lit else _DIMMED_TEXT))
+            text_rect = QtCore.QRectF(circle.right() + _DOT_LABEL_SPACING, rect.top(),
+                                      rect.right() - circle.right(), rect.height())
+            painter.drawText(text_rect, int(Qt.AlignVCenter | Qt.AlignLeft), entry['name'])
+
+        def _elided(self, text, width):
+            metrics = QtGui.QFontMetrics(_label_font(bold=True))
+            return metrics.elidedText(text, Qt.ElideRight, int(width))
+
+        # -- mouse -------------------------------------------------------------
+
+        def key_at(self, point):
+            """Return the key of the topmost item under *point*, or None."""
+            for key in self._entries:
+                if key not in self._frames and self._rects[key].contains(point):
+                    return key
+            for key in sorted(self._frames, key=lambda key: -self._depth[key]):
+                if self._rects[key].contains(point):
+                    return key
+            return None
+
+        def _selectable_key_at(self, point):
+            key = self.key_at(point)
+            if key is None or not self._entries[key]['selectable']:
+                return None
+            return key
+
+        def mouseMoveEvent(self, event):  # noqa: N802 — Qt naming
+            if self._selectable_key_at(QtCore.QPointF(event.pos())) is not None:
+                self.setCursor(Qt.PointingHandCursor)
+            else:
+                self.unsetCursor()
+
+        def leaveEvent(self, event):  # noqa: N802 — Qt naming
+            self.unsetCursor()
 
         def mousePressEvent(self, event):  # noqa: N802 — Qt naming
-            if not self.entry['selectable']:
-                return
-            view = _owning_view(self)
-            if view is not None:
-                view.activate_key(self.entry['key'])
+            key = self._selectable_key_at(QtCore.QPointF(event.pos()))
+            if key is not None and self.on_activate is not None:
+                # Picking closes the popup under a still mouse, so no leave or
+                # move event arrives to put the cursor back.
+                self.unsetCursor()
+                self.on_activate(key)
 
-    class FilterLineEdit(QtWidgets.QLineEdit):
-        """The search field, forwarding the keys that drive the card grid.
+    class SpatialPicker(_tabtabtab.TabTabTabWidget):
+        """The anchor picker with a map of the script beside its search panel."""
 
-        Mirrors tabtabtab's TabyLineEdit: the arrows, Escape and Tab have to be
-        caught in event() rather than keyPressEvent or they never arrive.
-        """
-
-        pressed_arrow = QtCore.Signal(str)
-        cancelled = QtCore.Signal()
-
-        def event(self, event):
-            if event.type() == QtCore.QEvent.KeyPress:
-                key = event.key()
-                direction = _direction_for_key(key)
-                if direction is not None:
-                    self.pressed_arrow.emit(direction)
-                    return True
-                if key == Qt.Key_Escape:
-                    self.cancelled.emit()
-                    return True
-                if key == Qt.Key_Tab:
-                    self.returnPressed.emit()
-                    return True
-            return super(FilterLineEdit, self).event(event)
-
-    class SpatialView(QtWidgets.QDialog):
-        """The popup itself: a filter field over a grid of cards and outlines."""
-
-        def __init__(self, mode, hit_group, plugin, entries, parent=None):
-            super(SpatialView, self).__init__(parent)
+        def __init__(self, plugin, mode, parent=None, space_mode_order=None):
             # Qt.Dialog keeps this a top-level window even with the host main
             # window as parent — see _create_tabtabtab_widget in
             # tabtabtab_anchors.py for why dropping it breaks click-outside.
-            self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
-            self.setAttribute(Qt.WA_TranslucentBackground)
-
-            self._mode = mode
-            self._hit_group = hit_group
-            self._plugin = plugin
-            self._entries_by_key = {entry['key']: entry for entry in entries}
-            self._selectable_keys = [entry['key'] for entry in entries if entry['selectable']]
-            self._weights = _tabtabtab.NodeWeights(plugin.get_weights_file())
-            self._weights.load()
-
-            layout = layout_for_entries(entries)
-            self._cells = layout['cells']
-            self._matched_keys = []
-            self._highlighted_key = None
-            self._widgets_by_key = {}
-
-            self._build_ui(entries, layout)
-            self._apply_filter('')
-
-        # -- construction ----------------------------------------------------
-
-        def _build_ui(self, entries, layout):
-            title_label = QtWidgets.QLabel(_TITLES[self._mode])
-            title_font = QtGui.QFont()
-            title_font.setBold(True)
-            title_font.setPointSize(10)
-            title_label.setFont(title_font)
-            title_label.setStyleSheet("color: #cccccc; background: transparent;")
-            title_label.setAlignment(Qt.AlignCenter)
-
-            self.filter_input = FilterLineEdit()
-            self.filter_input.setPlaceholderText(_PLACEHOLDERS[self._mode])
-            self.filter_input.textChanged.connect(self._apply_filter)
-            self.filter_input.returnPressed.connect(self._activate_highlighted)
-            self.filter_input.cancelled.connect(self.close)
-            self.filter_input.pressed_arrow.connect(self._move_highlight)
-
-            grid_container = QtWidgets.QWidget()
-            grid_container.setAttribute(Qt.WA_TranslucentBackground)
-            grid_layout = QtWidgets.QGridLayout(grid_container)
-            grid_layout.setContentsMargins(6, 6, 6, 6)
-            grid_layout.setSpacing(SPATIAL_GRID_SPACING)
-
-            # Outlines go in first and are lowered, so the cards they span stay
-            # on top of them and keep taking the clicks.
-            for entry in entries:
-                if entry['kind'] != 'backdrop':
-                    continue
-                span = layout['spans'].get(entry['key'])
-                if span is None:
-                    continue
-                top, left, bottom, right = span
-                outline = BackdropOutline(entry, grid_container)
-                grid_layout.addWidget(outline, top, left, bottom - top + 1, right - left + 1)
-                outline.lower()
-                self._widgets_by_key[entry['key']] = outline
-
-            for entry in entries:
-                if entry['kind'] != 'anchor':
-                    continue
-                row, column = self._cells[entry['key']]
-                card = AnchorCard(entry, grid_container)
-                grid_layout.addWidget(card, row, column)
-                self._widgets_by_key[entry['key']] = card
-
-            self._grid_container = grid_container
-            self._scroll_area = QtWidgets.QScrollArea()
-            self._scroll_area.setWidget(grid_container)
-            self._scroll_area.setWidgetResizable(True)
-            self._scroll_area.setFrameShape(QtWidgets.QFrame.NoFrame)
-            self._scroll_area.viewport().setAutoFillBackground(False)
-            self._scroll_area.setStyleSheet(
-                "QScrollArea { background: transparent; border: none; }")
-
-            hint_label = QtWidgets.QLabel(_HINTS[self._mode])
-            hint_font = QtGui.QFont()
-            hint_font.setPointSize(7)
-            hint_label.setFont(hint_font)
-            hint_label.setStyleSheet("color: #888888; background: transparent;")
-            hint_label.setAlignment(Qt.AlignCenter)
-
-            main_layout = QtWidgets.QVBoxLayout()
-            main_layout.setContentsMargins(16, 12, 16, 12)
-            main_layout.setSpacing(8)
-            main_layout.addWidget(title_label)
-            main_layout.addWidget(self.filter_input)
-            main_layout.addWidget(self._scroll_area)
-            main_layout.addWidget(hint_label)
-            self.setLayout(main_layout)
-
-            self._fit_to_screen()
-
-        def _fit_to_screen(self):
-            """Size the popup to its grid, capped at most of the current screen."""
-            available = self._available_screen_rect()
-            grid_hint = self._grid_container.sizeHint()
-            if available is None:
-                self.adjustSize()
-                return
-            max_width = int(available.width() * SPATIAL_MAX_SCREEN_FRACTION)
-            max_height = int(available.height() * SPATIAL_MAX_SCREEN_FRACTION)
-            self._scroll_area.setMinimumSize(
-                max(0, min(grid_hint.width(), max_width)),
-                max(0, min(grid_hint.height(), max_height - _CHROME_HEIGHT)),
+            super(SpatialPicker, self).__init__(
+                plugin,
+                parent=parent,
+                winflags=Qt.Dialog | Qt.FramelessWindowHint,
+                space_mode_order=space_mode_order,
             )
-            self.setMaximumSize(max_width, max_height)
-            self.adjustSize()
+            self.setObjectName('SpatialPicker')
+            palette = self.palette()
+            palette.setColor(QtGui.QPalette.Window, _POPUP_BACKGROUND)
+            self.setPalette(palette)
+            self.setAutoFillBackground(True)
+            self.mode = mode
+            self.map_canvas.on_activate = self.activate_key
 
-        def _available_screen_rect(self):
-            """Return the working area of the screen under the cursor, or None."""
-            cursor_position = QtGui.QCursor.pos()
-            screen = None
-            if hasattr(QtWidgets.QApplication, 'screenAt'):
-                screen = QtWidgets.QApplication.screenAt(cursor_position)
-            if screen is None:
-                screen = QtWidgets.QApplication.primaryScreen()
-            if screen is None:
+        def _build_layout(self):
+            self.map_canvas = MapCanvas()
+            self._map_scroll = QtWidgets.QScrollArea()
+            self._map_scroll.setWidget(self.map_canvas)
+            self._map_scroll.setFrameShape(QtWidgets.QFrame.NoFrame)
+            self._map_scroll.setAlignment(Qt.AlignCenter)
+            self._map_scroll.setStyleSheet(
+                "QScrollArea, QScrollArea > QWidget > QWidget { background: rgb(%d, %d, %d); }"
+                % (_BACKGROUND.red(), _BACKGROUND.green(), _BACKGROUND.blue()))
+
+            search_panel = QtWidgets.QWidget()
+            search_panel.setFixedWidth(SPATIAL_SEARCH_PANEL_WIDTH)
+            search_layout = QtWidgets.QVBoxLayout(search_panel)
+            search_layout.setContentsMargins(0, 0, 0, 0)
+            search_layout.addStretch(1)
+            search_layout.addWidget(self.input)
+            search_layout.addWidget(self.things)
+            search_layout.addStretch(1)
+
+            layout = QtWidgets.QHBoxLayout()
+            layout.addWidget(search_panel)
+            layout.addWidget(self._map_scroll, 1)
+            return layout
+
+        # -- keeping the map in step with the list -----------------------------
+
+        def update(self, text):
+            super(SpatialPicker, self).update(text)
+            self._sync_map()
+
+        def move_selection(self, where):
+            super(SpatialPicker, self).move_selection(where)
+            self._sync_highlight()
+
+        def _matched_item_key(self, item):
+            try:
+                return item['menuobj'].name()
+            except ValueError:
                 return None
-            return screen.availableGeometry()
 
-        # -- filtering and highlight ------------------------------------------
+        def _sync_map(self):
+            self.map_canvas.set_matched(
+                self._matched_item_key(item) for item in self.things_model._items)
+            self._sync_highlight()
 
-        def _selectable_entries(self):
-            return [self._entries_by_key[key] for key in self._selectable_keys]
-
-        def _apply_filter(self, text):
-            """Grey out the cards that no longer match, and re-pick the highlight."""
-            ranked_keys = rank_entries(
-                text,
-                self._selectable_entries(),
-                weight_fn=self._weights.get,
-                space_mode_order=space_mode_order(),
-            )
-            self._matched_keys = ranked_keys
-            matched = set(ranked_keys)
-            for key, widget in self._widgets_by_key.items():
-                # Context-only backdrops are never filtered out: they are the
-                # map's landmarks, not candidates for the search.
-                widget.set_matched(
-                    key in matched or not self._entries_by_key[key]['selectable'])
-            self._set_highlight(ranked_keys[0] if ranked_keys else None)
-
-        def _set_highlight(self, key):
-            if key == self._highlighted_key:
-                return
-            previous_widget = self._widgets_by_key.get(self._highlighted_key)
-            if previous_widget is not None:
-                previous_widget.set_highlighted(False)
-            self._highlighted_key = key
-            current_widget = self._widgets_by_key.get(key)
-            if current_widget is not None:
-                current_widget.set_highlighted(True)
-                self._scroll_area.ensureWidgetVisible(current_widget)
-
-        def _move_highlight(self, direction):
-            if self._highlighted_key is None:
-                self._set_highlight(self._matched_keys[0] if self._matched_keys else None)
-                return
-            next_key = cell_in_direction(
-                self._cells, self._highlighted_key, direction, self._matched_keys)
-            if next_key is not None:
-                self._set_highlight(next_key)
-
-        # -- activation --------------------------------------------------------
-
-        def _activate_highlighted(self):
-            if self._highlighted_key is not None:
-                self.activate_key(self._highlighted_key)
+        def _sync_highlight(self):
+            key = None
+            index = self.things.currentIndex()
+            if index.isValid() and index.row() < len(self.things_model._items):
+                key = self._matched_item_key(self.things_model._items[index.row()])
+            rect = self.map_canvas.set_highlighted(key)
+            if rect is not None:
+                centre = rect.center()
+                self._map_scroll.ensureVisible(
+                    int(centre.x()), int(centre.y()),
+                    int(rect.width() / 2) + 20, int(rect.height() / 2) + 20)
 
         def activate_key(self, key):
-            """Invoke the entry for *key* through the picker plugin, then close.
-
-            Mirrors TabTabTabWidget.create(): the plugin does the work (navigate,
-            or create a link) and the selection weight is bumped, so choosing an
-            anchor here also floats it to the top of the pickers.
-            """
-            entry = self._entries_by_key.get(key)
+            """Pick the map item *key* exactly as if its row had been chosen."""
+            entry = self.map_canvas.entry(key)
             if entry is None or not entry['selectable']:
                 return
-            self._plugin.invoke(entry['item'])
-            self._weights.increment(entry['menupath'])
+            self.plugin.invoke(entry['item'])
+            self.weights.increment(entry['item']['menupath'])
             self.close()
 
-        # -- window plumbing ---------------------------------------------------
+        # -- showing -----------------------------------------------------------
 
-        def paintEvent(self, event):  # noqa: N802 — Qt naming
-            painter = QtGui.QPainter(self)
-            painter.setRenderHint(QtGui.QPainter.Antialiasing)
-            painter.setBrush(QtGui.QColor(20, 20, 20, 225))
-            painter.setPen(QtGui.QColor(180, 180, 180, 120))
-            painter.drawRoundedRect(self.rect().adjusted(0, 0, -1, -1), 8, 8)
+        def show(self):
+            """Rebuild the list and the map from the script, then show.
 
-        def event(self, event):
-            """Close when the window goes inactive — i.e. on a click outside."""
-            if event.type() == QtCore.QEvent.WindowDeactivate:
-                self.close()
-                return True
-            return super(SpatialView, self).event(event)
+            The base picker defers its item refresh until after it is on screen;
+            here the items are needed up front, because the map decides the
+            popup's size and position.
+            """
+            self.weights.load()
+            items = self.plugin.get_items()
+            self.things_model.refresh_items(items)
+            self.map_canvas.set_entries(
+                collect_entries(items, self.mode, self.plugin._hit_group))
+            self._fit_to_screen()
+            self.under_cursor()
+            super(SpatialPicker, self).show()
+            self._sync_map()
+
+        def _refresh_after_show(self):
+            self.move_selection(where="first")
+
+        def _fit_to_screen(self):
+            available = _available_screen_rect()
+            canvas_size = self.map_canvas.size()
+            if available is None:
+                self._map_scroll.setFixedSize(canvas_size)
+                self.adjustSize()
+                return
+            margins = self.layout().contentsMargins()
+            chrome_width = (SPATIAL_SEARCH_PANEL_WIDTH + self.layout().spacing()
+                            + margins.left() + margins.right())
+            chrome_height = margins.top() + margins.bottom()
+            max_width = int(available.width() * SPATIAL_MAX_SCREEN_FRACTION) - chrome_width
+            max_height = int(available.height() * SPATIAL_MAX_SCREEN_FRACTION) - chrome_height
+            scrollbar = self.style().pixelMetric(QtWidgets.QStyle.PM_ScrollBarExtent)
+            width = canvas_size.width()
+            height = canvas_size.height()
+            if height > max_height:
+                width += scrollbar
+            if width > max_width:
+                height += scrollbar
+            self._map_scroll.setFixedSize(min(width, max_width), min(height, max_height))
+            self.adjustSize()
 
         def under_cursor(self):
-            """Centre the popup on the cursor, clamped to the current screen."""
-            available = self._available_screen_rect()
+            """Put the search field under the cursor, as the plain picker does."""
+            available = _available_screen_rect()
             if available is None:
                 return
+            self.layout().activate()
+            input_centre = self.input.mapTo(
+                self, QtCore.QPoint(self.input.width() // 2, self.input.height() // 2))
             cursor_position = QtGui.QCursor.pos()
-            x_position = cursor_position.x() - self.width() // 2
-            y_position = cursor_position.y() - self.height() // 2
+            x_position = cursor_position.x() - input_centre.x()
+            y_position = cursor_position.y() - input_centre.y()
             x_position = max(available.left(),
                              min(x_position, available.right() - self.width()))
             y_position = max(available.top(),
                              min(y_position, available.bottom() - self.height()))
             self.move(x_position, y_position)
 
-        def show(self):
-            super(SpatialView, self).show()
-            self.filter_input.setFocus()
-
-        def close(self):
-            self._weights.save()
-            return super(SpatialView, self).close()
-
 
 # ---------------------------------------------------------------------------
-# Entry points — bound in menu.py and dispatched by the leader key.
+# Entry point — called by the A / Alt+A pickers when the preference is on.
 # ---------------------------------------------------------------------------
 
-_active_view = None
+_pickers = {}
 
 
-def open_view(mode, hit_group=None):
-    """Open the spatial view in *mode* for the group under the cursor.
+def open_picker(mode, hit_group, plugin=None):
+    """Show the spatial picker for *mode* in *hit_group*; return it, or None without Qt.
 
-    Silent no-op when the plugin is disabled, when Qt is unavailable (headless
-    sessions), or when the group holds nothing the view could show — the same
-    guards the pickers apply.
+    *plugin* overrides what picking does (the leader's Set Input To… commands
+    pass their own); by default it is the plugin of the matching plain picker.
+    One picker is kept per mode and reused, like the plain pickers; its list and
+    map are rebuilt from the script on every show.
     """
-    global _active_view
-    if not prefs.plugin_enabled:
+    if SpatialPicker is None:
         return None
-    if QtWidgets is None:
-        return None
-    if hit_group is None:
-        hit_group = nuke.lastHitGroup()
-
-    plugin, entries = collect_entries(mode, hit_group)
-    if not any(entry['selectable'] for entry in entries):
-        return None
-
-    # The view mirrors the script's geometry, which changes as the user works,
-    # so it is rebuilt on every open rather than cached the way the pickers are.
-    if _active_view is not None:
+    if plugin is None:
+        plugin = _plugin_for_mode(mode)
+    plugin._hit_group = hit_group
+    picker = _pickers.get(mode)
+    if picker is not None:
         try:
-            _active_view.close()
-            _active_view.deleteLater()
+            picker.isVisible()
         except RuntimeError:
-            pass
-    _active_view = SpatialView(mode, hit_group, plugin, entries, parent=host_main_window())
-    _active_view.under_cursor()
-    _active_view.show()
-    _active_view.raise_()
-    return _active_view
-
-
-def open_navigate_view():
-    """Open the spatial view for navigation (Alt+S, or leader S)."""
-    return open_view(MODE_NAVIGATE)
-
-
-def open_create_link_view():
-    """Open the spatial view for link creation."""
-    return open_view(MODE_CREATE_LINK)
+            picker = None
+    if picker is None:
+        picker = SpatialPicker(plugin, mode,
+                               parent=host_main_window(),
+                               space_mode_order=space_mode_order())
+        _pickers[mode] = picker
+    else:
+        picker.plugin = plugin
+        picker.things_model._space_mode_order = space_mode_order()
+    picker.show()
+    picker.raise_()
+    return picker

@@ -129,27 +129,37 @@ DEFAULT_SPACE_MODE_ORDER = (
     SPACE_MODE_CONSECUTIVE,
 )
 
-# === Spatial view (issue #83). ===
-# The spatial view lays anchors out as cards on a coarse grid whose cells echo
-# where each anchor sits in the DAG, so the popup reads like a simplified map of
-# the script rather than a flat list.
-#
-# Two DAG coordinates land in the same grid row/column when they are within this
-# many DAG units of the first coordinate in that row/column. Roughly one node
-# width plus its gap, so nodes stacked in an input block share a column while
-# separate modules get their own.
-SPATIAL_CELL_TOLERANCE = 140
-# Upper bounds on the grid. When the anchors in a script spread over more rows or
-# columns than this, the tolerance is doubled until the grid fits — a big script
-# stays a readable map instead of a wall of cards.
-SPATIAL_MAX_COLUMNS = 10
-SPATIAL_MAX_ROWS = 8
-# Card geometry, in pixels. Wide enough for a typical anchor name at the popup's
-# small font without the grid outgrowing the screen at the maximum size above.
-SPATIAL_CARD_WIDTH = 132
-SPATIAL_CARD_HEIGHT = 40
-SPATIAL_GRID_SPACING = 10
-# Fraction of the available screen the popup may occupy before it scrolls.
+# === Spatial view. ===
+# The spatial view draws a map of the script beside the A / Alt+A pickers. Items
+# keep their real DAG arrangement, but the empty space between them is squeezed
+# out: along each axis, the gap between neighbouring coordinates is scaled by
+# SPATIAL_SCALE and then capped at SPATIAL_MAX_GAP pixels, so a module 5000 DAG
+# units away from the next lands just SPATIAL_MAX_GAP pixels from it.
+SPATIAL_SCALE = 0.6
+SPATIAL_MAX_GAP = 24
+# Item geometry, in pixels. Anchors are tiles; Dot anchors are small circles with
+# their label beside them; a backdrop with no anchors inside it is drawn as a
+# faded box half as large again as a tile.
+SPATIAL_TILE_WIDTH = 120
+SPATIAL_TILE_HEIGHT = 30
+# Dot anchors come in three sizes on the map, one per Dot label size preset
+# (Shift+B / N / M); a Dot takes the tier whose preset its label size is nearest.
+# Each tier: (DAG label font size, circle diameter px, label point size).
+SPATIAL_DOT_TIERS = (
+    (DOT_LABEL_FONT_SIZE_SMALL, 10, 8),
+    (DOT_LABEL_FONT_SIZE_MEDIUM, 14, 10),
+    (DOT_LABEL_FONT_SIZE_LARGE, 20, 12),
+)
+SPATIAL_EMPTY_BACKDROP_SCALE = 1.5
+# A backdrop that encloses anchors is drawn as a frame around them: this much
+# padding on every side, plus a header strip on top for its label.
+SPATIAL_BACKDROP_PADDING = 8
+SPATIAL_BACKDROP_HEADER = 18
+# Minimum clearance the de-overlap pass leaves between any two items.
+SPATIAL_ITEM_GAP = 6
+# Width of the search panel on the map's left.
+SPATIAL_SEARCH_PANEL_WIDTH = 300
+# Fraction of the available screen the popup may occupy before the map scrolls.
 SPATIAL_MAX_SCREEN_FRACTION = 0.9
 
 # === Leader-key bindings — single source of truth for leader.py and leader_overlay.py. ===
@@ -167,7 +177,6 @@ LEADER_BINDINGS = (
     ('W', 'Set A Input',     0, 1, 'single'),
     ('E', 'Set Mask Input',  0, 2, 'single'),
     ('R', 'Set First Free',  0, 3, 'single'),
-    ('S', 'Spatial View',    1, 1, 'single'),
     ('F', 'Anchor Find',     1, 3, 'single'),
     ('J', 'Anchor Jump',     1, 6, 'single'),
     ('L', 'Cycle Links',     1, 8, 'chaining'),

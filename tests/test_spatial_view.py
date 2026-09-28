@@ -1,310 +1,277 @@
-"""Tests for spatial_view.py — the grid layout, the filter, and the entry points.
+"""Tests for spatial_view.py — the map layout, what the map lists, and how it opens.
 
 The Qt widgets are not under test (a stubbed PySide6 cannot lay out or paint
-anything). What is tested is everything the widgets are a thin shell over:
+anything). What is tested is everything they are a thin shell over:
 
-  - assign_cells / build_layout — the DAG-to-grid mapping that makes the popup a
-    map of the script: relative order preserved, nearby nodes sharing a cell
-    row/column, collisions resolved to distinct cells, the grid capped in size,
-    and backdrops spanning the cells of the anchors they contain.
-  - rank_entries — the pickers' fuzzy search applied to cards, including the
-    space-prefix search modes and the selection weights.
-  - cell_in_direction — spatial arrow-key movement across the matched cards.
-  - collect_entries / layout_for_entries — what the view lists in each mode.
-  - open_view — the guards that make the command a silent no-op.
-
-The fuzzy-find functions live in tabtabtab_anchors, which the shared test stubs
-replace with a bare module; the real (Qt-free) search functions are loaded onto
-that stub here so the filter is exercised against the code that actually ships.
+  - compress_axis / build_layout — the DAG-to-map mapping: real order kept,
+    empty space squeezed out, nothing colliding, backdrops framing exactly what
+    they enclose, and empty backdrops drawn as boxes of their own.
+  - collect_entries / layout_items_for — what the map shows in each mode.
+  - open_picker, and the A / Alt+A entry points that call it only when the
+    preference is on.
 """
 
-import importlib.util
-import os
+import ast
+import importlib
+import itertools
+import pathlib
 import sys
-import types
 import unittest
 from unittest.mock import MagicMock, patch
 
 from tests.stubs import StubKnob, StubNode
 
-_REPOSITORY_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_SEARCH_ATTRIBUTES = (
-    'consec_find',
-    'nonconsec_find',
-    'parse_search_modes',
-    'menupath_uiname',
-    'DEFAULT_SPACE_MODE_ORDER',
-    'VALID_MODES',
-    'MODE_ANCHORED_FUZZY',
-    'MODE_NON_ANCHORED_FUZZY',
-    'MODE_CONSECUTIVE',
+import spatial_view
+from constants import (
+    SPATIAL_BACKDROP_HEADER,
+    SPATIAL_BACKDROP_PADDING,
+    SPATIAL_DOT_TIERS,
+    SPATIAL_EMPTY_BACKDROP_SCALE,
+    SPATIAL_ITEM_GAP,
+    SPATIAL_MAX_GAP,
+    SPATIAL_TILE_HEIGHT,
+    SPATIAL_TILE_WIDTH,
 )
 
-
-def _install_real_search_functions():
-    """Copy tabtabtab_anchors' real search functions onto the stub module."""
-    spec = importlib.util.spec_from_file_location(
-        'tabtabtab_anchors_real', os.path.join(_REPOSITORY_ROOT, 'tabtabtab_anchors.py'))
-    real_module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(real_module)
-    stub_module = sys.modules['tabtabtab_anchors']
-    for attribute_name in _SEARCH_ATTRIBUTES:
-        setattr(stub_module, attribute_name, getattr(real_module, attribute_name))
+def _char_width(text, _point_size):
+    return len(text)
 
 
-_install_real_search_functions()
+_REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-import spatial_view  # noqa: E402 — must follow the stub set-up above
-
-
-def _anchor(key, x, y):
-    return {'key': key, 'x': x, 'y': y}
+_TILE_SIZE = (SPATIAL_TILE_WIDTH, SPATIAL_TILE_HEIGHT)
+_EMPTY_SIZE = (SPATIAL_TILE_WIDTH * SPATIAL_EMPTY_BACKDROP_SCALE,
+               SPATIAL_TILE_HEIGHT * SPATIAL_EMPTY_BACKDROP_SCALE)
 
 
-def _backdrop(key, x, y, width, height):
-    return {'key': key, 'x': x, 'y': y, 'width': width, 'height': height}
+def _tile(key, x, y):
+    return {'key': key, 'kind': spatial_view.KIND_TILE, 'x': x, 'y': y,
+            'size': _TILE_SIZE, 'origin': (_TILE_SIZE[0] / 2.0, _TILE_SIZE[1] / 2.0)}
 
 
-def _entry(key, menupath, kind='anchor', selectable=True, node=None):
-    return {
-        'key': key,
-        'menupath': menupath,
-        'node': node,
-        'item': {'menuobj': node, 'menupath': menupath},
-        'kind': kind,
-        'selectable': selectable,
-    }
+def _dot(key, x, y, width=60):
+    return {'key': key, 'kind': spatial_view.KIND_DOT, 'x': x, 'y': y,
+            'size': (width, 14), 'origin': (6, 7)}
 
 
-class TestAssignCells(unittest.TestCase):
-    """The grid echoes DAG geometry: same order, no overlaps, bounded size."""
-
-    def test_no_placements_gives_no_cells(self):
-        self.assertEqual(spatial_view.assign_cells([]), {})
-
-    def test_single_placement_lands_on_the_origin_cell(self):
-        cells = spatial_view.assign_cells([('a', 900, -400)])
-        self.assertEqual(cells, {'a': (0, 0)})
-
-    def test_left_to_right_order_is_preserved(self):
-        cells = spatial_view.assign_cells(
-            [('left', 0, 0), ('middle', 500, 0), ('right', 1000, 0)], tolerance=100)
-        self.assertLess(cells['left'][1], cells['middle'][1])
-        self.assertLess(cells['middle'][1], cells['right'][1])
-
-    def test_top_to_bottom_order_is_preserved(self):
-        cells = spatial_view.assign_cells(
-            [('top', 0, 0), ('bottom', 0, 600)], tolerance=100)
-        self.assertLess(cells['top'][0], cells['bottom'][0])
-
-    def test_nearby_coordinates_share_a_column(self):
-        # Two anchors 40 units apart in x are one module's worth apart, so they
-        # belong in the same column of the simplified map.
-        cells = spatial_view.assign_cells(
-            [('a', 0, 0), ('b', 40, 300)], tolerance=140)
-        self.assertEqual(cells['a'][1], cells['b'][1])
-
-    def test_coordinates_beyond_the_tolerance_get_their_own_column(self):
-        cells = spatial_view.assign_cells(
-            [('a', 0, 0), ('b', 400, 0)], tolerance=140)
-        self.assertNotEqual(cells['a'][1], cells['b'][1])
-
-    def test_identical_positions_still_get_distinct_cells(self):
-        cells = spatial_view.assign_cells(
-            [('a', 100, 100), ('b', 100, 100), ('c', 100, 100)])
-        self.assertEqual(len(set(cells.values())), 3)
-
-    def test_colliding_cards_stack_down_their_own_column(self):
-        # A module's anchors sit at nearly the same x, so a collision must never
-        # push a card into a neighbouring module's column.
-        cells = spatial_view.assign_cells(
-            [('a', 0, 0), ('b', 0, 0), ('c', 0, 0)], tolerance=140)
-        self.assertEqual({column for _row, column in cells.values()}, {0})
-        self.assertEqual(sorted(row for row, _column in cells.values()), [0, 1, 2])
-
-    def test_cells_are_normalised_to_the_origin(self):
-        cells = spatial_view.assign_cells(
-            [('a', -5000, -5000), ('b', -4000, -4000)], tolerance=100)
-        self.assertEqual(min(row for row, _column in cells.values()), 0)
-        self.assertEqual(min(column for _row, column in cells.values()), 0)
-
-    def test_wide_scripts_are_capped_at_the_maximum_columns(self):
-        # 30 anchors spread across a huge script would otherwise give 30 columns.
-        placements = [(index, index * 1000, 0) for index in range(30)]
-        cells = spatial_view.assign_cells(placements, tolerance=140, max_rows=8, max_columns=6)
-        self.assertLessEqual(max(column for _row, column in cells.values()), 5)
-        self.assertEqual(len(set(cells.values())), len(placements))
-
-    def test_binning_widens_the_tolerance_until_the_axis_fits(self):
-        values = [index * 1000 for index in range(30)]
-        bins = spatial_view._binned_axis(values, tolerance=140, maximum=6)
-        self.assertLessEqual(max(bins.values()) + 1, 6)
-        # Widening merges neighbours, so the original order still holds.
-        self.assertLessEqual(bins[values[0]], bins[values[-1]])
-
-    def test_layout_does_not_depend_on_input_order(self):
-        placements = [('a', 0, 0), ('b', 500, 0), ('c', 0, 500), ('d', 500, 500)]
-        first = spatial_view.assign_cells(placements, tolerance=140)
-        second = spatial_view.assign_cells(list(reversed(placements)), tolerance=140)
-        self.assertEqual(first, second)
+def _backdrop(key, x, y, width, height, min_width=0):
+    return {'key': key, 'kind': spatial_view.KIND_BACKDROP, 'x': x, 'y': y,
+            'width': width, 'height': height, 'size': _EMPTY_SIZE, 'min_width': min_width}
 
 
-class TestBuildLayout(unittest.TestCase):
-    """Backdrops become outlines spanning the cells of the anchors inside them."""
+def _overlaps(first, second, clearance=0):
+    ax, ay, aw, ah = first
+    bx, by, bw, bh = second
+    return (ax < bx + bw + clearance and bx < ax + aw + clearance
+            and ay < by + bh + clearance and by < ay + ah + clearance)
 
-    def test_backdrop_spans_the_cells_of_the_anchors_it_contains(self):
-        anchors = [_anchor('a', 0, 0), _anchor('b', 500, 0), _anchor('outside', 5000, 5000)]
-        backdrops = [_backdrop('bd', -50, -50, 700, 200)]
-        layout = spatial_view.build_layout(anchors, backdrops)
 
-        top, left, bottom, right = layout['spans']['bd']
-        anchor_cells = [layout['cells']['a'], layout['cells']['b']]
-        self.assertEqual(top, min(row for row, _column in anchor_cells))
-        self.assertEqual(left, min(column for _row, column in anchor_cells))
-        self.assertEqual(bottom, max(row for row, _column in anchor_cells))
-        self.assertEqual(right, max(column for _row, column in anchor_cells))
+def _encloses(outer, inner):
+    ox, oy, ow, oh = outer
+    ix, iy, iw, ih = inner
+    return ox <= ix and oy <= iy and ix + iw <= ox + ow and iy + ih <= oy + oh
 
-    def test_anchor_outside_the_backdrop_is_not_spanned(self):
-        anchors = [_anchor('inside', 10, 10), _anchor('outside', 9000, 10)]
-        backdrops = [_backdrop('bd', 0, 0, 100, 100)]
-        layout = spatial_view.build_layout(anchors, backdrops)
-        top, left, bottom, right = layout['spans']['bd']
-        outside_row, outside_column = layout['cells']['outside']
-        self.assertFalse(top <= outside_row <= bottom and left <= outside_column <= right)
 
-    def test_backdrop_with_no_anchors_takes_a_cell_of_its_own(self):
-        anchors = [_anchor('a', 0, 0)]
-        backdrops = [_backdrop('empty', 4000, 4000, 200, 200)]
-        layout = spatial_view.build_layout(anchors, backdrops)
+def _centre_x(rect):
+    return rect[0] + rect[2] / 2.0
 
-        self.assertIn('empty', layout['cells'])
-        row, column = layout['cells']['empty']
-        self.assertEqual(layout['spans']['empty'], (row, column, row, column))
-        self.assertNotEqual(layout['cells']['a'], layout['cells']['empty'])
 
-    def test_anchors_only_layout_has_no_spans(self):
-        layout = spatial_view.build_layout([_anchor('a', 0, 0)], [])
-        self.assertEqual(layout['spans'], {})
-        self.assertEqual((layout['rows'], layout['columns']), (1, 1))
+def _centre_y(rect):
+    return rect[1] + rect[3] / 2.0
 
-    def test_rows_and_columns_report_the_grid_extent(self):
-        anchors = [_anchor('a', 0, 0), _anchor('b', 1000, 1000)]
-        layout = spatial_view.build_layout(anchors, [], tolerance=140)
-        self.assertEqual(layout['rows'], 2)
-        self.assertEqual(layout['columns'], 2)
+
+class TestCompressAxis(unittest.TestCase):
+    """Order survives, small gaps keep their proportion, big gaps collapse."""
+
+    def test_order_is_preserved(self):
+        positions = spatial_view.compress_axis([300, -100, 50])
+        self.assertLess(positions[-100], positions[50])
+        self.assertLess(positions[50], positions[300])
+
+    def test_first_value_is_at_zero(self):
+        self.assertEqual(spatial_view.compress_axis([500, 700])[500], 0)
+
+    def test_small_gaps_are_scaled(self):
+        positions = spatial_view.compress_axis([0, 20], scale=0.5, max_gap=100)
+        self.assertEqual(positions[20], 10)
+
+    def test_large_gaps_are_capped(self):
+        positions = spatial_view.compress_axis([0, 5000, 5010], scale=0.5, max_gap=40)
+        self.assertEqual(positions[5000], 40)
+        self.assertEqual(positions[5010], 45)
+
+    def test_equal_values_share_a_position(self):
+        positions = spatial_view.compress_axis([10, 10, 30])
+        self.assertEqual(len(positions), 2)
+
+    def test_no_values_gives_no_positions(self):
+        self.assertEqual(spatial_view.compress_axis([]), {})
+
+
+class TestBuildLayoutPlacement(unittest.TestCase):
+    """Items stay where the DAG puts them, relative to each other."""
 
     def test_empty_layout_is_empty(self):
-        layout = spatial_view.build_layout([], [])
-        self.assertEqual(layout['cells'], {})
-        self.assertEqual((layout['rows'], layout['columns']), (0, 0))
+        layout = spatial_view.build_layout([])
+        self.assertEqual(layout['rects'], {})
+        self.assertEqual((layout['width'], layout['height']), (0, 0))
+
+    def test_left_right_and_above_below_are_preserved(self):
+        rects = spatial_view.build_layout([
+            _tile('top_left', 0, 0),
+            _tile('top_right', 2000, 0),
+            _tile('bottom_left', 0, 1500),
+        ])['rects']
+        self.assertLess(_centre_x(rects['top_left']), _centre_x(rects['top_right']))
+        self.assertLess(_centre_y(rects['top_left']), _centre_y(rects['bottom_left']))
+
+    def test_blank_space_between_distant_items_is_collapsed(self):
+        rects = spatial_view.build_layout([_tile('a', 0, 0), _tile('b', 10000, 0)])['rects']
+        distance = _centre_x(rects['b']) - _centre_x(rects['a'])
+        self.assertLessEqual(distance, SPATIAL_TILE_WIDTH + SPATIAL_MAX_GAP + SPATIAL_ITEM_GAP)
+
+    def test_layout_is_normalised_to_the_origin(self):
+        layout = spatial_view.build_layout([_tile('a', -5000, -3000), _tile('b', 400, 90)])
+        self.assertEqual(min(x for x, _y, _w, _h in layout['rects'].values()), 0)
+        self.assertEqual(min(y for _x, y, _w, _h in layout['rects'].values()), 0)
+
+    def test_extent_covers_every_item(self):
+        layout = spatial_view.build_layout([_tile('a', 0, 0), _dot('b', 300, 400)])
+        for x, y, width, height in layout['rects'].values():
+            self.assertLessEqual(x + width, layout['width'])
+            self.assertLessEqual(y + height, layout['height'])
+
+    def test_layout_does_not_depend_on_input_order(self):
+        items = [_tile('a', 0, 0), _tile('b', 30, 5), _dot('c', 10, 10),
+                 _backdrop('bd', -100, -100, 400, 400)]
+        expected = spatial_view.build_layout(items)['rects']
+        for permutation in itertools.permutations(items):
+            self.assertEqual(spatial_view.build_layout(list(permutation))['rects'], expected)
 
 
-class TestRankEntries(unittest.TestCase):
-    """The cards are filtered by exactly the search the pickers use."""
+class TestBuildLayoutDeOverlap(unittest.TestCase):
+    """Nothing collides, however crowded the DAG is."""
 
-    def setUp(self):
-        self.entries = [
-            _entry(0, 'Anchors/BG_Plate'),
-            _entry(1, 'Anchors/CG_Env'),
-            _entry(2, 'Anchors/bg_matte'),
-            _entry(3, 'Backdrops/plates'),
+    def _assert_no_collisions(self, rects, keys):
+        for first, second in itertools.combinations(keys, 2):
+            self.assertFalse(
+                _overlaps(rects[first], rects[second]),
+                "%s %s collides with %s %s" % (first, rects[first], second, rects[second]))
+
+    def test_items_at_the_same_position_are_pulled_apart(self):
+        rects = spatial_view.build_layout([_tile('a', 0, 0), _tile('b', 0, 0)])['rects']
+        self._assert_no_collisions(rects, ['a', 'b'])
+
+    def test_a_crowded_cluster_ends_with_no_collisions(self):
+        items = [_tile('t%d_%d' % (row, column), column * 40, row * 20)
+                 for row in range(5) for column in range(6)]
+        items += [_dot('d%d' % index, index * 25, 30) for index in range(8)]
+        rects = spatial_view.build_layout(items)['rects']
+        self._assert_no_collisions(rects, [item['key'] for item in items])
+
+    def test_separated_items_keep_the_gap_between_them(self):
+        rects = spatial_view.build_layout([_tile('a', 0, 0), _tile('b', 1, 0)])['rects']
+        self.assertFalse(_overlaps(rects['a'], rects['b'], clearance=SPATIAL_ITEM_GAP - 0.01))
+
+    def test_side_by_side_neighbours_separate_sideways(self):
+        rects = spatial_view.build_layout([_tile('a', 0, 0), _tile('b', 60, 0)])['rects']
+        self.assertEqual(_centre_y(rects['a']), _centre_y(rects['b']))
+        self.assertLess(_centre_x(rects['a']), _centre_x(rects['b']))
+
+    def test_backdrop_frames_do_not_collide_with_each_other(self):
+        items = [
+            _backdrop('left', 0, 0, 200, 200), _tile('a', 100, 100),
+            _backdrop('right', 210, 0, 200, 200), _tile('b', 310, 100),
         ]
-
-    def test_empty_query_matches_everything(self):
-        self.assertEqual(
-            sorted(spatial_view.rank_entries('', self.entries)), [0, 1, 2, 3])
-
-    def test_anchored_fuzzy_is_the_default(self):
-        # "bgp" matches BG_Plate from its first letter, but not CG_Env.
-        matched = spatial_view.rank_entries('bgp', self.entries)
-        self.assertIn(0, matched)
-        self.assertNotIn(1, matched)
-
-    def test_non_matching_entries_are_excluded(self):
-        self.assertEqual(spatial_view.rank_entries('zzzz', self.entries), [])
-
-    def test_one_leading_space_switches_to_non_anchored_by_default(self):
-        # "matte" is not at the start of "bg_matte [Anchors]", so it needs the
-        # one-space (non-anchored) mode to match.
-        self.assertNotIn(2, spatial_view.rank_entries('matte', self.entries))
-        self.assertIn(2, spatial_view.rank_entries(' matte', self.entries))
-
-    def test_space_mode_order_from_preferences_is_honoured(self):
-        # With non-anchored fuzzy mapped to no leading space, the same query
-        # matches without the user typing a space.
-        reordered = [
-            'non_anchored_fuzzy',
-            'anchored_fuzzy',
-            'consecutive',
-        ]
-        matched = spatial_view.rank_entries(
-            'matte', self.entries, space_mode_order=reordered)
-        self.assertIn(2, matched)
-
-    def test_weights_float_the_most_used_entry_first(self):
-        weights = {'Anchors/CG_Env': 1.0}
-        matched = spatial_view.rank_entries(
-            '', self.entries, weight_fn=lambda menupath: weights.get(menupath, 0.0))
-        self.assertEqual(matched[0], 1)
-
-    def test_consecutive_matches_rank_above_merely_fuzzy_ones(self):
-        entries = [
-            _entry(0, 'Anchors/bxgx'),   # fuzzy: b, g in order but not adjacent
-            _entry(1, 'Anchors/bg_key'),  # consecutive: literally starts "bg"
-        ]
-        self.assertEqual(spatial_view.rank_entries('bg', entries), [1, 0])
+        rects = spatial_view.build_layout(items)['rects']
+        self.assertFalse(_overlaps(rects['left'], rects['right']))
 
 
-class TestCellInDirection(unittest.TestCase):
-    """Arrow keys step across the map, not down a list."""
+class TestBuildLayoutBackdrops(unittest.TestCase):
+    """Backdrops frame what they really enclose; empty ones are faded boxes."""
 
-    def setUp(self):
-        #  a b
-        #  c d
-        self.cells = {'a': (0, 0), 'b': (0, 1), 'c': (1, 0), 'd': (1, 1)}
-        self.all_keys = ['a', 'b', 'c', 'd']
+    def test_backdrop_frames_the_anchors_inside_it(self):
+        layout = spatial_view.build_layout([
+            _backdrop('bd', 0, 0, 1000, 600),
+            _tile('a', 100, 100), _tile('b', 800, 500), _dot('c', 400, 300),
+        ])
+        self.assertIn('bd', layout['frames'])
+        for key in ('a', 'b', 'c'):
+            self.assertTrue(_encloses(layout['rects']['bd'], layout['rects'][key]), key)
 
-    def test_right_moves_to_the_card_on_the_right(self):
-        self.assertEqual(
-            spatial_view.cell_in_direction(self.cells, 'a', 'right', self.all_keys), 'b')
+    def test_frame_leaves_room_for_the_header_and_padding(self):
+        rects = spatial_view.build_layout([
+            _backdrop('bd', 0, 0, 500, 500), _tile('a', 100, 100)])['rects']
+        frame_x, frame_y, _w, _h = rects['bd']
+        tile_x, tile_y, _tw, _th = rects['a']
+        self.assertEqual(tile_x - frame_x, SPATIAL_BACKDROP_PADDING)
+        self.assertEqual(tile_y - frame_y, SPATIAL_BACKDROP_PADDING + SPATIAL_BACKDROP_HEADER)
 
-    def test_down_moves_to_the_card_below(self):
-        self.assertEqual(
-            spatial_view.cell_in_direction(self.cells, 'a', 'down', self.all_keys), 'c')
+    def test_frame_is_at_least_as_wide_as_its_label(self):
+        rects = spatial_view.build_layout([
+            _backdrop('bd', 0, 0, 500, 500, min_width=400), _tile('a', 100, 100)])['rects']
+        self.assertEqual(rects['bd'][2], 400)
 
-    def test_left_and_up_move_back(self):
-        self.assertEqual(
-            spatial_view.cell_in_direction(self.cells, 'd', 'left', self.all_keys), 'c')
-        self.assertEqual(
-            spatial_view.cell_in_direction(self.cells, 'd', 'up', self.all_keys), 'b')
+    def test_anchor_outside_the_backdrop_is_not_framed(self):
+        layout = spatial_view.build_layout([
+            _backdrop('bd', 0, 0, 300, 300), _tile('inside', 100, 100),
+            _tile('outside', 350, 100)])
+        self.assertIsNone(layout['parent']['outside'])
+        self.assertFalse(_overlaps(layout['rects']['bd'], layout['rects']['outside']))
 
-    def test_no_card_in_that_direction_returns_none(self):
-        self.assertIsNone(
-            spatial_view.cell_in_direction(self.cells, 'a', 'up', self.all_keys))
+    def test_anchors_belong_to_the_innermost_backdrop(self):
+        layout = spatial_view.build_layout([
+            _backdrop('outer', 0, 0, 1000, 1000),
+            _backdrop('inner', 100, 100, 300, 300),
+            _tile('a', 200, 200), _tile('b', 700, 700),
+        ])
+        self.assertEqual(layout['parent']['a'], 'inner')
+        self.assertEqual(layout['parent']['b'], 'outer')
+        self.assertEqual(layout['parent']['inner'], 'outer')
+        self.assertTrue(_encloses(layout['rects']['outer'], layout['rects']['inner']))
+        self.assertTrue(_encloses(layout['rects']['inner'], layout['rects']['a']))
+        self.assertEqual(layout['depth'], {'outer': 0, 'inner': 1})
 
-    def test_filtered_out_cards_are_skipped(self):
-        # 'b' is greyed out by the search, so Right lands on the next match.
-        cells = {'a': (0, 0), 'b': (0, 1), 'far': (0, 5)}
-        self.assertEqual(
-            spatial_view.cell_in_direction(cells, 'a', 'right', ['a', 'far']), 'far')
+    def test_backdrop_without_anchors_is_a_box_half_as_large_again_as_a_tile(self):
+        layout = spatial_view.build_layout([
+            _backdrop('empty', 0, 0, 300, 300), _tile('a', 1000, 0)])
+        self.assertNotIn('empty', layout['frames'])
+        _x, _y, width, height = layout['rects']['empty']
+        self.assertEqual((width, height), (SPATIAL_TILE_WIDTH * 1.5, SPATIAL_TILE_HEIGHT * 1.5))
 
-    def test_same_row_is_preferred_over_a_nearer_diagonal(self):
-        cells = {'a': (1, 0), 'same_row': (1, 2), 'diagonal': (0, 1)}
-        self.assertEqual(
-            spatial_view.cell_in_direction(cells, 'a', 'right', ['same_row', 'diagonal']),
-            'same_row')
+    def test_empty_backdrop_inside_a_framed_one_is_enclosed_by_it(self):
+        layout = spatial_view.build_layout([
+            _backdrop('outer', 0, 0, 2000, 2000),
+            _backdrop('empty', 100, 100, 200, 200),
+            _tile('a', 1500, 1500),
+        ])
+        self.assertEqual(layout['parent']['empty'], 'outer')
+        self.assertTrue(_encloses(layout['rects']['outer'], layout['rects']['empty']))
 
-    def test_unknown_direction_returns_none(self):
-        self.assertIsNone(
-            spatial_view.cell_in_direction(self.cells, 'a', 'sideways', self.all_keys))
+    def test_empty_backdrop_nested_in_another_empty_one_stays_a_box(self):
+        layout = spatial_view.build_layout([
+            _backdrop('outer', 0, 0, 1000, 1000),
+            _backdrop('inner', 100, 100, 200, 200),
+            _tile('a', 3000, 0),
+        ])
+        self.assertEqual(layout['frames'], set())
+        self.assertFalse(_overlaps(layout['rects']['outer'], layout['rects']['inner']))
 
 
-def _make_anchor_node(name, xpos, ypos, tile_color=0xAABBCCFF):
+def _anchor_node(name, xpos=0, ypos=0, tile_color=0xAABBCCFF):
     return StubNode(name=name, node_class='NoOp', xpos=xpos, ypos=ypos,
                     knobs_dict={'tile_color': StubKnob(tile_color)})
 
 
-def _make_backdrop_node(name, xpos, ypos, width, height, label='backdrop'):
+def _dot_node(name, xpos=0, ypos=0, hide_input=False, font_size=33):
+    return StubNode(name=name, node_class='Dot', xpos=xpos, ypos=ypos,
+                    knobs_dict={'tile_color': StubKnob(0x7F00FFFF),
+                                'hide_input': StubKnob(hide_input),
+                                'note_font_size': StubKnob(font_size),
+                                'label': StubKnob(name)})
+
+
+def _backdrop_node(name, xpos=0, ypos=0, width=400, height=400, label='plates'):
     return StubNode(name=name, node_class='BackdropNode', xpos=xpos, ypos=ypos,
                     knobs_dict={
                         'tile_color': StubKnob(0x223344FF),
@@ -314,208 +281,291 @@ def _make_backdrop_node(name, xpos, ypos, width, height, label='backdrop'):
                     })
 
 
+def _item(node, menupath):
+    return {'menuobj': node, 'menupath': menupath}
+
+
 class TestCollectEntries(unittest.TestCase):
-    """Each mode lists what its picker lists, plus backdrops for context."""
+    """The map shows what the picker lists, plus backdrops for context."""
 
-    def setUp(self):
-        self.anchor_node = _make_anchor_node('Anchor_BG', 0, 0)
-        self.backdrop_node = _make_backdrop_node('BackdropNode1', -50, -50, 400, 400)
-        self.hit_group = MagicMock()
-
-    def _plugin_returning(self, items):
-        plugin = MagicMock()
-        plugin.get_items.return_value = items
-        return plugin
-
-    def test_navigate_mode_marks_backdrops_selectable(self):
+    def test_entries_are_keyed_by_node_name_and_sorted_into_kinds(self):
         items = [
-            {'menuobj': self.anchor_node, 'menupath': 'Anchors/BG'},
-            {'menuobj': self.backdrop_node, 'menupath': 'Backdrops/plates'},
+            _item(_anchor_node('Anchor_BG'), 'Anchors/BG'),
+            _item(_dot_node('Dot1'), 'Anchors/keyer'),
+            _item(_backdrop_node('BackdropNode1'), 'Backdrops/plates'),
         ]
-        with patch.object(spatial_view, '_plugin_for_mode',
-                          return_value=self._plugin_returning(items)):
-            _plugin, entries = spatial_view.collect_entries(
-                spatial_view.MODE_NAVIGATE, self.hit_group)
-
-        self.assertEqual([entry['kind'] for entry in entries], ['anchor', 'backdrop'])
+        entries = spatial_view.collect_entries(items, spatial_view.MODE_NAVIGATE, None)
+        self.assertEqual([entry['key'] for entry in entries],
+                         ['Anchor_BG', 'Dot1', 'BackdropNode1'])
+        self.assertEqual([entry['kind'] for entry in entries],
+                         [spatial_view.KIND_TILE, spatial_view.KIND_DOT,
+                          spatial_view.KIND_BACKDROP])
+        self.assertEqual([entry['name'] for entry in entries], ['BG', 'keyer', 'plates'])
         self.assertTrue(all(entry['selectable'] for entry in entries))
 
-    def test_create_link_mode_adds_backdrops_as_unselectable_context(self):
-        items = [{'menuobj': self.anchor_node, 'menupath': 'Anchors/BG'}]
-        nuke_stub = sys.modules['nuke']
-        with patch.object(spatial_view, '_plugin_for_mode',
-                          return_value=self._plugin_returning(items)), \
-                patch.object(nuke_stub, 'allNodes', return_value=[self.backdrop_node]):
-            _plugin, entries = spatial_view.collect_entries(
-                spatial_view.MODE_CREATE_LINK, self.hit_group)
+    def test_local_dots_never_appear(self):
+        items = [_item(_dot_node('Dot2', hide_input=True), 'Anchors/Local: Grade1')]
+        self.assertEqual(
+            spatial_view.collect_entries(items, spatial_view.MODE_NAVIGATE, None), [])
 
+    def test_create_link_mode_adds_backdrops_as_unselectable_context(self):
+        items = [_item(_anchor_node('Anchor_BG'), 'Anchors/BG')]
+        with patch.object(sys.modules['nuke'], 'allNodes',
+                          return_value=[_backdrop_node('BackdropNode1')]):
+            entries = spatial_view.collect_entries(
+                items, spatial_view.MODE_CREATE_LINK, MagicMock())
         self.assertEqual(len(entries), 2)
-        self.assertTrue(entries[0]['selectable'])
-        self.assertEqual(entries[1]['kind'], 'backdrop')
+        self.assertEqual(entries[1]['kind'], spatial_view.KIND_BACKDROP)
         self.assertFalse(entries[1]['selectable'])
-        self.assertEqual(entries[1]['menupath'], 'Backdrops/backdrop')
+        self.assertEqual(entries[1]['item']['menupath'], 'Backdrops/plates')
 
     def test_create_link_mode_skips_unlabelled_backdrops(self):
-        unlabelled = _make_backdrop_node('BackdropNode2', 0, 0, 100, 100, label='   ')
-        items = [{'menuobj': self.anchor_node, 'menupath': 'Anchors/BG'}]
-        nuke_stub = sys.modules['nuke']
-        with patch.object(spatial_view, '_plugin_for_mode',
-                          return_value=self._plugin_returning(items)), \
-                patch.object(nuke_stub, 'allNodes', return_value=[unlabelled]):
-            _plugin, entries = spatial_view.collect_entries(
-                spatial_view.MODE_CREATE_LINK, self.hit_group)
-
+        items = [_item(_anchor_node('Anchor_BG'), 'Anchors/BG')]
+        with patch.object(sys.modules['nuke'], 'allNodes',
+                          return_value=[_backdrop_node('BackdropNode2', label='  ')]):
+            entries = spatial_view.collect_entries(
+                items, spatial_view.MODE_CREATE_LINK, MagicMock())
         self.assertEqual(len(entries), 1)
 
-    def test_entry_keys_are_unique(self):
-        items = [
-            {'menuobj': self.anchor_node, 'menupath': 'Anchors/BG'},
-            {'menuobj': self.backdrop_node, 'menupath': 'Backdrops/plates'},
-        ]
-        with patch.object(spatial_view, '_plugin_for_mode',
-                          return_value=self._plugin_returning(items)):
-            _plugin, entries = spatial_view.collect_entries(
-                spatial_view.MODE_NAVIGATE, self.hit_group)
-        keys = [entry['key'] for entry in entries]
-        self.assertEqual(len(set(keys)), len(keys))
+
+class TestLayoutItemsFor(unittest.TestCase):
+    """Node geometry becomes layout geometry."""
+
+    def _entries(self, *items):
+        return spatial_view.collect_entries(list(items), spatial_view.MODE_NAVIGATE, None)
+
+    def test_anchors_are_placed_by_their_centre(self):
+        entries = self._entries(_item(_anchor_node('Anchor_BG', 100, 200), 'Anchors/BG'))
+        (layout_item,) = spatial_view.layout_items_for(entries, _char_width)
+        self.assertEqual((layout_item['x'], layout_item['y']), (150, 225))
+        self.assertEqual(layout_item['size'], _TILE_SIZE)
+
+    def test_dot_box_makes_room_for_its_label(self):
+        short, long_ = spatial_view.layout_items_for(self._entries(
+            _item(_dot_node('Dot1'), 'Anchors/a'),
+            _item(_dot_node('Dot2'), 'Anchors/a much longer label'),
+        ), lambda text, _point_size: 7 * len(text))
+        self.assertGreater(long_['size'][0], short['size'][0])
+        self.assertEqual(short['origin'][0], SPATIAL_DOT_TIERS[0][1] / 2.0)
+
+    def test_larger_dot_labels_get_larger_dots_and_text(self):
+        measured_point_sizes = []
+
+        def text_width(text, point_size):
+            measured_point_sizes.append(point_size)
+            return 7 * len(text)
+
+        small, large = spatial_view.layout_items_for(self._entries(
+            _item(_dot_node('Dot1', font_size=33), 'Anchors/key'),
+            _item(_dot_node('Dot2', font_size=111), 'Anchors/key'),
+        ), text_width)
+        self.assertEqual(small['origin'][0], SPATIAL_DOT_TIERS[0][1] / 2.0)
+        self.assertEqual(large['origin'][0], SPATIAL_DOT_TIERS[2][1] / 2.0)
+        self.assertGreater(large['size'][1], small['size'][1])
+        self.assertEqual(measured_point_sizes, [SPATIAL_DOT_TIERS[0][2], SPATIAL_DOT_TIERS[2][2]])
 
 
-class TestLayoutForEntries(unittest.TestCase):
-    """Geometry is read off the nodes the entries stand for."""
-
-    def test_backdrop_entry_spans_the_anchor_inside_it(self):
-        anchor_entry = _entry(0, 'Anchors/BG', node=_make_anchor_node('Anchor_BG', 100, 100))
-        backdrop_entry = _entry(
-            1, 'Backdrops/plates', kind='backdrop',
-            node=_make_backdrop_node('BackdropNode1', 0, 0, 500, 500))
-
-        layout = spatial_view.layout_for_entries([anchor_entry, backdrop_entry])
-        top, left, bottom, right = layout['spans'][1]
-        self.assertEqual((top, left, bottom, right), (0, 0, 0, 0))
-        self.assertEqual(layout['cells'][0], (0, 0))
-
-
-class TestDisplayName(unittest.TestCase):
-    """Cards are named exactly as the picker rows are."""
-
-    def test_display_name_is_the_menupath_leaf(self):
-        self.assertEqual(spatial_view.display_name_for(_entry(0, 'Anchors/BG_Plate')), 'BG_Plate')
+    def test_backdrops_carry_their_dag_bounds(self):
+        (layout_item,) = spatial_view.layout_items_for(self._entries(
+            _item(_backdrop_node('BackdropNode1', 10, 20, 300, 400), 'Backdrops/plates')), _char_width)
         self.assertEqual(
-            spatial_view.display_name_for(_entry(1, 'Backdrops/plates fg')), 'plates fg')
+            (layout_item['x'], layout_item['y'], layout_item['width'], layout_item['height']),
+            (10, 20, 300, 400))
+        self.assertEqual(layout_item['size'], _EMPTY_SIZE)
 
 
-class TestTextColor(unittest.TestCase):
-    """Card text stays legible on any tile colour."""
+class TestDotTier(unittest.TestCase):
+    """A Dot's map size follows the nearest of the three Dot label presets."""
 
-    def test_light_tile_gets_dark_text(self):
-        self.assertEqual(spatial_view.text_color_for(0xFFFFFFFF), '#111111')
+    def test_presets_map_to_their_own_tier(self):
+        self.assertEqual([spatial_view.dot_tier(33), spatial_view.dot_tier(66),
+                          spatial_view.dot_tier(111)], [0, 1, 2])
 
-    def test_dark_tile_gets_light_text(self):
-        self.assertEqual(spatial_view.text_color_for(0x101010FF), '#eeeeee')
+    def test_in_between_sizes_take_the_nearest_preset(self):
+        self.assertEqual(spatial_view.dot_tier(45), 0)
+        self.assertEqual(spatial_view.dot_tier(55), 1)
+        self.assertEqual(spatial_view.dot_tier(95), 2)
+        self.assertEqual(spatial_view.dot_tier(400), 2)
+
+    def test_collected_dots_carry_their_tier(self):
+        (entry,) = spatial_view.collect_entries(
+            [_item(_dot_node('Dot1', font_size=66), 'Anchors/key')],
+            spatial_view.MODE_NAVIGATE, None)
+        self.assertEqual(entry['tier'], 1)
 
 
-class TestNodeColor(unittest.TestCase):
-    """An uncoloured node still gets a readable card."""
+class TestColours(unittest.TestCase):
+    """Map items read like the nodes they stand for."""
 
     def test_tile_colour_is_used_when_set(self):
-        node = _make_anchor_node('Anchor_BG', 0, 0, tile_color=0x123456FF)
-        self.assertEqual(spatial_view.node_color(node), 0x123456FF)
+        self.assertEqual(spatial_view.node_color(_anchor_node('A', tile_color=0x123456FF)),
+                         0x123456FF)
 
     def test_uncoloured_backdrop_falls_back_to_the_default(self):
-        node = _make_backdrop_node('BackdropNode1', 0, 0, 100, 100)
+        node = _backdrop_node('BackdropNode1')
         node['tile_color'].setValue(0)
         self.assertEqual(spatial_view.node_color(node), spatial_view._DEFAULT_BACKDROP_COLOR)
 
     def test_uncoloured_anchor_falls_back_to_the_dag_colour(self):
-        node = _make_anchor_node('Anchor_BG', 0, 0, tile_color=0)
+        node = _anchor_node('Anchor_BG', tile_color=0)
         with patch('anchor.find_anchor_color', return_value=0x998877FF):
             self.assertEqual(spatial_view.node_color(node), 0x998877FF)
 
+    def test_light_and_dark_tiles(self):
+        self.assertTrue(spatial_view.is_light(0xFFFFFFFF))
+        self.assertFalse(spatial_view.is_light(0x101010FF))
 
-class TestOpenView(unittest.TestCase):
-    """The command is a silent no-op whenever there is nothing to show."""
+
+class TestOpenPicker(unittest.TestCase):
+    """One picker per mode, reused, always pointed at the current group."""
+
+    def setUp(self):
+        spatial_view._pickers.clear()
 
     def tearDown(self):
-        spatial_view._active_view = None
+        spatial_view._pickers.clear()
 
-    def test_disabled_plugin_opens_nothing(self):
-        with patch.object(spatial_view.prefs, 'plugin_enabled', False), \
-                patch.object(spatial_view, 'collect_entries') as collect:
-            self.assertIsNone(spatial_view.open_view(spatial_view.MODE_NAVIGATE))
-        collect.assert_not_called()
+    def test_without_qt_nothing_opens(self):
+        with patch.object(spatial_view, 'SpatialPicker', None):
+            self.assertIsNone(spatial_view.open_picker(spatial_view.MODE_NAVIGATE, MagicMock()))
 
-    def test_no_selectable_entries_opens_nothing(self):
-        context_only = [_entry(0, 'Backdrops/plates', kind='backdrop', selectable=False)]
-        with patch.object(spatial_view.prefs, 'plugin_enabled', True), \
-                patch.object(spatial_view, 'collect_entries',
-                             return_value=(MagicMock(), context_only)), \
-                patch.object(spatial_view, 'SpatialView') as view_class:
-            self.assertIsNone(spatial_view.open_view(
-                spatial_view.MODE_NAVIGATE, hit_group=MagicMock()))
-        view_class.assert_not_called()
-
-    def test_view_is_built_shown_and_kept_referenced(self):
-        entries = [_entry(0, 'Anchors/BG')]
-        with patch.object(spatial_view.prefs, 'plugin_enabled', True), \
-                patch.object(spatial_view, 'collect_entries',
-                             return_value=(MagicMock(), entries)), \
+    def test_first_open_builds_and_shows_a_picker(self):
+        hit_group = MagicMock()
+        plugin = MagicMock()
+        with patch.object(spatial_view, 'SpatialPicker') as picker_class, \
+                patch.object(spatial_view, '_plugin_for_mode', return_value=plugin), \
                 patch.object(spatial_view, 'host_main_window', return_value=None), \
-                patch.object(spatial_view, 'SpatialView') as view_class:
-            view = spatial_view.open_view(spatial_view.MODE_NAVIGATE, hit_group=MagicMock())
+                patch.object(spatial_view, 'space_mode_order', return_value=['x']):
+            picker = spatial_view.open_picker(spatial_view.MODE_NAVIGATE, hit_group)
+        self.assertIs(picker, picker_class.return_value)
+        self.assertIs(plugin._hit_group, hit_group)
+        picker.show.assert_called_once_with()
 
-        self.assertIs(view, view_class.return_value)
-        self.assertIs(spatial_view._active_view, view)
-        view.under_cursor.assert_called_once_with()
-        view.show.assert_called_once_with()
-
-    def test_reopening_closes_the_previous_view(self):
-        previous_view = MagicMock()
-        spatial_view._active_view = previous_view
-        entries = [_entry(0, 'Anchors/BG')]
-        with patch.object(spatial_view.prefs, 'plugin_enabled', True), \
-                patch.object(spatial_view, 'collect_entries',
-                             return_value=(MagicMock(), entries)), \
+    def test_reopening_reuses_the_picker_with_the_new_group(self):
+        cached = MagicMock()
+        spatial_view._pickers[spatial_view.MODE_CREATE_LINK] = cached
+        hit_group = MagicMock()
+        with patch.object(spatial_view, 'SpatialPicker') as picker_class, \
                 patch.object(spatial_view, 'host_main_window', return_value=None), \
-                patch.object(spatial_view, 'SpatialView'):
-            spatial_view.open_view(spatial_view.MODE_NAVIGATE, hit_group=MagicMock())
+                patch.object(spatial_view, 'space_mode_order', return_value=['x']):
+            picker = spatial_view.open_picker(spatial_view.MODE_CREATE_LINK, hit_group)
+        picker_class.assert_not_called()
+        self.assertIs(picker, cached)
+        self.assertIs(cached.plugin._hit_group, hit_group)
+        self.assertEqual(cached.things_model._space_mode_order, ['x'])
 
-        previous_view.close.assert_called_once_with()
-        previous_view.deleteLater.assert_called_once_with()
+    def test_a_given_plugin_replaces_the_reused_pickers_plugin(self):
+        cached = MagicMock()
+        spatial_view._pickers[spatial_view.MODE_CREATE_LINK] = cached
+        custom_plugin = MagicMock()
+        hit_group = MagicMock()
+        with patch.object(spatial_view, 'SpatialPicker'), \
+                patch.object(spatial_view, 'space_mode_order', return_value=['x']):
+            spatial_view.open_picker(spatial_view.MODE_CREATE_LINK, hit_group,
+                                     plugin=custom_plugin)
+        self.assertIs(cached.plugin, custom_plugin)
+        self.assertIs(custom_plugin._hit_group, hit_group)
 
-    def test_navigate_and_create_link_entry_points_pick_their_modes(self):
-        with patch.object(spatial_view, 'open_view') as open_view:
-            spatial_view.open_navigate_view()
-            spatial_view.open_create_link_view()
-        self.assertEqual(
-            [call.args[0] for call in open_view.call_args_list],
-            [spatial_view.MODE_NAVIGATE, spatial_view.MODE_CREATE_LINK])
+    def test_reopening_without_a_plugin_restores_the_default_one(self):
+        cached = MagicMock()
+        spatial_view._pickers[spatial_view.MODE_CREATE_LINK] = cached
+        default_plugin = MagicMock()
+        with patch.object(spatial_view, 'SpatialPicker'), \
+                patch.object(spatial_view, '_plugin_for_mode', return_value=default_plugin), \
+                patch.object(spatial_view, 'space_mode_order', return_value=['x']):
+            spatial_view.open_picker(spatial_view.MODE_CREATE_LINK, MagicMock())
+        self.assertIs(cached.plugin, default_plugin)
+
+    def test_a_destroyed_picker_is_rebuilt(self):
+        dead = MagicMock()
+        dead.isVisible.side_effect = RuntimeError
+        spatial_view._pickers[spatial_view.MODE_NAVIGATE] = dead
+        with patch.object(spatial_view, 'SpatialPicker') as picker_class, \
+                patch.object(spatial_view, '_plugin_for_mode', return_value=MagicMock()), \
+                patch.object(spatial_view, 'host_main_window', return_value=None), \
+                patch.object(spatial_view, 'space_mode_order', return_value=['x']):
+            picker = spatial_view.open_picker(spatial_view.MODE_NAVIGATE, MagicMock())
+        self.assertIs(picker, picker_class.return_value)
 
 
-class TestLeaderBinding(unittest.TestCase):
-    """The spatial view is reachable from the leader key as well as Alt+S."""
+class TestPickerEntryPoints(unittest.TestCase):
+    """A / Alt+A open the spatial picker only when the preference is on."""
 
-    def test_binding_table_carries_the_spatial_view_entry(self):
-        from constants import LEADER_BINDINGS
-        self.assertIn(('S', 'Spatial View', 1, 1, 'single'), LEADER_BINDINGS)
+    def setUp(self):
+        from tests.test_anchor_navigation import _ensure_qt_stubs_support_mock_attributes
+        _ensure_qt_stubs_support_mock_attributes()
+        import anchor
+        importlib.reload(anchor)
+        self.anchor = anchor
+        anchor._anchor_picker_widget = None
+        anchor._anchor_navigate_widget = None
+        nuke_stub = sys.modules['nuke']
+        nuke_stub.allNodes.side_effect = None
+        nuke_stub.allNodes.return_value = [_backdrop_node('BackdropNode1')]
 
-    def test_leader_dispatches_s_to_the_navigate_view(self):
-        prefs_stub = types.ModuleType('prefs')
-        prefs_stub.keyboard_layout = 'qwerty'
-        prefs_stub.plugin_enabled = True
-        original_prefs = sys.modules.get('prefs')
-        sys.modules['prefs'] = prefs_stub
-        try:
-            import leader
-            self.assertIs(leader._DISPATCH_BY_LETTER['S'], leader._dispatch_spatial_view)
-            with patch.object(spatial_view, 'open_navigate_view') as open_navigate_view:
-                leader._dispatch_spatial_view()
-            open_navigate_view.assert_called_once_with()
-        finally:
-            if original_prefs is not None:
-                sys.modules['prefs'] = original_prefs
-            else:
-                sys.modules.pop('prefs', None)
-            sys.modules.pop('leader', None)
+    def _run(self, entry_point, spatial_enabled):
+        with patch.object(self.anchor.prefs, 'plugin_enabled', True), \
+                patch.object(self.anchor.prefs, 'spatial_view_enabled', spatial_enabled), \
+                patch.object(self.anchor, 'all_anchors', return_value=[_anchor_node('Anchor_BG')]), \
+                patch.object(spatial_view, 'open_picker', return_value=MagicMock()) as open_picker, \
+                patch.object(sys.modules['tabtabtab_anchors'], 'TabTabTabWidget') as widget_class:
+            entry_point()
+        return open_picker, widget_class
+
+    def test_navigate_opens_the_spatial_picker_when_enabled(self):
+        open_picker, widget_class = self._run(self.anchor.select_anchor_and_navigate, True)
+        self.assertEqual(open_picker.call_args.args[0], spatial_view.MODE_NAVIGATE)
+        widget_class.assert_not_called()
+
+    def test_create_link_opens_the_spatial_picker_when_enabled(self):
+        open_picker, widget_class = self._run(lambda: self.anchor.select_anchor_and_create(MagicMock()), True)
+        self.assertEqual(open_picker.call_args.args[0], spatial_view.MODE_CREATE_LINK)
+        widget_class.assert_not_called()
+
+    def test_set_input_picker_opens_the_spatial_picker_when_enabled(self):
+        on_pick = MagicMock()
+        open_picker, widget_class = self._run(
+            lambda: self.anchor.pick_anchor(on_pick, MagicMock()), True)
+        self.assertEqual(open_picker.call_args.args[0], spatial_view.MODE_CREATE_LINK)
+        plugin = open_picker.call_args.kwargs['plugin']
+        anchor_node = _anchor_node('Anchor_BG')
+        with patch.object(sys.modules['nuke'], 'exists', return_value=True, create=True):
+            plugin.invoke({'menuobj': anchor_node})
+        on_pick.assert_called_once()
+        widget_class.assert_not_called()
+
+    def test_plain_pickers_open_unchanged_when_disabled(self):
+        for entry_point in (self.anchor.select_anchor_and_navigate,
+                            lambda: self.anchor.select_anchor_and_create(MagicMock()),
+                            lambda: self.anchor.pick_anchor(MagicMock(), MagicMock())):
+            self.anchor._anchor_picker_widget = None
+            self.anchor._anchor_navigate_widget = None
+            open_picker, widget_class = self._run(entry_point, False)
+            open_picker.assert_not_called()
+            widget_class.assert_called_once()
+
+
+class TestPrefsDialogSpatialViewCheckbox(unittest.TestCase):
+    """The preference is exposed in the Preferences dialog."""
+
+    def _method_source(self, method_name):
+        source_text = (_REPO_ROOT / 'colors.py').read_text()
+        for node in ast.walk(ast.parse(source_text)):
+            if isinstance(node, ast.ClassDef) and node.name == 'PrefsDialog':
+                for item in node.body:
+                    if isinstance(item, ast.FunctionDef) and item.name == method_name:
+                        lines = source_text.splitlines()
+                        return '\n'.join(lines[item.lineno - 1:item.end_lineno])
+        self.fail(method_name + " not found in PrefsDialog")
+
+    def test_dialog_seeds_shows_and_flushes_the_preference(self):
+        self.assertIn('self._local_spatial_view_enabled = prefs_module.spatial_view_enabled',
+                      self._method_source('__init__'))
+        self.assertIn('setChecked(self._local_spatial_view_enabled)',
+                      self._method_source('_build_ui'))
+        on_accept_source = self._method_source('_on_accept')
+        self.assertIn('self._spatial_view_checkbox.isChecked()', on_accept_source)
+        self.assertIn('prefs_module.spatial_view_enabled', on_accept_source)
 
 
 if __name__ == '__main__':
