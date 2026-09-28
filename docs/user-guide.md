@@ -288,14 +288,16 @@ you link to anchors, so only the anchors can be clicked.
 In a big script the map does not fit beside the list at a readable size, so the
 map zooms to what you are looking for instead. As you type, it zooms and scrolls
 to frame the items that still match, and it never shrinks the map past the point
-where labels stop being legible. The zoom controls in the map's top-right corner
-take over whenever you want: **−** and **+** (or `Ctrl`+`-` / `Ctrl`+`=`, or
-`Ctrl`+mouse wheel over the map) zoom out and in. Once you have zoomed, the
-zoom stays put and typing only scrolls the highlighted entry into view. **Fit**
-(or `Ctrl`+`0`) hands the zoom back to the search, and so does opening the menu
-again. Scroll the map with the mouse wheel. While the map is bigger than its
-area, a **minimap** in the bottom-right corner shows the whole script with the
-visible part outlined; click or drag in it to move there.
+where labels stop being legible. The zoom controls in the map's bottom-right
+corner take over whenever you want: **−** and **+** (or `Ctrl`+`-` / `Ctrl`+`=`,
+or `Ctrl`+mouse wheel over the map) zoom out and in. Once you have zoomed, the
+zoom stays put and typing only scrolls the map when the highlighted entry is out
+of sight, bringing it to the middle. **Fit** (or `Ctrl`+`0`) hands the zoom back
+to the search, and so does opening the menu again. Clicking the controls leaves
+the search field focused, so you can keep typing. Scroll the map with the mouse
+wheel. While the map is bigger than its area, a **minimap** above the zoom
+controls shows the whole script with the visible part outlined; click or drag in
+it to move there.
 
 With the preference off (the default), these menus are the plain lists shown
 elsewhere in this guide.

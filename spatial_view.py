@@ -839,15 +839,16 @@ else:
     _MINIMAP_MARGIN = 10
 
     class Minimap(QtWidgets.QWidget):
-        """An overview of the whole map in a corner of the view, with the visible part outlined.
+        """An overview of the whole map above the zoom controls, with the visible part outlined.
 
         Clicking or dragging on it moves the view there.
         """
 
-        def __init__(self, canvas, scroll_area):
+        def __init__(self, canvas, scroll_area, zoom_controls):
             super(Minimap, self).__init__(scroll_area)
             self._canvas = canvas
             self._scroll_area = scroll_area
+            self._zoom_controls = zoom_controls
             self.setCursor(Qt.PointingHandCursor)
             scroll_area.horizontalScrollBar().valueChanged.connect(self.update)
             scroll_area.verticalScrollBar().valueChanged.connect(self.update)
@@ -866,13 +867,14 @@ else:
                        float(_MINIMAP_MAX_HEIGHT) / base.height())
 
         def reposition(self):
-            """Size to the map's aspect ratio and sit in the view's bottom-right corner."""
+            """Size to the map's aspect ratio and sit bottom-right, just above the zoom controls."""
             base = self._canvas.base_size()
             scale = self._scale()
             self.setFixedSize(int(base.width() * scale) + 2, int(base.height() * scale) + 2)
             viewport = self._scroll_area.viewport().geometry()
+            controls_height = self._zoom_controls.sizeHint().height()
             self.move(viewport.right() - self.width() - _MINIMAP_MARGIN,
-                      viewport.bottom() - self.height() - _MINIMAP_MARGIN)
+                      viewport.bottom() - controls_height - self.height() - 2 * _MINIMAP_MARGIN)
             self.raise_()
             self.update()
 
@@ -917,7 +919,7 @@ else:
                 self._centre_view_on(event.pos())
 
     class ZoomControls(QtWidgets.QWidget):
-        """Zoom out / zoom level / zoom in / fit buttons in the view's top-right corner."""
+        """Zoom out / zoom level / zoom in / fit buttons in the view's bottom-right corner."""
 
         def __init__(self, scroll_area, on_zoom_out, on_zoom_in, on_fit):
             super(ZoomControls, self).__init__(scroll_area)
@@ -959,7 +961,7 @@ else:
             self.adjustSize()
             viewport = self._scroll_area.viewport().geometry()
             self.move(viewport.right() - self.width() - _MINIMAP_MARGIN,
-                      viewport.top() + _MINIMAP_MARGIN)
+                      viewport.bottom() - self.height() - _MINIMAP_MARGIN)
             self.raise_()
 
         def eventFilter(self, watched, event):  # noqa: N802 — Qt naming
@@ -987,8 +989,6 @@ else:
             self.setAutoFillBackground(True)
             self.mode = mode
             self.map_canvas.on_activate = self.activate_key
-            self._minimap = Minimap(self.map_canvas, self._map_scroll)
-            self._minimap.hide()
             # Set once the user zooms: from then on typing leaves the zoom alone
             # and only scrolls the highlighted match into view, until Fit or the
             # next show hands the zoom back to the search.
@@ -998,6 +998,8 @@ else:
                 on_zoom_out=lambda: self.zoom_by(1.0 / SPATIAL_ZOOM_STEP),
                 on_zoom_in=lambda: self.zoom_by(SPATIAL_ZOOM_STEP),
                 on_fit=self.fit_matched)
+            self._minimap = Minimap(self.map_canvas, self._map_scroll, self._zoom_controls)
+            self._minimap.hide()
             self._map_scroll.viewport().installEventFilter(self)
             for keys, callback in (('Ctrl+=', lambda: self.zoom_by(SPATIAL_ZOOM_STEP)),
                                    ('Ctrl++', lambda: self.zoom_by(SPATIAL_ZOOM_STEP)),
@@ -1012,6 +1014,9 @@ else:
             self._map_scroll = QtWidgets.QScrollArea()
             self._map_scroll.setWidget(self.map_canvas)
             self._map_scroll.setFrameShape(QtWidgets.QFrame.NoFrame)
+            # A click on the map or its overlays must leave the search field
+            # focused, so typing carries on.
+            self._map_scroll.setFocusPolicy(Qt.NoFocus)
             self._map_scroll.setAlignment(Qt.AlignCenter)
             self._map_scroll.setStyleSheet(
                 "QScrollArea, QScrollArea > QWidget > QWidget { background: rgb(%d, %d, %d); }"
@@ -1135,11 +1140,19 @@ else:
             if index.isValid() and index.row() < len(self.things_model._items):
                 key = self._matched_item_key(self.things_model._items[index.row()])
             rect = self.map_canvas.set_highlighted(key)
-            if rect is not None:
-                centre = rect.center()
-                self._map_scroll.ensureVisible(
-                    int(centre.x()), int(centre.y()),
-                    int(rect.width() / 2) + 20, int(rect.height() / 2) + 20)
+            if rect is not None and not self._visible_map_rect().contains(
+                    rect.adjusted(-_MAP_MARGIN, -_MAP_MARGIN, _MAP_MARGIN, _MAP_MARGIN)
+                    .intersected(QtCore.QRectF(self.map_canvas.rect()))):
+                viewport = self._map_scroll.viewport()
+                self._scroll_to(rect.center() / self.map_canvas.zoom,
+                                QtCore.QPointF(viewport.width() / 2.0, viewport.height() / 2.0))
+
+        def _visible_map_rect(self):
+            """The part of the canvas the view shows, in the canvas's (zoomed) coordinates."""
+            viewport = self._map_scroll.viewport()
+            origin = QtCore.QPointF(self.map_canvas.mapFrom(viewport, QtCore.QPoint(0, 0)))
+            visible = QtCore.QRectF(origin, QtCore.QSizeF(viewport.size()))
+            return visible.intersected(QtCore.QRectF(self.map_canvas.rect()))
 
         def activate_key(self, key):
             """Pick the map item *key* exactly as if its row had been chosen."""
