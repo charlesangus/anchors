@@ -155,7 +155,7 @@ SPATIAL_EMPTY_BACKDROP_SCALE = 1.5
 # padding on every side, plus a header strip on top for its label.
 SPATIAL_BACKDROP_PADDING = 8
 SPATIAL_BACKDROP_HEADER = 18
-# Minimum clearance the de-overlap pass leaves between any two items.
+# Minimum clearance packing leaves between neighbouring items on the map.
 SPATIAL_ITEM_GAP = 6
 # Width of the search panel on the map's left.
 SPATIAL_SEARCH_PANEL_WIDTH = 300

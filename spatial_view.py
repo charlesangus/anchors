@@ -19,6 +19,8 @@ are all the pickers' own.  The layout maths is in module-level functions so it
 can be unit-tested without a Qt session.
 """
 
+import heapq
+
 import nuke
 
 try:
@@ -28,13 +30,14 @@ try:
     else:
         from PySide2 import QtCore, QtGui, QtWidgets
         from PySide2.QtCore import Qt
+    import tabtabtab_anchors as _tabtabtab
 except ImportError:
     QtCore = None
     QtGui = None
     QtWidgets = None
     Qt = None
+    _tabtabtab = None
 
-import tabtabtab_anchors as _tabtabtab
 from constants import (
     ANCHOR_DEFAULT_COLOR,
     SPATIAL_BACKDROP_HEADER,
@@ -146,18 +149,14 @@ def _separation_axis(first_box, second_box, first_size, second_size):
     return 0 if clearances[0] >= clearances[1] else 1
 
 
-def _place_siblings(keys, dag_boxes, sizes, origins, scale, max_gap, gap):
+def _place_siblings(keys, dag_boxes, sizes, origins, block_probes, scale, max_gap, gap):
     """Return {key: (left, top)} for sibling items packed as tightly as their order allows.
 
-    Along each axis the items keep the order of their DAG centres and are pushed
-    forward only: each lands as far back as it can while (a) keeping at least the
-    ``compress_axis`` spacing from every item before it, so the empty space
-    between them shrinks but what is left of / above what never changes, and (b)
-    clearing, by *gap*, every earlier sibling that it is kept apart from along
-    this axis (see ``_separation_axis``).  Rows are settled first: a pair side by
-    side in the DAG is always kept side by side, but a pair lying diagonally is
-    only pushed apart sideways if their rows still overlap on the map.  Every
-    pair is kept apart along one axis, so no two siblings overlap.
+    Each pair is kept apart along one axis (see ``_separation_axis``) and so
+    never overlaps.  Rows are settled first: a pair side by side in the DAG is
+    always kept side by side, but a pair lying diagonally is only pushed apart
+    sideways if their rows still overlap on the map.  See ``_pack_axis`` for how
+    each axis is packed.
     """
     separation_axis = {}
     for first, second in _pairs(keys):
@@ -165,35 +164,174 @@ def _place_siblings(keys, dag_boxes, sizes, origins, scale, max_gap, gap):
                                 sizes[first], sizes[second])
         separation_axis[first, second] = separation_axis[second, first] = axis
 
-    anchor_positions = {key: [0.0, 0.0] for key in keys}
+    kept_apart = {pair for pair, axis in separation_axis.items() if axis == 1}
+    tops = _pack_axis(keys, 1, dag_boxes, sizes, origins, block_probes, kept_apart,
+                      scale, max_gap, gap)
+    tops = {key: tops[key] - origins[key][1] for key in keys}
 
     def rows_overlap(first, second):
         if (dag_boxes[first][1] < dag_boxes[second][3]
                 and dag_boxes[second][1] < dag_boxes[first][3]):
             return True
-        first_top = anchor_positions[first][1] - origins[first][1]
-        second_top = anchor_positions[second][1] - origins[second][1]
-        return (first_top < second_top + sizes[second][1] + gap
-                and second_top < first_top + sizes[first][1] + gap)
+        return (tops[first] < tops[second] + sizes[second][1] + gap
+                and tops[second] < tops[first] + sizes[first][1] + gap)
 
-    for axis in (1, 0):
-        def dag_centre(key):
-            return (dag_boxes[key][axis] + dag_boxes[key][axis + 2]) / 2.0
-        compressed = compress_axis([dag_centre(key) for key in keys], scale, max_gap)
-        order = sorted(keys, key=lambda key: (dag_centre(key), str(key)))
-        for index, second in enumerate(order):
-            position = 0.0
-            for first in order[:index]:
-                offset = compressed[dag_centre(second)] - compressed[dag_centre(first)]
-                if (separation_axis[first, second] == axis
-                        and (axis == 1 or rows_overlap(first, second))):
-                    offset = max(offset, sizes[first][axis] - origins[first][axis]
-                                 + origins[second][axis] + gap)
-                position = max(position, anchor_positions[first][axis] + offset)
-            anchor_positions[second][axis] = position
-    return {key: (anchor_positions[key][0] - origins[key][0],
-                  anchor_positions[key][1] - origins[key][1])
-            for key in keys}
+    kept_apart = {pair for pair, axis in separation_axis.items()
+                  if axis == 0 and rows_overlap(*pair)}
+    lefts = _pack_axis(keys, 0, dag_boxes, sizes, origins, block_probes, kept_apart,
+                       scale, max_gap, gap)
+    return {key: (lefts[key] - origins[key][0], tops[key]) for key in keys}
+
+
+def _pack_axis(keys, axis, dag_boxes, sizes, origins, block_probes, kept_apart,
+               scale, max_gap, gap):
+    """Return {key: anchor position along *axis*}, each as far back as these allow.
+
+    - A pair in *kept_apart* is at least the ``compress_axis`` spacing of their
+      DAG centres apart, and clears by *gap*.
+    - Two single items keep the ``compress_axis`` spacing of their DAG centres,
+      so the empty space between them shrinks but their order holds.
+    - A frame, which moves as one block, keeps every point it carries (see
+      ``_probes``) on the same side of every point its sibling carries as in the
+      DAG.  Where a block and its sibling interleave, a far pair can contradict
+      the rest; such a pair keeps only what can still be met, nearest pairs
+      winning (see ``_add_if_consistent``).
+    """
+    centres = {key: (dag_boxes[key][axis] + dag_boxes[key][axis + 2]) / 2.0 for key in keys}
+    order = sorted(keys, key=lambda key: (centres[key], str(key)))
+    successors, interleaved = _axis_distances(order, axis, centres, dag_boxes, sizes, origins,
+                                              block_probes, kept_apart, scale, max_gap, gap)
+
+    # Everything in successors so far points forward along the order, so one
+    # pass settles it.
+    positions = {key: 0.0 for key in keys}
+    for key in order:
+        for later_key, distance in successors[key]:
+            positions[later_key] = max(positions[later_key], positions[key] + distance)
+    rank = {key: index for index, key in enumerate(order)}
+    for _distance_apart, _first, _second, from_key, to_key, distance in sorted(interleaved):
+        _add_if_consistent(positions, successors, rank, from_key, to_key, distance)
+    return positions
+
+
+def _axis_distances(order, axis, centres, dag_boxes, sizes, origins, block_probes, kept_apart,
+                    scale, max_gap, gap):
+    """Return (successors, interleaved): the least distances between siblings along *axis*.
+
+    *successors* maps each key to [(later key, least distance ahead of it)],
+    every one pointing forward along *order*.  *interleaved* lists the
+    distances pointing back, from blocks interleaved with a sibling, as
+    (distance apart across the axis, first key, second key, from key, to key,
+    least distance) so that sorting puts the nearest pairs first.
+    """
+    compressed = compress_axis(centres.values(), scale, max_gap)
+    points = {}
+    for key in order:
+        points[key] = [(probe[axis], probe[axis + 2])
+                       for probe in _probes(key, dag_boxes, block_probes)]
+    successors = {key: [] for key in order}
+    interleaved = []
+    for index, first in enumerate(order):
+        for second in order[index + 1:]:
+            spacing = compressed[centres[second]] - compressed[centres[first]]
+            if (first, second) in kept_apart:
+                clearance = (sizes[first][axis] - origins[first][axis]
+                             + origins[second][axis] + gap)
+                successors[first].append((second, max(spacing, clearance)))
+            elif first in block_probes or second in block_probes:
+                ahead, behind = _probe_distances(points[first], points[second], scale, max_gap)
+                if ahead is not None:
+                    successors[first].append((second, ahead))
+                if behind is not None:
+                    distance_apart = _box_gap(dag_boxes[first], dag_boxes[second], 1 - axis)
+                    interleaved.append((distance_apart, str(first), str(second),
+                                        second, first, behind))
+            else:
+                successors[first].append((second, spacing))
+    return successors, interleaved
+
+
+def _box_gap(first_box, second_box, axis):
+    """The empty space between two DAG boxes along *axis*, 0 if they overlap on it."""
+    return max(0, second_box[axis] - first_box[axis + 2], first_box[axis] - second_box[axis + 2])
+
+
+def _probes(key, dag_boxes, block_probes):
+    """The (DAG x, DAG y, map x offset, map y offset) of each point *key* keeps in order.
+
+    A single item's point is its centre, offset 0 from its anchor point; a
+    frame's are its own corners and the centres of the items inside it (see
+    build_layout), offset from the frame's anchor point.
+    """
+    if key in block_probes:
+        return block_probes[key]
+    box = dag_boxes[key]
+    return [((box[0] + box[2]) / 2.0, (box[1] + box[3]) / 2.0, 0.0, 0.0)]
+
+
+def _probe_distances(first_points, second_points, scale, max_gap):
+    """Return (ahead, behind): how far the second block must be ahead of the first, and vice versa.
+
+    Points are (DAG position, map offset from the block's anchor point) along
+    one axis.  A point of the first block before a point of the second in the
+    DAG stays before it on the map, by half their ``compress_axis`` spacing:
+    half, so that a point between two points of a block still fits between
+    them however that block packed its inside.  *ahead* is the least distance
+    from the first block's anchor point to the second's, *behind* the least
+    from the second's to the first's; either is None when no pair of points
+    asks for it, and either can be negative.
+    """
+    ahead = None
+    behind = None
+    for first_dag, first_offset in first_points:
+        for second_dag, second_offset in second_points:
+            if first_dag < second_dag:
+                needed = (first_offset - second_offset
+                          + min((second_dag - first_dag) * scale, max_gap) / 2.0)
+                if ahead is None or needed > ahead:
+                    ahead = needed
+            elif first_dag > second_dag:
+                needed = (second_offset - first_offset
+                          + min((first_dag - second_dag) * scale, max_gap) / 2.0)
+                if behind is None or needed > behind:
+                    behind = needed
+    return ahead, behind
+
+
+def _add_if_consistent(positions, successors, rank, from_key, to_key, distance):
+    """Ask for positions[to_key] >= positions[from_key] + distance, unless it contradicts the rest.
+
+    *positions* is the tightest packing meeting every distance in *successors*
+    ({key: [(later key, distance)]}).  The new distance is added and the
+    positions pushed forward to meet it, visiting items in *rank* order so each
+    is settled about once; if meeting it would push *from_key* itself forward,
+    the distances contradict each other, so everything is put back and False
+    returned.
+    """
+    pushed = {}
+    pending = {to_key: positions[from_key] + distance}
+    queue = [(rank[to_key], to_key)]
+    while queue:
+        _rank, key = heapq.heappop(queue)
+        position = pending.pop(key)
+        if position <= positions[key] + 1e-6:
+            continue
+        if key == from_key:
+            positions.update(pushed)
+            return False
+        pushed.setdefault(key, positions[key])
+        positions[key] = position
+        for later_key, later_distance in successors[key]:
+            candidate = position + later_distance
+            if candidate <= positions[later_key] + 1e-6:
+                continue
+            if later_key not in pending:
+                heapq.heappush(queue, (rank[later_key], later_key))
+                pending[later_key] = candidate
+            elif candidate > pending[later_key]:
+                pending[later_key] = candidate
+    successors[from_key].append((to_key, distance))
+    return True
 
 
 def _pairs(keys):
@@ -311,9 +449,10 @@ def build_layout(items,
 
     rects = {}
     descendants = {}
+    block_probes = {}
 
     def place(child_keys):
-        placements = _place_siblings(child_keys, dag_boxes, sizes, origins,
+        placements = _place_siblings(child_keys, dag_boxes, sizes, origins, block_probes,
                                      scale, max_gap, gap)
         for key in child_keys:
             left, top = placements[key]
@@ -337,6 +476,23 @@ def build_layout(items,
         rects[frame_key] = (left - padding, top - padding - header, width, height)
         sizes[frame_key] = (width, height)
         origins[frame_key] = (width / 2.0, height / 2.0)
+        frame_anchor_x = rects[frame_key][0] + width / 2.0
+        frame_anchor_y = rects[frame_key][1] + height / 2.0
+        # Its own corners, but not those of frames nested in it: those are
+        # placed by their centres, so their corners need not be in order.
+        box = dag_boxes[frame_key]
+        x, y, width, height = rects[frame_key]
+        block_probes[frame_key] = [
+            (box[0], box[1], x - frame_anchor_x, y - frame_anchor_y),
+            (box[2], box[3], x + width - frame_anchor_x, y + height - frame_anchor_y)]
+        for key in descendants[frame_key]:
+            if key in frames:
+                continue
+            box = dag_boxes[key]
+            block_probes[frame_key].append((
+                (box[0] + box[2]) / 2.0, (box[1] + box[3]) / 2.0,
+                rects[key][0] + origins[key][0] - frame_anchor_x,
+                rects[key][1] + origins[key][1] - frame_anchor_y))
 
     place(children.get(None, []))
 
@@ -564,6 +720,8 @@ def layout_items_for(entries, text_width):
 
 
 def host_main_window():
+    if _tabtabtab is None:
+        return None
     return _tabtabtab._find_host_main_window()
 
 

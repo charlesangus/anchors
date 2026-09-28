@@ -179,6 +179,68 @@ class TestBuildLayoutPlacement(unittest.TestCase):
         self.assertLess(_centre_x(rects['b']) - _centre_x(rects['a']), SPATIAL_TILE_WIDTH)
         self.assertFalse(_overlaps(rects['a'], rects['b']))
 
+    def test_items_outside_a_backdrop_keep_their_order_with_items_inside(self):
+        # The backdrop's centre is far left of 'above', but everything inside it
+        # is to the right of 'above': placing the backdrop by its centre alone
+        # would swap 'above' and 'first_in'.
+        items = [
+            _backdrop('module', 0, 300, 1000, 300),
+            _tile('first_in', 800, 450), _tile('second_in', 900, 450),
+            _tile('above', 790, 0),
+        ]
+        rects = spatial_view.build_layout(items)['rects']
+        self.assertLess(_centre_x(rects['above']), _centre_x(rects['first_in']))
+        self.assertLess(_centre_x(rects['first_in']), _centre_x(rects['second_in']))
+        self.assertLess(_centre_y(rects['above']), _centre_y(rects['first_in']))
+
+    def test_an_outside_item_between_two_inside_ones_stays_between_them(self):
+        items = [
+            _backdrop('module', 0, 300, 1000, 300),
+            _tile('left_in', 100, 450), _tile('right_in', 900, 450),
+            _tile('above', 850, 0),
+        ]
+        rects = spatial_view.build_layout(items)['rects']
+        self.assertLess(_centre_x(rects['left_in']), _centre_x(rects['above']))
+        self.assertLess(_centre_x(rects['above']), _centre_x(rects['right_in']))
+
+    def test_packing_never_swaps_items_inside_and_outside_backdrops(self):
+        # Rows of modules with loose tiles and Dots scattered above, between and
+        # below them, at offsets that do not line up with the modules' centres.
+        items = []
+        for module_index in range(4):
+            left = module_index * 900
+            items.append(_backdrop('module%d' % module_index, left, 400, 800, 400))
+            for tile_index in range(3):
+                items.append(_tile('in%d_%d' % (module_index, tile_index),
+                                   left + 150 + tile_index * 250 + module_index * 37,
+                                   550 + tile_index * 60))
+        for loose_index in range(10):
+            x_position = loose_index * 370 + 55
+            items.append(_tile('above%d' % loose_index, x_position, loose_index * 17))
+            items.append(_dot('below%d' % loose_index, x_position + 90, 1100 + loose_index * 13))
+        leaves = [item for item in items if item['kind'] != spatial_view.KIND_BACKDROP]
+        rects = spatial_view.build_layout(items)['rects']
+
+        def anchor_point(item):
+            # Where the item's DAG centre lands: a Dot's circle, not its label.
+            x, y, _width, _height = rects[item['key']]
+            return x + item['origin'][0], y + item['origin'][1]
+
+        for first, second in itertools.combinations(leaves, 2):
+            first_point, second_point = anchor_point(first), anchor_point(second)
+            for axis, name in ((0, 'x'), (1, 'y')):
+                if first[name] < second[name]:
+                    self.assertLess(first_point[axis], second_point[axis],
+                                    (name, first['key'], second['key']))
+                elif first[name] > second[name]:
+                    self.assertGreater(first_point[axis], second_point[axis],
+                                       (name, first['key'], second['key']))
+        for first_key, second_key in itertools.combinations(rects, 2):
+            if first_key.startswith('module') or second_key.startswith('module'):
+                continue
+            self.assertFalse(_overlaps(rects[first_key], rects[second_key]),
+                             (first_key, second_key))
+
     def test_packing_never_swaps_two_items(self):
         dag_positions = [(column * 37 % 290, row * 23 % 170)
                          for row in range(6) for column in range(7)]
