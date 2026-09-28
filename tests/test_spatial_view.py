@@ -6,6 +6,7 @@ anything). What is tested is everything they are a thin shell over:
   - compress_axis / build_layout — the DAG-to-map mapping: real order kept,
     empty space squeezed out, nothing colliding, backdrops framing exactly what
     they enclose, and empty backdrops drawn as boxes of their own.
+  - fit_zoom / clamp_user_zoom — how far fitting and the user may zoom.
   - collect_entries / layout_items_for — what the map shows in each mode.
   - open_picker, and the A / Alt+A entry points that call it only when the
     preference is on.
@@ -29,6 +30,9 @@ from constants import (
     SPATIAL_EMPTY_BACKDROP_SCALE,
     SPATIAL_ITEM_GAP,
     SPATIAL_MAX_GAP,
+    SPATIAL_MAX_USER_ZOOM,
+    SPATIAL_MIN_FIT_ZOOM,
+    SPATIAL_MIN_USER_ZOOM,
     SPATIAL_TILE_HEIGHT,
     SPATIAL_TILE_WIDTH,
 )
@@ -294,6 +298,33 @@ class TestBuildLayoutBackdrops(unittest.TestCase):
         ])
         self.assertEqual(layout['frames'], set())
         self.assertFalse(_overlaps(layout['rects']['outer'], layout['rects']['inner']))
+
+
+class TestZoomLimits(unittest.TestCase):
+    """Fitting fills the view without blowing up or shrinking past readable."""
+
+    def test_matches_that_fit_are_shown_at_full_size(self):
+        self.assertEqual(spatial_view.fit_zoom(300, 200, 1400, 900), 1.0)
+
+    def test_matches_wider_than_the_view_are_zoomed_out_to_fit(self):
+        self.assertAlmostEqual(spatial_view.fit_zoom(1600, 400, 1400, 900), 1400 / 1600.0)
+
+    def test_the_tighter_axis_decides_the_zoom(self):
+        self.assertAlmostEqual(spatial_view.fit_zoom(1500, 1000, 1400, 900), 0.9)
+
+    def test_fitting_stops_at_the_readable_minimum(self):
+        self.assertEqual(spatial_view.fit_zoom(6000, 400, 1400, 900), SPATIAL_MIN_FIT_ZOOM)
+
+    def test_empty_bounds_fit_at_full_size(self):
+        self.assertEqual(spatial_view.fit_zoom(0, 0, 1400, 900), 1.0)
+
+    def test_user_zoom_is_clamped_to_its_range(self):
+        self.assertEqual(spatial_view.clamp_user_zoom(0.01), SPATIAL_MIN_USER_ZOOM)
+        self.assertEqual(spatial_view.clamp_user_zoom(50), SPATIAL_MAX_USER_ZOOM)
+        self.assertEqual(spatial_view.clamp_user_zoom(1.3), 1.3)
+
+    def test_the_user_can_zoom_out_further_than_fitting_does(self):
+        self.assertLess(SPATIAL_MIN_USER_ZOOM, SPATIAL_MIN_FIT_ZOOM)
 
 
 def _anchor_node(name, xpos=0, ypos=0, tile_color=0xAABBCCFF):

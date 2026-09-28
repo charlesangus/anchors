@@ -44,10 +44,14 @@ from constants import (
     SPATIAL_ITEM_GAP,
     SPATIAL_MAX_GAP,
     SPATIAL_MAX_SCREEN_FRACTION,
+    SPATIAL_MAX_USER_ZOOM,
+    SPATIAL_MIN_FIT_ZOOM,
+    SPATIAL_MIN_USER_ZOOM,
     SPATIAL_SCALE,
     SPATIAL_SEARCH_PANEL_WIDTH,
     SPATIAL_TILE_HEIGHT,
     SPATIAL_TILE_WIDTH,
+    SPATIAL_ZOOM_STEP,
 )
 
 MODE_NAVIGATE = 'navigate'
@@ -347,6 +351,25 @@ def build_layout(items,
     }
 
 
+def fit_zoom(bounds_width, bounds_height, view_width, view_height,
+             min_zoom=SPATIAL_MIN_FIT_ZOOM):
+    """Return the zoom that fits a *bounds* box of map into a *view*-sized window.
+
+    Never above 1, so a small map is not blown up, and never below *min_zoom*,
+    below which labels stop being readable; matches that do not fit even then
+    are a scroll away.
+    """
+    if bounds_width <= 0 or bounds_height <= 0:
+        return 1.0
+    zoom = min(float(view_width) / bounds_width, float(view_height) / bounds_height)
+    return max(min_zoom, min(1.0, zoom))
+
+
+def clamp_user_zoom(zoom, min_zoom=SPATIAL_MIN_USER_ZOOM, max_zoom=SPATIAL_MAX_USER_ZOOM):
+    """Return *zoom* limited to the range the user can zoom the map over."""
+    return max(min_zoom, min(max_zoom, zoom))
+
+
 # ---------------------------------------------------------------------------
 # Item collection — reads nodes, not Qt.
 # ---------------------------------------------------------------------------
@@ -581,6 +604,9 @@ else:
             self._depth = {}
             self._matched = set()
             self._highlighted_key = None
+            self._base_size = QtCore.QSize(0, 0)
+            self._with_text = True
+            self.zoom = 1.0
 
         def set_entries(self, entries):
             self.unsetCursor()
@@ -600,9 +626,35 @@ else:
             self._frames = layout['frames']
             self._depth = layout['depth']
             self._highlighted_key = None
-            self.setFixedSize(int(layout['width']) + 2 * _MAP_MARGIN + 1,
-                              int(layout['height']) + 2 * _MAP_MARGIN + 1)
+            self._base_size = QtCore.QSize(int(layout['width']) + 2 * _MAP_MARGIN + 1,
+                                           int(layout['height']) + 2 * _MAP_MARGIN + 1)
+            self.set_zoom(1.0)
+
+        def base_size(self):
+            """The map's size at zoom 1."""
+            return QtCore.QSize(self._base_size)
+
+        def set_zoom(self, zoom):
+            self.zoom = zoom
+            self.setFixedSize(max(1, int(self._base_size.width() * zoom)),
+                              max(1, int(self._base_size.height() * zoom)))
             self.update()
+
+        def to_view(self, rect):
+            """Map an unzoomed map rect to this widget's (zoomed) coordinates."""
+            return QtCore.QRectF(rect.x() * self.zoom, rect.y() * self.zoom,
+                                 rect.width() * self.zoom, rect.height() * self.zoom)
+
+        def matched_bounds(self):
+            """Return the unzoomed rect around every matched, selectable item, or None."""
+            bounds = None
+            for key in self._matched:
+                entry = self._entries.get(key)
+                if entry is None or not entry['selectable']:
+                    continue
+                rect = self._rects[key]
+                bounds = rect if bounds is None else bounds.united(rect)
+            return bounds
 
         def set_matched(self, keys):
             self._matched = set(keys)
@@ -612,7 +664,8 @@ else:
             """Highlight *key*; return its rect so the caller can scroll to it."""
             self._highlighted_key = key
             self.update()
-            return self._rects.get(key)
+            rect = self._rects.get(key)
+            return self.to_view(rect) if rect is not None else None
 
         def entry(self, key):
             return self._entries.get(key)
@@ -626,7 +679,13 @@ else:
             painter = QtGui.QPainter(self)
             painter.setRenderHint(QtGui.QPainter.Antialiasing)
             painter.fillRect(self.rect(), _BACKGROUND)
+            painter.scale(self.zoom, self.zoom)
+            self.paint_map(painter)
+            painter.end()
 
+        def paint_map(self, painter, with_text=True):
+            """Paint every item, in unzoomed map coordinates, onto *painter*."""
+            self._with_text = with_text
             for key in sorted(self._frames, key=lambda key: self._depth[key]):
                 self._paint_frame(painter, key)
             for key, entry in self._entries.items():
@@ -637,7 +696,7 @@ else:
                     self._paint_dot(painter, key)
                 elif entry['kind'] == KIND_TILE:
                     self._paint_tile(painter, key)
-            painter.end()
+            self._with_text = True
 
         def _paint_frame(self, painter, key):
             entry = self._entries[key]
@@ -653,6 +712,8 @@ else:
                 painter.setPen(QtGui.QPen(color.lighter(130), 1.5))
             painter.drawRoundedRect(rect.adjusted(1, 1, -1, -1), 6, 6)
 
+            if not self._with_text:
+                return
             painter.setFont(_label_font(bold=True))
             painter.setPen(color.lighter(170) if lit else _DIMMED_TEXT)
             header = QtCore.QRectF(rect.left() + SPATIAL_BACKDROP_PADDING, rect.top() + 2,
@@ -677,6 +738,9 @@ else:
             pen.setStyle(Qt.DashLine)
             painter.setPen(pen)
             painter.drawRoundedRect(rect.adjusted(1, 1, -1, -1), 6, 6)
+            if not self._with_text:
+                painter.restore()
+                return
             painter.setFont(_label_font(italic=True))
             painter.setPen(QtGui.QColor(230, 230, 230) if lit else _DIMMED_TEXT)
             text_rect = rect.adjusted(6, 4, -6, -4)
@@ -700,6 +764,8 @@ else:
             else:
                 painter.setPen(QtGui.QPen(QtGui.QColor(0, 0, 0, 90), 1))
             painter.drawRoundedRect(rect.adjusted(1, 1, -1, -1), 4, 4)
+            if not self._with_text:
+                return
             painter.setFont(_label_font(bold=True))
             painter.setPen(text_color)
             text_rect = rect.adjusted(5, 0, -5, 0)
@@ -720,6 +786,8 @@ else:
             else:
                 painter.setPen(QtGui.QPen(QtGui.QColor(0, 0, 0, 120), 1))
             painter.drawEllipse(circle)
+            if not self._with_text:
+                return
             painter.setFont(_label_font(bold=highlighted, point_size=point_size))
             painter.setPen(_HIGHLIGHT if highlighted else (_DOT_LABEL_TEXT if lit else _DIMMED_TEXT))
             text_rect = QtCore.QRectF(circle.right() + _DOT_LABEL_SPACING, rect.top(),
@@ -733,7 +801,8 @@ else:
         # -- mouse -------------------------------------------------------------
 
         def key_at(self, point):
-            """Return the key of the topmost item under *point*, or None."""
+            """Return the key of the topmost item under the widget point *point*, or None."""
+            point = QtCore.QPointF(point.x() / self.zoom, point.y() / self.zoom)
             for key in self._entries:
                 if key not in self._frames and self._rects[key].contains(point):
                     return key
@@ -765,6 +834,139 @@ else:
                 self.unsetCursor()
                 self.on_activate(key)
 
+    _MINIMAP_MAX_WIDTH = 240
+    _MINIMAP_MAX_HEIGHT = 150
+    _MINIMAP_MARGIN = 10
+
+    class Minimap(QtWidgets.QWidget):
+        """An overview of the whole map in a corner of the view, with the visible part outlined.
+
+        Clicking or dragging on it moves the view there.
+        """
+
+        def __init__(self, canvas, scroll_area):
+            super(Minimap, self).__init__(scroll_area)
+            self._canvas = canvas
+            self._scroll_area = scroll_area
+            self.setCursor(Qt.PointingHandCursor)
+            scroll_area.horizontalScrollBar().valueChanged.connect(self.update)
+            scroll_area.verticalScrollBar().valueChanged.connect(self.update)
+            scroll_area.installEventFilter(self)
+
+        def eventFilter(self, watched, event):  # noqa: N802 — Qt naming
+            if event.type() in (QtCore.QEvent.Resize, QtCore.QEvent.Show) and self.isVisible():
+                QtCore.QTimer.singleShot(0, self.reposition)
+            return False
+
+        def _scale(self):
+            base = self._canvas.base_size()
+            if base.width() <= 0 or base.height() <= 0:
+                return 1.0
+            return min(float(_MINIMAP_MAX_WIDTH) / base.width(),
+                       float(_MINIMAP_MAX_HEIGHT) / base.height())
+
+        def reposition(self):
+            """Size to the map's aspect ratio and sit in the view's bottom-right corner."""
+            base = self._canvas.base_size()
+            scale = self._scale()
+            self.setFixedSize(int(base.width() * scale) + 2, int(base.height() * scale) + 2)
+            viewport = self._scroll_area.viewport().geometry()
+            self.move(viewport.right() - self.width() - _MINIMAP_MARGIN,
+                      viewport.bottom() - self.height() - _MINIMAP_MARGIN)
+            self.raise_()
+            self.update()
+
+        def visible_rect(self):
+            """The part of the map the view shows, in unzoomed map coordinates."""
+            zoom = self._canvas.zoom
+            viewport = self._scroll_area.viewport()
+            return QtCore.QRectF(
+                self._scroll_area.horizontalScrollBar().value() / zoom,
+                self._scroll_area.verticalScrollBar().value() / zoom,
+                viewport.width() / zoom, viewport.height() / zoom)
+
+        def paintEvent(self, event):  # noqa: N802 — Qt naming
+            painter = QtGui.QPainter(self)
+            painter.setRenderHint(QtGui.QPainter.Antialiasing)
+            painter.fillRect(self.rect(), QtGui.QColor(20, 20, 20, 230))
+            painter.setPen(QtGui.QPen(QtGui.QColor(110, 110, 110), 1))
+            painter.drawRect(QtCore.QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5))
+            painter.translate(1, 1)
+            scale = self._scale()
+            painter.scale(scale, scale)
+            self._canvas.paint_map(painter, with_text=False)
+            painter.setBrush(QtGui.QColor(255, 255, 255, 25))
+            painter.setPen(QtGui.QPen(_HIGHLIGHT, 1.5 / scale))
+            painter.drawRect(self.visible_rect())
+            painter.end()
+
+        def _centre_view_on(self, point):
+            scale = self._scale()
+            zoom = self._canvas.zoom
+            viewport = self._scroll_area.viewport()
+            self._scroll_area.horizontalScrollBar().setValue(
+                int((point.x() - 1) / scale * zoom - viewport.width() / 2.0))
+            self._scroll_area.verticalScrollBar().setValue(
+                int((point.y() - 1) / scale * zoom - viewport.height() / 2.0))
+
+        def mousePressEvent(self, event):  # noqa: N802 — Qt naming
+            self._centre_view_on(event.pos())
+
+        def mouseMoveEvent(self, event):  # noqa: N802 — Qt naming
+            if event.buttons() & Qt.LeftButton:
+                self._centre_view_on(event.pos())
+
+    class ZoomControls(QtWidgets.QWidget):
+        """Zoom out / zoom level / zoom in / fit buttons in the view's top-right corner."""
+
+        def __init__(self, scroll_area, on_zoom_out, on_zoom_in, on_fit):
+            super(ZoomControls, self).__init__(scroll_area)
+            self._scroll_area = scroll_area
+            self.setObjectName('SpatialZoomControls')
+            self.setAttribute(Qt.WA_StyledBackground, True)
+            self.setStyleSheet(
+                "#SpatialZoomControls { background: rgba(20, 20, 20, 230);"
+                " border: 1px solid rgb(110, 110, 110); border-radius: 4px; }"
+                "QToolButton { color: rgb(220, 220, 220); background: transparent;"
+                " border: none; padding: 2px 6px; font-weight: bold; }"
+                "QToolButton:hover { background: rgb(60, 60, 60); }"
+                "QLabel { color: rgb(200, 200, 200); padding: 0 2px; }")
+            layout = QtWidgets.QHBoxLayout(self)
+            layout.setContentsMargins(2, 2, 2, 2)
+            layout.setSpacing(0)
+            for text, tip, callback in (('\u2212', 'Zoom out (Ctrl+-, Ctrl+wheel)', on_zoom_out),
+                                        (None, None, None),
+                                        ('+', 'Zoom in (Ctrl+=, Ctrl+wheel)', on_zoom_in),
+                                        ('Fit', 'Fit the matches (Ctrl+0)', on_fit)):
+                if text is None:
+                    self._level = QtWidgets.QLabel('100%')
+                    self._level.setAlignment(Qt.AlignCenter)
+                    self._level.setMinimumWidth(40)
+                    layout.addWidget(self._level)
+                    continue
+                button = QtWidgets.QToolButton()
+                button.setText(text)
+                button.setToolTip(tip)
+                button.setFocusPolicy(Qt.NoFocus)
+                button.clicked.connect(callback)
+                layout.addWidget(button)
+            scroll_area.installEventFilter(self)
+
+        def set_zoom(self, zoom):
+            self._level.setText('%d%%' % round(zoom * 100))
+
+        def reposition(self):
+            self.adjustSize()
+            viewport = self._scroll_area.viewport().geometry()
+            self.move(viewport.right() - self.width() - _MINIMAP_MARGIN,
+                      viewport.top() + _MINIMAP_MARGIN)
+            self.raise_()
+
+        def eventFilter(self, watched, event):  # noqa: N802 — Qt naming
+            if event.type() in (QtCore.QEvent.Resize, QtCore.QEvent.Show):
+                QtCore.QTimer.singleShot(0, self.reposition)
+            return False
+
     class SpatialPicker(_tabtabtab.TabTabTabWidget):
         """The anchor picker with a map of the script beside its search panel."""
 
@@ -785,6 +987,25 @@ else:
             self.setAutoFillBackground(True)
             self.mode = mode
             self.map_canvas.on_activate = self.activate_key
+            self._minimap = Minimap(self.map_canvas, self._map_scroll)
+            self._minimap.hide()
+            # Set once the user zooms: from then on typing leaves the zoom alone
+            # and only scrolls the highlighted match into view, until Fit or the
+            # next show hands the zoom back to the search.
+            self._user_zoomed = False
+            self._zoom_controls = ZoomControls(
+                self._map_scroll,
+                on_zoom_out=lambda: self.zoom_by(1.0 / SPATIAL_ZOOM_STEP),
+                on_zoom_in=lambda: self.zoom_by(SPATIAL_ZOOM_STEP),
+                on_fit=self.fit_matched)
+            self._map_scroll.viewport().installEventFilter(self)
+            for keys, callback in (('Ctrl+=', lambda: self.zoom_by(SPATIAL_ZOOM_STEP)),
+                                   ('Ctrl++', lambda: self.zoom_by(SPATIAL_ZOOM_STEP)),
+                                   ('Ctrl+-', lambda: self.zoom_by(1.0 / SPATIAL_ZOOM_STEP)),
+                                   ('Ctrl+0', self.fit_matched)):
+                shortcut = QtGui.QShortcut(QtGui.QKeySequence(keys), self) \
+                    if hasattr(QtGui, 'QShortcut') else QtWidgets.QShortcut(QtGui.QKeySequence(keys), self)
+                shortcut.activated.connect(callback)
 
         def _build_layout(self):
             self.map_canvas = MapCanvas()
@@ -829,7 +1050,84 @@ else:
         def _sync_map(self):
             self.map_canvas.set_matched(
                 self._matched_item_key(item) for item in self.things_model._items)
+            if not self._user_zoomed:
+                self._fit_matched_view()
             self._sync_highlight()
+            self._minimap.update()
+
+        # -- zoom --------------------------------------------------------------
+
+        def eventFilter(self, watched, event):  # noqa: N802 — Qt naming
+            if (watched is self._map_scroll.viewport()
+                    and event.type() == QtCore.QEvent.Wheel
+                    and event.modifiers() & Qt.ControlModifier):
+                steps = event.angleDelta().y() / 120.0
+                if steps:
+                    position = event.position() if hasattr(event, 'position') else event.pos()
+                    self.zoom_by(SPATIAL_ZOOM_STEP ** steps, QtCore.QPointF(position))
+                return True
+            return super(SpatialPicker, self).eventFilter(watched, event)
+
+        def zoom_by(self, factor, focus=None):
+            """Zoom by *factor*, keeping the map point under the viewport point *focus* still.
+
+            *focus* defaults to the centre of the view.  This is the user
+            zooming, so typing stops re-fitting the view until fit_matched.
+            """
+            self._user_zoomed = True
+            zoom = clamp_user_zoom(self.map_canvas.zoom * factor)
+            viewport = self._map_scroll.viewport()
+            if focus is None:
+                focus = QtCore.QPointF(viewport.width() / 2.0, viewport.height() / 2.0)
+            # The map point under *focus*, in unzoomed map units, to keep there.
+            map_point = QtCore.QPointF(self.map_canvas.mapFrom(viewport, focus.toPoint()))
+            map_point /= self.map_canvas.zoom
+            self._apply_zoom(zoom)
+            self._scroll_to(map_point, focus)
+
+        def _apply_zoom(self, zoom):
+            self.map_canvas.set_zoom(zoom)
+            # The scroll range only follows the new canvas size once the scroll
+            # area has laid it out.
+            self._map_scroll.widget().resize(self.map_canvas.size())
+            self._zoom_controls.set_zoom(zoom)
+            viewport = self._map_scroll.viewport().size()
+            canvas = self.map_canvas.size()
+            self._minimap.setVisible(canvas.width() > viewport.width()
+                                     or canvas.height() > viewport.height())
+            if self._minimap.isVisible():
+                self._minimap.reposition()
+
+        def _scroll_to(self, map_point, viewport_point):
+            """Scroll so the unzoomed map point *map_point* sits at *viewport_point*."""
+            zoom = self.map_canvas.zoom
+            self._map_scroll.horizontalScrollBar().setValue(
+                int(map_point.x() * zoom - viewport_point.x()))
+            self._map_scroll.verticalScrollBar().setValue(
+                int(map_point.y() * zoom - viewport_point.y()))
+
+        def fit_matched(self):
+            """Fit the view to the matches and let typing keep it fitted again (Fit, Ctrl+0)."""
+            self._user_zoomed = False
+            self._fit_matched_view()
+            self._sync_highlight()
+
+        def _fit_matched_view(self):
+            """Zoom and scroll the map so the items still matching the search fill the view.
+
+            See fit_zoom for the zoom limits; when the matches cannot all fit,
+            the view centres on them and the rest is a scroll away.
+            """
+            bounds = self.map_canvas.matched_bounds()
+            if bounds is None:
+                base = self.map_canvas.base_size()
+                bounds = QtCore.QRectF(0, 0, base.width(), base.height())
+            bounds = bounds.adjusted(-_MAP_MARGIN, -_MAP_MARGIN, _MAP_MARGIN, _MAP_MARGIN)
+            viewport = self._map_scroll.viewport().size()
+            self._apply_zoom(fit_zoom(bounds.width(), bounds.height(),
+                                      viewport.width(), viewport.height()))
+            self._scroll_to(bounds.center(),
+                            QtCore.QPointF(viewport.width() / 2.0, viewport.height() / 2.0))
 
         def _sync_highlight(self):
             key = None
@@ -869,13 +1167,16 @@ else:
             self._fit_to_screen()
             self.under_cursor()
             super(SpatialPicker, self).show()
+            self._user_zoomed = False
             self._sync_map()
+            QtCore.QTimer.singleShot(0, self._zoom_controls.reposition)
 
         def _refresh_after_show(self):
             self.move_selection(where="first")
 
         def _fit_to_screen(self):
             available = _available_screen_rect()
+            self.map_canvas.set_zoom(1.0)
             canvas_size = self.map_canvas.size()
             if available is None:
                 self._map_scroll.setFixedSize(canvas_size)
@@ -887,14 +1188,11 @@ else:
             chrome_height = margins.top() + margins.bottom()
             max_width = int(available.width() * SPATIAL_MAX_SCREEN_FRACTION) - chrome_width
             max_height = int(available.height() * SPATIAL_MAX_SCREEN_FRACTION) - chrome_height
-            scrollbar = self.style().pixelMetric(QtWidgets.QStyle.PM_ScrollBarExtent)
-            width = canvas_size.width()
-            height = canvas_size.height()
-            if height > max_height:
-                width += scrollbar
-            if width > max_width:
-                height += scrollbar
-            self._map_scroll.setFixedSize(min(width, max_width), min(height, max_height))
+            # The minimap and the wheel stand in for scrollbars.
+            self._map_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+            self._map_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+            self._map_scroll.setFixedSize(min(canvas_size.width(), max_width),
+                                          min(canvas_size.height(), max_height))
             self.adjustSize()
 
         def under_cursor(self):

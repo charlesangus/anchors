@@ -161,6 +161,14 @@ SPATIAL_ITEM_GAP = 6
 SPATIAL_SEARCH_PANEL_WIDTH = 300
 # Fraction of the available screen the popup may occupy before the map scrolls.
 SPATIAL_MAX_SCREEN_FRACTION = 0.9
+# Fitting the view to the search matches zooms out no further than
+# SPATIAL_MIN_FIT_ZOOM (below it labels stop being readable) and never past 1.
+# The user can zoom from SPATIAL_MIN_USER_ZOOM to SPATIAL_MAX_USER_ZOOM, one
+# click or wheel notch at a time by SPATIAL_ZOOM_STEP.
+SPATIAL_MIN_FIT_ZOOM = 0.7
+SPATIAL_MIN_USER_ZOOM = 0.25
+SPATIAL_MAX_USER_ZOOM = 2.0
+SPATIAL_ZOOM_STEP = 1.25
 
 # === Leader-key bindings — single source of truth for leader.py and leader_overlay.py. ===
 # Each entry: (key_letter, action_label, row, col, kind)
