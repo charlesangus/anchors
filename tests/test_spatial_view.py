@@ -7,6 +7,7 @@ anything). What is tested is everything they are a thin shell over:
     empty space squeezed out, nothing colliding, backdrops framing exactly what
     they enclose, and empty backdrops drawn as boxes of their own.
   - fit_zoom / clamp_user_zoom — how far fitting and the user may zoom.
+  - interpolate_view / visible_span — how the view glides, and what it shows.
   - collect_entries / layout_items_for — what the map shows in each mode.
   - open_picker, and the A / Alt+A entry points that call it only when the
     preference is on.
@@ -325,6 +326,46 @@ class TestZoomLimits(unittest.TestCase):
 
     def test_the_user_can_zoom_out_further_than_fitting_does(self):
         self.assertLess(SPATIAL_MIN_USER_ZOOM, SPATIAL_MIN_FIT_ZOOM)
+
+
+class TestViewAnimation(unittest.TestCase):
+    """The view glides smoothly, and where it is heading is known in advance."""
+
+    def test_the_glide_starts_and_ends_on_the_given_views(self):
+        start, end = (0.5, 100.0, 200.0, 700.0, 450.0), (2.0, 900.0, 40.0, 700.0, 450.0)
+        for progress, expected in ((0.0, start), (1.0, end)):
+            for value, expected_value in zip(spatial_view.interpolate_view(start, end, progress),
+                                             expected):
+                self.assertAlmostEqual(value, expected_value)
+
+    def test_the_zoom_moves_by_the_same_factor_every_step(self):
+        start, end = (0.5, 0, 0, 0, 0), (2.0, 0, 0, 0, 0)
+        zooms = [spatial_view.interpolate_view(start, end, step / 4.0)[0] for step in range(5)]
+        for smaller, larger in zip(zooms, zooms[1:]):
+            self.assertAlmostEqual(larger / smaller, 2 ** 0.5)
+
+    def test_a_pinned_zoom_keeps_its_point_still_throughout(self):
+        start, end = (1.0, 300.0, 250.0, 640.0, 480.0), (1.8, 300.0, 250.0, 640.0, 480.0)
+        for step in range(11):
+            view = spatial_view.interpolate_view(start, end, step / 10.0)
+            self.assertEqual(view[1:], start[1:])
+
+    def test_the_points_move_in_a_straight_line(self):
+        view = spatial_view.interpolate_view((1.0, 0, 0, 10, 20), (1.0, 100, 50, 30, 60), 0.25)
+        self.assertEqual(view, (1.0, 25, 12.5, 15, 30))
+
+    def test_a_map_no_longer_than_the_view_shows_whole(self):
+        self.assertEqual(spatial_view.visible_span(800, 10, 1.0, 1000, 900), (0.0, 900.0))
+
+    def test_the_span_puts_the_map_point_at_the_view_point(self):
+        self.assertEqual(spatial_view.visible_span(1000, 250, 1.0, 500, 3000), (750.0, 500.0))
+
+    def test_the_span_is_measured_in_unzoomed_units(self):
+        self.assertEqual(spatial_view.visible_span(1000, 250, 2.0, 500, 3000), (875.0, 250.0))
+
+    def test_the_span_stops_at_either_end_of_the_map(self):
+        self.assertEqual(spatial_view.visible_span(10, 250, 1.0, 500, 3000), (0.0, 500.0))
+        self.assertEqual(spatial_view.visible_span(2990, 250, 1.0, 500, 3000), (2500.0, 500.0))
 
 
 def _anchor_node(name, xpos=0, ypos=0, tile_color=0xAABBCCFF):

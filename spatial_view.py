@@ -51,6 +51,7 @@ from constants import (
     SPATIAL_SEARCH_PANEL_WIDTH,
     SPATIAL_TILE_HEIGHT,
     SPATIAL_TILE_WIDTH,
+    SPATIAL_VIEW_ANIMATION_MS,
     SPATIAL_ZOOM_STEP,
 )
 
@@ -370,6 +371,33 @@ def clamp_user_zoom(zoom, min_zoom=SPATIAL_MIN_USER_ZOOM, max_zoom=SPATIAL_MAX_U
     return max(min_zoom, min(max_zoom, zoom))
 
 
+def interpolate_view(start, end, progress):
+    """Return the view *progress* (0 to 1) of the way from view *start* to view *end*.
+
+    A view is ``(zoom, map_x, map_y, view_x, view_y)``: the unzoomed map point
+    (map_x, map_y) shown at the viewport point (view_x, view_y) at *zoom*.  The
+    zoom moves geometrically, so every frame zooms by the same factor, and the
+    points move in a straight line; a zoom that keeps one map point under the
+    pointer therefore keeps it there on every frame.
+    """
+    zoom = start[0] * (end[0] / start[0]) ** progress
+    return (zoom,) + tuple(start[i] + (end[i] - start[i]) * progress for i in range(1, 5))
+
+
+def visible_span(map_point, view_point, zoom, view_length, map_length):
+    """Return (start, length) of the map a view shows along one axis, in unzoomed units.
+
+    The view puts *map_point* at *view_point* as far as scrolling allows: like
+    a scroll bar it stops at either end of the map, and a map no longer than
+    the view shows whole.
+    """
+    zoomed_length = map_length * zoom
+    if zoomed_length <= view_length:
+        return 0.0, float(map_length)
+    scroll = min(max(map_point * zoom - view_point, 0.0), zoomed_length - view_length)
+    return scroll / zoom, view_length / zoom
+
+
 # ---------------------------------------------------------------------------
 # Item collection — reads nodes, not Qt.
 # ---------------------------------------------------------------------------
@@ -568,16 +596,25 @@ else:
     _DIMMED_TEXT = QtGui.QColor(120, 120, 120)
     _HIGHLIGHT = QtGui.QColor(255, 255, 255)
     _DOT_LABEL_TEXT = QtGui.QColor(220, 220, 220)
+    _DARK_TILE_TEXT = QtGui.QColor(17, 17, 17)
+    _LIGHT_TILE_TEXT = QtGui.QColor(238, 238, 238)
 
     def _qcolor(color_int, alpha=255):
         red, green, blue = rgb_for(color_int)
         return QtGui.QColor(red, green, blue, alpha)
 
+    _label_fonts = {}
+
     def _label_font(bold=False, italic=False, point_size=_LABEL_POINT_SIZE):
-        font = QtGui.QFont()
-        font.setPointSize(point_size)
-        font.setBold(bold)
-        font.setItalic(italic)
+        """The label font for these settings, made once and shared: callers must not change it."""
+        settings = (bold, italic, point_size)
+        font = _label_fonts.get(settings)
+        if font is None:
+            font = QtGui.QFont()
+            font.setPointSize(point_size)
+            font.setBold(bold)
+            font.setItalic(italic)
+            _label_fonts[settings] = font
         return font
 
     def _available_screen_rect():
@@ -607,6 +644,17 @@ else:
             self._base_size = QtCore.QSize(0, 0)
             self._with_text = True
             self.zoom = 1.0
+            # Worked out once per set of entries rather than on every paint:
+            # painting a big script in Python is slow enough to stutter.
+            self._colors = {}
+            self._light = {}
+            self._elided_names = {}
+            self._frame_order = []
+            self._empty_backdrops = []
+            self._leaves = []
+            # Bumped whenever what paint_map draws changes, so the minimap
+            # knows when its cached picture is stale.
+            self.content_version = 0
 
         def set_entries(self, entries):
             self.unsetCursor()
@@ -626,6 +674,15 @@ else:
             self._frames = layout['frames']
             self._depth = layout['depth']
             self._highlighted_key = None
+            self._colors = {key: _qcolor(entry['color']) for key, entry in self._entries.items()}
+            self._light = {key: is_light(entry['color']) for key, entry in self._entries.items()}
+            self._elided_names = {}
+            self._frame_order = sorted(self._frames, key=lambda key: self._depth[key])
+            self._empty_backdrops = [key for key, entry in self._entries.items()
+                                     if entry['kind'] == KIND_BACKDROP and key not in self._frames]
+            self._leaves = [key for key, entry in self._entries.items()
+                            if entry['kind'] in (KIND_DOT, KIND_TILE)]
+            self.content_version += 1
             self._base_size = QtCore.QSize(int(layout['width']) + 2 * _MAP_MARGIN + 1,
                                            int(layout['height']) + 2 * _MAP_MARGIN + 1)
             self.set_zoom(1.0)
@@ -640,11 +697,6 @@ else:
                               max(1, int(self._base_size.height() * zoom)))
             self.update()
 
-        def to_view(self, rect):
-            """Map an unzoomed map rect to this widget's (zoomed) coordinates."""
-            return QtCore.QRectF(rect.x() * self.zoom, rect.y() * self.zoom,
-                                 rect.width() * self.zoom, rect.height() * self.zoom)
-
         def matched_bounds(self):
             """Return the unzoomed rect around every matched, selectable item, or None."""
             bounds = None
@@ -657,15 +709,20 @@ else:
             return bounds
 
         def set_matched(self, keys):
-            self._matched = set(keys)
-            self.update()
+            matched = set(keys)
+            if matched != self._matched:
+                self._matched = matched
+                self.content_version += 1
+                self.update()
 
         def set_highlighted(self, key):
-            """Highlight *key*; return its rect so the caller can scroll to it."""
-            self._highlighted_key = key
-            self.update()
+            """Highlight *key*; return its unzoomed rect so the caller can scroll to it."""
+            if key != self._highlighted_key:
+                self._highlighted_key = key
+                self.content_version += 1
+                self.update()
             rect = self._rects.get(key)
-            return self.to_view(rect) if rect is not None else None
+            return QtCore.QRectF(rect) if rect is not None else None
 
         def entry(self, key):
             return self._entries.get(key)
@@ -678,31 +735,45 @@ else:
         def paintEvent(self, event):  # noqa: N802 — Qt naming
             painter = QtGui.QPainter(self)
             painter.setRenderHint(QtGui.QPainter.Antialiasing)
-            painter.fillRect(self.rect(), _BACKGROUND)
+            painter.fillRect(event.rect(), _BACKGROUND)
             painter.scale(self.zoom, self.zoom)
-            self.paint_map(painter)
+            exposed = QtCore.QRectF(event.rect())
+            self.paint_map(painter, visible=QtCore.QRectF(
+                exposed.x() / self.zoom, exposed.y() / self.zoom,
+                exposed.width() / self.zoom, exposed.height() / self.zoom))
             painter.end()
 
-        def paint_map(self, painter, with_text=True):
-            """Paint every item, in unzoomed map coordinates, onto *painter*."""
+        def paint_map(self, painter, with_text=True, visible=None):
+            """Paint the items, in unzoomed map coordinates, onto *painter*.
+
+            With *visible* (an unzoomed rect), only the items touching it are
+            painted.
+            """
+            if visible is not None:
+                # Outlines are drawn a little outside their items' rects.
+                visible = visible.adjusted(-4, -4, 4, 4)
+
+            def shown(keys):
+                if visible is None:
+                    return keys
+                return [key for key in keys if self._rects[key].intersects(visible)]
+
             self._with_text = with_text
-            for key in sorted(self._frames, key=lambda key: self._depth[key]):
+            for key in shown(self._frame_order):
                 self._paint_frame(painter, key)
-            for key, entry in self._entries.items():
-                if entry['kind'] == KIND_BACKDROP and key not in self._frames:
-                    self._paint_empty_backdrop(painter, key)
-            for key, entry in self._entries.items():
-                if entry['kind'] == KIND_DOT:
+            for key in shown(self._empty_backdrops):
+                self._paint_empty_backdrop(painter, key)
+            for key in shown(self._leaves):
+                if self._entries[key]['kind'] == KIND_DOT:
                     self._paint_dot(painter, key)
-                elif entry['kind'] == KIND_TILE:
+                else:
                     self._paint_tile(painter, key)
             self._with_text = True
 
         def _paint_frame(self, painter, key):
-            entry = self._entries[key]
             rect = self._rects[key]
             lit = self._lit(key)
-            color = _qcolor(entry['color']) if lit else _DIMMED
+            color = self._colors[key] if lit else _DIMMED
             fill = QtGui.QColor(color)
             fill.setAlpha(70 if lit else 40)
             painter.setBrush(fill)
@@ -720,16 +791,15 @@ else:
                                    rect.width() - 2 * SPATIAL_BACKDROP_PADDING,
                                    SPATIAL_BACKDROP_HEADER)
             painter.drawText(header, int(Qt.AlignVCenter | Qt.AlignLeft),
-                             self._elided(entry['name'], header.width()))
+                             self._elided(key, header.width()))
 
         def _paint_empty_backdrop(self, painter, key):
-            entry = self._entries[key]
             rect = self._rects[key]
             lit = self._lit(key)
             highlighted = key == self._highlighted_key
             painter.save()
             painter.setOpacity(1.0 if highlighted else (0.5 if lit else 0.25))
-            color = _qcolor(entry['color']) if lit else _DIMMED
+            color = self._colors[key] if lit else _DIMMED
             fill = QtGui.QColor(color)
             fill.setAlpha(80)
             painter.setBrush(fill)
@@ -744,18 +814,15 @@ else:
             painter.setFont(_label_font(italic=True))
             painter.setPen(QtGui.QColor(230, 230, 230) if lit else _DIMMED_TEXT)
             text_rect = rect.adjusted(6, 4, -6, -4)
-            painter.drawText(text_rect, int(Qt.AlignCenter),
-                             self._elided(entry['name'], text_rect.width()))
+            painter.drawText(text_rect, int(Qt.AlignCenter), self._elided(key, text_rect.width()))
             painter.restore()
 
         def _paint_tile(self, painter, key):
-            entry = self._entries[key]
             rect = self._rects[key]
             lit = self._lit(key)
             if lit:
-                painter.setBrush(_qcolor(entry['color']))
-                text_color = QtGui.QColor(17, 17, 17) if is_light(entry['color']) \
-                    else QtGui.QColor(238, 238, 238)
+                painter.setBrush(self._colors[key])
+                text_color = _DARK_TILE_TEXT if self._light[key] else _LIGHT_TILE_TEXT
             else:
                 painter.setBrush(_DIMMED)
                 text_color = _DIMMED_TEXT
@@ -769,8 +836,7 @@ else:
             painter.setFont(_label_font(bold=True))
             painter.setPen(text_color)
             text_rect = rect.adjusted(5, 0, -5, 0)
-            painter.drawText(text_rect, int(Qt.AlignCenter),
-                             self._elided(entry['name'], text_rect.width()))
+            painter.drawText(text_rect, int(Qt.AlignCenter), self._elided(key, text_rect.width()))
 
         def _paint_dot(self, painter, key):
             entry = self._entries[key]
@@ -780,7 +846,7 @@ else:
             _font_size, diameter, point_size = SPATIAL_DOT_TIERS[entry['tier']]
             circle = QtCore.QRectF(rect.left(), rect.center().y() - diameter / 2.0,
                                    diameter, diameter)
-            painter.setBrush(_qcolor(entry['color']) if lit else _DIMMED)
+            painter.setBrush(self._colors[key] if lit else _DIMMED)
             if highlighted:
                 painter.setPen(QtGui.QPen(_HIGHLIGHT, 2.5))
             else:
@@ -794,9 +860,14 @@ else:
                                       rect.right() - circle.right(), rect.height())
             painter.drawText(text_rect, int(Qt.AlignVCenter | Qt.AlignLeft), entry['name'])
 
-        def _elided(self, text, width):
-            metrics = QtGui.QFontMetrics(_label_font(bold=True))
-            return metrics.elidedText(text, Qt.ElideRight, int(width))
+        def _elided(self, key, width):
+            """*key*'s name cut to *width*; an item's width is fixed per set of entries."""
+            text = self._elided_names.get(key)
+            if text is None:
+                metrics = QtGui.QFontMetrics(_label_font(bold=True))
+                text = metrics.elidedText(self._entries[key]['name'], Qt.ElideRight, int(width))
+                self._elided_names[key] = text
+            return text
 
         # -- mouse -------------------------------------------------------------
 
@@ -846,11 +917,18 @@ else:
         Clicking or dragging on it moves the view there.
         """
 
-        def __init__(self, canvas, scroll_area, zoom_controls):
+        def __init__(self, canvas, scroll_area, zoom_controls, on_navigate):
             super(Minimap, self).__init__(scroll_area)
             self._canvas = canvas
             self._scroll_area = scroll_area
             self._zoom_controls = zoom_controls
+            # Called with the unzoomed map point to centre the view on, and
+            # whether to glide there (a click) or jump (a drag).
+            self._on_navigate = on_navigate
+            # The map drawn small, redrawn only when the map or the minimap's
+            # size changes, so a moving view repaints just the outline.
+            self._picture = None
+            self._picture_stamp = None
             self.setCursor(Qt.PointingHandCursor)
             scroll_area.horizontalScrollBar().valueChanged.connect(self.update)
             scroll_area.verticalScrollBar().valueChanged.connect(self.update)
@@ -895,30 +973,43 @@ else:
             painter.fillRect(self.rect(), QtGui.QColor(20, 20, 20, 230))
             painter.setPen(QtGui.QPen(QtGui.QColor(110, 110, 110), 1))
             painter.drawRect(QtCore.QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5))
+            painter.drawPixmap(1, 1, self._map_picture())
             painter.translate(1, 1)
             scale = self._scale()
             painter.scale(scale, scale)
-            self._canvas.paint_map(painter, with_text=False)
             painter.setBrush(QtGui.QColor(255, 255, 255, 25))
             painter.setPen(QtGui.QPen(_HIGHLIGHT, 1.5 / scale))
             painter.drawRect(self.visible_rect())
             painter.end()
 
-        def _centre_view_on(self, point):
+        def _map_picture(self):
+            ratio = self.devicePixelRatioF()
+            stamp = (self._canvas.content_version, self.width(), self.height(), ratio)
+            if stamp != self._picture_stamp:
+                self._picture = QtGui.QPixmap(max(1, int((self.width() - 2) * ratio)),
+                                              max(1, int((self.height() - 2) * ratio)))
+                self._picture.setDevicePixelRatio(ratio)
+                self._picture.fill(Qt.transparent)
+                painter = QtGui.QPainter(self._picture)
+                painter.setRenderHint(QtGui.QPainter.Antialiasing)
+                scale = self._scale()
+                painter.scale(scale, scale)
+                self._canvas.paint_map(painter, with_text=False)
+                painter.end()
+                self._picture_stamp = stamp
+            return self._picture
+
+        def _map_point(self, point):
+            """The unzoomed map point under the minimap point *point*."""
             scale = self._scale()
-            zoom = self._canvas.zoom
-            viewport = self._scroll_area.viewport()
-            self._scroll_area.horizontalScrollBar().setValue(
-                int((point.x() - 1) / scale * zoom - viewport.width() / 2.0))
-            self._scroll_area.verticalScrollBar().setValue(
-                int((point.y() - 1) / scale * zoom - viewport.height() / 2.0))
+            return QtCore.QPointF((point.x() - 1) / scale, (point.y() - 1) / scale)
 
         def mousePressEvent(self, event):  # noqa: N802 — Qt naming
-            self._centre_view_on(event.pos())
+            self._on_navigate(self._map_point(event.pos()), True)
 
         def mouseMoveEvent(self, event):  # noqa: N802 — Qt naming
             if event.buttons() & Qt.LeftButton:
-                self._centre_view_on(event.pos())
+                self._on_navigate(self._map_point(event.pos()), False)
 
         def wheelEvent(self, event):  # noqa: N802 — Qt naming
             # Swallowed, so it does not fall through to scroll the view.
@@ -1014,7 +1105,17 @@ else:
                 on_zoom_out=lambda: self.zoom_by(1.0 / SPATIAL_ZOOM_STEP),
                 on_zoom_in=lambda: self.zoom_by(SPATIAL_ZOOM_STEP),
                 on_fit=self.fit_matched)
-            self._minimap = Minimap(self.map_canvas, self._map_scroll, self._zoom_controls)
+            self._minimap = Minimap(self.map_canvas, self._map_scroll, self._zoom_controls,
+                                    on_navigate=self._centre_on)
+            # Every zoom and scroll the picker makes glides there: see _move_view.
+            self._view_animation = QtCore.QVariantAnimation(self)
+            self._view_animation.setDuration(SPATIAL_VIEW_ANIMATION_MS)
+            self._view_animation.setEasingCurve(QtCore.QEasingCurve.OutCubic)
+            self._view_animation.setStartValue(0.0)
+            self._view_animation.setEndValue(1.0)
+            self._view_animation.valueChanged.connect(self._step_view_animation)
+            self._animation_start = None
+            self._animation_end = None
             self._minimap.hide()
             # Where a middle-button drag started: its global position and the
             # scroll position then; None while no drag is under way.
@@ -1072,12 +1173,12 @@ else:
             except ValueError:
                 return None
 
-        def _sync_map(self):
+        def _sync_map(self, animate=True):
             self.map_canvas.set_matched(
                 self._matched_item_key(item) for item in self.things_model._items)
             if not self._user_zoomed:
-                self._fit_matched_view()
-            self._sync_highlight()
+                self._fit_matched_view(animate)
+            self._sync_highlight(animate)
             self._minimap.update()
 
         # -- zoom --------------------------------------------------------------
@@ -1101,6 +1202,7 @@ else:
             """Move the view with a middle-button drag, as in the Node Graph; True if handled."""
             event_type = event.type()
             if event_type == QtCore.QEvent.MouseButtonPress and event.button() == Qt.MiddleButton:
+                self._view_animation.stop()
                 self._pan_start = (_global_position(event),
                                    self._map_scroll.horizontalScrollBar().value(),
                                    self._map_scroll.verticalScrollBar().value())
@@ -1127,15 +1229,77 @@ else:
             zooming, so typing stops re-fitting the view until fit_matched.
             """
             self._user_zoomed = True
-            zoom = clamp_user_zoom(self.map_canvas.zoom * factor)
-            viewport = self._map_scroll.viewport()
             if focus is None:
-                focus = QtCore.QPointF(viewport.width() / 2.0, viewport.height() / 2.0)
-            # The map point under *focus*, in unzoomed map units, to keep there.
-            map_point = QtCore.QPointF(self.map_canvas.mapFrom(viewport, focus.toPoint()))
+                focus = self._viewport_centre()
+            # Zoom from where a zoom still gliding is heading, so quick clicks
+            # or wheel notches add up.
+            zoom = clamp_user_zoom(self._target_view()[0] * factor)
+            _zoom, map_x, map_y, view_x, view_y = self._current_view(focus)
+            self._move_view((zoom, map_x, map_y, view_x, view_y))
+
+        # -- moving the view ---------------------------------------------------
+
+        def _viewport_centre(self):
+            viewport = self._map_scroll.viewport()
+            return QtCore.QPointF(viewport.width() / 2.0, viewport.height() / 2.0)
+
+        def _current_view(self, view_point):
+            """The view shown now, pinned at the viewport point *view_point*.
+
+            See interpolate_view for what a view is.
+            """
+            viewport = self._map_scroll.viewport()
+            map_point = QtCore.QPointF(self.map_canvas.mapFrom(viewport, view_point.toPoint()))
             map_point /= self.map_canvas.zoom
+            return (self.map_canvas.zoom, map_point.x(), map_point.y(),
+                    view_point.x(), view_point.y())
+
+        def _target_view(self):
+            """The view being glided to, or the one shown when the view is still."""
+            if self._view_animation.state() == QtCore.QAbstractAnimation.Running:
+                return self._animation_end
+            return self._current_view(self._viewport_centre())
+
+        def _move_view(self, view, animate=True):
+            """Glide to *view* (see interpolate_view), or jump there when not *animate*."""
+            self._view_animation.stop()
+            if not animate or not self.isVisible():
+                self._set_view(view)
+                return
+            self._animation_start = self._current_view(QtCore.QPointF(view[3], view[4]))
+            self._animation_end = view
+            self._view_animation.start()
+
+        def _step_view_animation(self, progress):
+            if self._animation_start is not None:
+                self._set_view(interpolate_view(self._animation_start, self._animation_end,
+                                                float(progress)))
+
+        def _set_view(self, view):
+            zoom, map_x, map_y, view_x, view_y = view
             self._apply_zoom(zoom)
-            self._scroll_to(map_point, focus)
+            self._scroll_to(QtCore.QPointF(map_x, map_y), QtCore.QPointF(view_x, view_y))
+
+        def _centre_on(self, map_point, animate=True):
+            """Scroll the unzoomed map point *map_point* to the middle of the view."""
+            centre = self._viewport_centre()
+            self._move_view((self._target_view()[0], map_point.x(), map_point.y(),
+                             centre.x(), centre.y()), animate)
+
+        def _visible_map_rect(self, view):
+            """The unzoomed map rect *view* shows."""
+            zoom, map_x, map_y, view_x, view_y = view
+            viewport = self._map_scroll.viewport()
+            base = self.map_canvas.base_size()
+            left, width = visible_span(map_x, view_x, zoom, viewport.width(), base.width())
+            top, height = visible_span(map_y, view_y, zoom, viewport.height(), base.height())
+            return QtCore.QRectF(left, top, width, height)
+
+        def _shows(self, view, rect):
+            """Whether *view* shows all of the unzoomed map rect *rect* that lies on the map."""
+            base = self.map_canvas.base_size()
+            on_map = rect.intersected(QtCore.QRectF(0, 0, base.width(), base.height()))
+            return self._visible_map_rect(view).contains(on_map)
 
         def _apply_zoom(self, zoom):
             self.map_canvas.set_zoom(zoom)
@@ -1164,7 +1328,7 @@ else:
             self._fit_matched_view()
             self._sync_highlight()
 
-        def _fit_matched_view(self):
+        def _fit_matched_view(self, animate=True):
             """Zoom and scroll the map so the items still matching the search fill the view.
 
             See fit_zoom for the zoom limits; when the matches cannot all fit,
@@ -1176,30 +1340,24 @@ else:
                 bounds = QtCore.QRectF(0, 0, base.width(), base.height())
             bounds = bounds.adjusted(-_MAP_MARGIN, -_MAP_MARGIN, _MAP_MARGIN, _MAP_MARGIN)
             viewport = self._map_scroll.viewport().size()
-            self._apply_zoom(fit_zoom(bounds.width(), bounds.height(),
-                                      viewport.width(), viewport.height()))
-            self._scroll_to(bounds.center(),
-                            QtCore.QPointF(viewport.width() / 2.0, viewport.height() / 2.0))
+            centre = self._viewport_centre()
+            self._move_view((fit_zoom(bounds.width(), bounds.height(),
+                                      viewport.width(), viewport.height()),
+                             bounds.center().x(), bounds.center().y(),
+                             centre.x(), centre.y()), animate)
 
-        def _sync_highlight(self):
+        def _sync_highlight(self, animate=True):
             key = None
             index = self.things.currentIndex()
             if index.isValid() and index.row() < len(self.things_model._items):
                 key = self._matched_item_key(self.things_model._items[index.row()])
             rect = self.map_canvas.set_highlighted(key)
-            if rect is not None and not self._visible_map_rect().contains(
-                    rect.adjusted(-_MAP_MARGIN, -_MAP_MARGIN, _MAP_MARGIN, _MAP_MARGIN)
-                    .intersected(QtCore.QRectF(self.map_canvas.rect()))):
-                viewport = self._map_scroll.viewport()
-                self._scroll_to(rect.center() / self.map_canvas.zoom,
-                                QtCore.QPointF(viewport.width() / 2.0, viewport.height() / 2.0))
-
-        def _visible_map_rect(self):
-            """The part of the canvas the view shows, in the canvas's (zoomed) coordinates."""
-            viewport = self._map_scroll.viewport()
-            origin = QtCore.QPointF(self.map_canvas.mapFrom(viewport, QtCore.QPoint(0, 0)))
-            visible = QtCore.QRectF(origin, QtCore.QSizeF(viewport.size()))
-            return visible.intersected(QtCore.QRectF(self.map_canvas.rect()))
+            # Judged against where the view is heading, so a fit still gliding
+            # into place is not undone.
+            if rect is not None and not self._shows(
+                    self._target_view(),
+                    rect.adjusted(-_MAP_MARGIN, -_MAP_MARGIN, _MAP_MARGIN, _MAP_MARGIN)):
+                self._centre_on(rect.center(), animate)
 
         def activate_key(self, key):
             """Pick the map item *key* exactly as if its row had been chosen."""
@@ -1228,7 +1386,7 @@ else:
             self.under_cursor()
             super(SpatialPicker, self).show()
             self._user_zoomed = False
-            self._sync_map()
+            self._sync_map(animate=False)
             QtCore.QTimer.singleShot(0, self._zoom_controls.reposition)
 
         def _refresh_after_show(self):

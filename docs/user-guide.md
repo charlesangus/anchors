@@ -292,13 +292,14 @@ where labels stop being legible. You can take over whenever you want, with the
 same mouse moves as the Node Graph: the mouse wheel zooms in and out around the
 pointer, and dragging with the middle button moves the map. The zoom controls in
 the map's bottom-right corner zoom too: **−** and **+** (or `Ctrl`+`-` /
-`Ctrl`+`=`) zoom out and in. Once you have
-zoomed, the zoom stays put and typing only scrolls the map when the highlighted
-entry is out of sight, bringing it to the middle. **Fit** (or `Ctrl`+`0`) hands
-the zoom back to the search, and so does opening the menu again. Clicking the
-controls leaves the search field focused, so you can keep typing. While the map
-is bigger than its area, a **minimap** above the zoom controls shows the whole
-script with the visible part outlined; click or drag in it to move there.
+`Ctrl`+`=`) zoom out and in. Once you have zoomed, the zoom stays put and typing
+only scrolls the map when the highlighted entry is out of sight, bringing it to
+the middle. **Fit** (or `Ctrl`+`0`) hands the zoom back to the search, and so
+does opening the menu again. Clicking the controls leaves the search field
+focused, so you can keep typing. Every zoom and scroll glides into place rather
+than jumping, so you can follow where it went. While the map is bigger than its
+area, a **minimap** above the zoom controls shows the whole script with the
+visible part outlined; click or drag in it to move there.
 
 With the preference off (the default), these menus are the plain lists shown
 elsewhere in this guide.

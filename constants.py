@@ -169,6 +169,8 @@ SPATIAL_MIN_FIT_ZOOM = 0.7
 SPATIAL_MIN_USER_ZOOM = 0.25
 SPATIAL_MAX_USER_ZOOM = 2.0
 SPATIAL_ZOOM_STEP = 1.25
+# How long the view takes to glide to a new zoom or scroll position.
+SPATIAL_VIEW_ANIMATION_MS = 180
 
 # === Leader-key bindings — single source of truth for leader.py and leader_overlay.py. ===
 # Each entry: (key_letter, action_label, row, col, kind)
