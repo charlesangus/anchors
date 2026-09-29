@@ -554,12 +554,15 @@ def _create_anchor_and_optional_link(name, input_node, color=None):
     return anchor_node
 
 
-def create_anchor():
+def create_anchor(hit_group=None):
     if not prefs.plugin_enabled:
         return
     # Capture the group context before any Qt event loop runs so we can restore
     # it when calling create_anchor_named() (which calls nuke.createNode()).
-    hit_group = nuke.lastHitGroup()
+    # Callers that already entered and exited a ``with hit_group:`` block must
+    # pass it in: lastHitGroup() returns root once that block has exited.
+    if hit_group is None:
+        hit_group = nuke.lastHitGroup()
     with hit_group:
         selected = nuke.selectedNodes()
     input_node = selected[0] if len(selected) == 1 else None
@@ -925,7 +928,7 @@ def anchor_shortcut():
         # instead of anchoring it (issue #68).
         labels.setup_backdrop(selected[0])
     elif selected:
-        create_anchor()
+        create_anchor(hit_group)
     else:
         select_anchor_and_create(hit_group)
 

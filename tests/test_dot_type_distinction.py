@@ -1064,6 +1064,25 @@ class TestAnchorShortcutDotRouting(unittest.TestCase):
 
         mock_select_and_create.assert_called_once()
 
+    def test_create_anchor_receives_captured_hit_group(self):
+        """The group captured by anchor_shortcut() is passed on to create_anchor().
+
+        Re-reading lastHitGroup() after the ``with hit_group:`` block exits
+        returns root, which created anchors inside a Group at root level.
+        """
+        import nuke as _nuke
+        read_node = _nuke.StubNode(name='Read1', node_class='Read')
+        self.nuke_stub.selectedNodes = MagicMock(return_value=[read_node])
+        group = MagicMock()
+
+        with patch.object(self.anchor_mod.prefs, 'plugin_enabled', True), \
+             patch.object(self.anchor_mod.nuke, 'lastHitGroup', return_value=group), \
+             patch.object(self.anchor_mod, 'is_anchor', return_value=False), \
+             patch.object(self.anchor_mod, 'create_anchor') as mock_create_anchor:
+            self.anchor_mod.anchor_shortcut()
+
+        mock_create_anchor.assert_called_once_with(group)
+
     def test_multiple_nodes_selected_calls_create_anchor(self):
         """Multiple non-anchor nodes selected → create_anchor() called once."""
         import nuke as _nuke

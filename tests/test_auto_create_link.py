@@ -235,6 +235,35 @@ class TestCreateAnchorDialogPath(unittest.TestCase):
         mock_create_anchor_named.assert_called_once_with('Foo', None, color=0x8040FFFF)
         mock_create_from_anchor.assert_not_called()
 
+    def test_anchor_created_inside_passed_hit_group(self):
+        """A passed-in hit_group is used instead of re-reading lastHitGroup()."""
+        anchor_node = _make_anchor_node('Foo')
+        dialog = _accepting_dialog('Foo')
+        passed_group = MagicMock()
+        entered_groups = []
+        passed_group.__enter__.side_effect = lambda: entered_groups.append('passed')
+
+        def record_group_on_create(*_args, **_kwargs):
+            entered_groups.append('create')
+            return anchor_node
+
+        with patch('anchor.prefs') as mock_prefs, \
+             patch('anchor.nuke') as mock_nuke, \
+             patch('anchor.ColorPaletteDialog', return_value=dialog), \
+             patch('anchor._persist_custom_colors_from_dialog'), \
+             patch('anchor._derive_dialog_default_color', return_value=0), \
+             patch('anchor.create_anchor_named', side_effect=record_group_on_create):
+            mock_prefs.plugin_enabled = True
+            mock_prefs.auto_create_link = False
+            mock_prefs.custom_colors = []
+            mock_nuke.selectedNodes.return_value = []
+
+            import anchor as anchor_module
+            anchor_module.create_anchor(passed_group)
+
+        mock_nuke.lastHitGroup.assert_not_called()
+        self.assertEqual(entered_groups, ['passed', 'passed', 'create'])
+
     def test_no_link_created_when_dialog_rejected(self):
         """A rejected dialog creates neither an anchor nor a link."""
         dialog = MagicMock()
