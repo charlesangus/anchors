@@ -36,6 +36,18 @@
     ]
   },
   {
+    "name": "spatial_view",
+    "steps": [
+      { "type": "click", "target": { "object_name": "@dag" } },
+      { "type": "keys", "keys": ["F9"] },
+      { "type": "wait", "duration": 1.0 },
+      { "type": "screenshot",
+        "target": { "object_name": "SpatialPicker", "class_name": "SpatialPicker" },
+        "filename": "spatial-view.png" },
+      { "type": "keys", "keys": ["Esc"] }
+    ]
+  },
+  {
     "name": "color_palette",
     "steps": [
       { "type": "keys", "keys": ["F6"] },

@@ -647,12 +647,7 @@ class TabTabTabWidget(QtWidgets.QDialog):
         self.things.setVerticalScrollMode(QtWidgets.QAbstractItemView.ScrollPerPixel)
         self.input.setTextMargins(2, _font_h // 2, 2, _font_h // 2)
 
-        # Add input and items to layout
-        layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(self.input)
-        layout.addWidget(self.things)
-
-        self.setLayout(layout)
+        self.setLayout(self._build_layout())
 
         # Update on text change
         self.input.textChanged.connect(self.update)
@@ -674,6 +669,17 @@ class TabTabTabWidget(QtWidgets.QDialog):
         self._resize_list_to_contents()
 
         self.adjustSize()
+
+    def _build_layout(self):
+        """Return the layout holding the input box and the item list.
+
+        Subclasses override this to arrange extra widgets around the two, e.g.
+        the anchors spatial view, which puts a map of the script beside them.
+        """
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(self.input)
+        layout.addWidget(self.things)
+        return layout
 
     def _resize_list_to_contents(self):
         """Set list height to always show num_items rows, giving a fixed popup size.

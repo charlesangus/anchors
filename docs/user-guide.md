@@ -118,7 +118,7 @@ ask for it.
 After jumping with **`Alt`+`A`** or **`Alt`+`J`**, **`Alt`+`Z`** jumps you back
 to where you were.
 
-This enables a wonderfully quick way of getting around your script. As you document your work with labelled dots, you're also creating a map of the script for quick navigation.
+This enables a wonderfully quick way of getting around your script. As you document your work with labelled dots, you're also creating a map of the script for quick navigation. Turn on the **spatial view** and the menu shows you that map directly — see [The spatial view](#the-spatial-view).
 
 ![The navigation picker (Alt+A).](img/anchor-navigate-picker.png){#fig:nav-picker-first}
 
@@ -251,6 +251,61 @@ module. The setting lives on the anchor, so it applies however you jump to it.
 
 ![The navigation picker (Alt+A).](img/anchor-navigate-picker.png){#fig:nav-picker}
 
+
+
+## The spatial view
+
+Sometimes you know *where* an anchor is without remembering what it is called.
+Tick **Show the spatial view beside the A and Alt+A menus** in Preferences and
+both menus — and the leader's **Set Input** commands, which use the same
+anchor menu — open with a map of the script beside their search list
+`(Figure \ref{fig:spatial-view})`{=latex}. The search field and list work exactly
+as before; the map is an addition.
+
+![The spatial view beside the Alt+A menu.](img/spatial-view.png){#fig:spatial-view}
+
+The map draws each item where it really sits in the DAG, with the empty space
+between items squeezed out, so what is left of what and what is above what stays
+the way you remember it:
+
+- **Anchors** are coloured tiles.
+- **Dot anchors** are circles with their label beside them, in three sizes that
+  follow the Dot's label size — small, medium, or large, whichever of the
+  `Shift`+`B` / `N` / `M` presets it is nearest.
+- **Labelled backdrops** are frames drawn around the anchors, Dot anchors, and
+  other backdrops they enclose in the DAG. A backdrop with no anchors inside it
+  is drawn as a faded, dashed box so it never reads as an anchor.
+- **Local Dots** are not shown.
+
+Items are packed only as close as they can come without overlapping: the empty
+space shrinks, but nothing changes places — a module to the right of another in
+the DAG is to its right on the map, and one above another stays above it.
+
+As you type, the list filters as usual and the map items that no longer match
+grey out rather than disappearing, so the map keeps its shape while you narrow
+it down. The entry highlighted in the list is outlined in white on the map, so
+`Up` / `Down` walk the map too. Click any map item to pick it, exactly as if you
+had chosen its row. In the **`A`** menu the backdrops are drawn for context only:
+you link to anchors, so only the anchors can be clicked.
+
+In a big script the map does not fit beside the list at a readable size, so the
+map zooms to what you are looking for instead. As you type, it zooms and scrolls
+to frame the items that still match, and it never shrinks the map past the point
+where labels stop being legible. You can take over whenever you want, with the
+same mouse moves as the Node Graph: the mouse wheel zooms in and out around the
+pointer, and dragging with the middle button moves the map. The zoom controls in
+the map's bottom-right corner zoom too: **−** and **+** (or `Ctrl`+`-` /
+`Ctrl`+`=`) zoom out and in. Once you have zoomed, the zoom stays put and typing
+only scrolls the map when the highlighted entry is out of sight, bringing it to
+the middle. **Fit** (or `Ctrl`+`0`) hands the zoom back to the search, and so
+does opening the menu again. Clicking the controls leaves the search field
+focused, so you can keep typing. Every zoom and scroll glides into place rather
+than jumping, so you can follow where it went. While the map is bigger than its
+area, a **minimap** above the zoom controls shows the whole script with the
+visible part outlined; click or drag in it to move there.
+
+With the preference off (the default), these menus are the plain lists shown
+elsewhere in this guide.
 
 
 ## The leader key
@@ -410,6 +465,8 @@ first.
 - **Enable anchors plugin** — the master toggle.
 - **Create a link below each new anchor** — on by default; uncheck it if you
   prefer creating links yourself.
+- **Show the spatial view beside the A and Alt+A menus** — off by default; tick it
+  to add a map of the script to the anchor menus (see [The spatial view](#the-spatial-view)).
 - **Keyboard layout** — QWERTY / AZERTY / QWERTZ for the leader overlay.
 - **Space-prefix search modes** — what leading spaces do in the fuzzy-find menus
   (see below).

@@ -129,6 +129,49 @@ DEFAULT_SPACE_MODE_ORDER = (
     SPACE_MODE_CONSECUTIVE,
 )
 
+# === Spatial view. ===
+# The spatial view draws a map of the script beside the A / Alt+A pickers. Items
+# keep their real DAG arrangement, but the empty space between them is squeezed
+# out: along each axis, the gap between neighbouring coordinates is scaled by
+# SPATIAL_SCALE and then capped at SPATIAL_MAX_GAP pixels, so a module 5000 DAG
+# units away from the next lands just SPATIAL_MAX_GAP pixels from it.
+SPATIAL_SCALE = 0.6
+SPATIAL_MAX_GAP = 24
+# Item geometry, in pixels. Anchors are tiles; Dot anchors are small circles with
+# their label beside them; a backdrop with no anchors inside it is drawn as a
+# faded box half as large again as a tile.
+SPATIAL_TILE_WIDTH = 120
+SPATIAL_TILE_HEIGHT = 30
+# Dot anchors come in three sizes on the map, one per Dot label size preset
+# (Shift+B / N / M); a Dot takes the tier whose preset its label size is nearest.
+# Each tier: (DAG label font size, circle diameter px, label point size).
+SPATIAL_DOT_TIERS = (
+    (DOT_LABEL_FONT_SIZE_SMALL, 10, 8),
+    (DOT_LABEL_FONT_SIZE_MEDIUM, 14, 10),
+    (DOT_LABEL_FONT_SIZE_LARGE, 20, 12),
+)
+SPATIAL_EMPTY_BACKDROP_SCALE = 1.5
+# A backdrop that encloses anchors is drawn as a frame around them: this much
+# padding on every side, plus a header strip on top for its label.
+SPATIAL_BACKDROP_PADDING = 8
+SPATIAL_BACKDROP_HEADER = 18
+# Minimum clearance packing leaves between neighbouring items on the map.
+SPATIAL_ITEM_GAP = 6
+# Width of the search panel on the map's left.
+SPATIAL_SEARCH_PANEL_WIDTH = 300
+# Fraction of the available screen the popup may occupy before the map scrolls.
+SPATIAL_MAX_SCREEN_FRACTION = 0.9
+# Fitting the view to the search matches zooms out no further than
+# SPATIAL_MIN_FIT_ZOOM (below it labels stop being readable) and never past 1.
+# The user can zoom from SPATIAL_MIN_USER_ZOOM to SPATIAL_MAX_USER_ZOOM, one
+# click or wheel notch at a time by SPATIAL_ZOOM_STEP.
+SPATIAL_MIN_FIT_ZOOM = 0.7
+SPATIAL_MIN_USER_ZOOM = 0.25
+SPATIAL_MAX_USER_ZOOM = 2.0
+SPATIAL_ZOOM_STEP = 1.25
+# How long the view takes to glide to a new zoom or scroll position.
+SPATIAL_VIEW_ANIMATION_MS = 180
+
 # === Leader-key bindings — single source of truth for leader.py and leader_overlay.py. ===
 # Each entry: (key_letter, action_label, row, col, kind)
 #   kind: 'single' (disarm-then-dispatch) or 'chaining' (stay-armed)
