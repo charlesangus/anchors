@@ -648,6 +648,23 @@ class TestOpenPicker(unittest.TestCase):
             spatial_view.open_picker(spatial_view.MODE_CREATE_LINK, MagicMock())
         self.assertIs(cached.plugin, default_plugin)
 
+    def test_first_open_forwards_scroll_enabled_to_the_new_picker(self):
+        hit_group = MagicMock()
+        with patch.object(spatial_view, 'SpatialPicker') as picker_class, \
+                patch.object(spatial_view, '_plugin_for_mode', return_value=MagicMock()), \
+                patch.object(spatial_view, 'host_main_window', return_value=None), \
+                patch.object(spatial_view, 'space_mode_order', return_value=['x']):
+            spatial_view.open_picker(spatial_view.MODE_NAVIGATE, hit_group, scroll_enabled=True)
+        self.assertTrue(picker_class.call_args.kwargs['scroll_enabled'])
+
+    def test_reopening_applies_scroll_enabled_to_the_reused_pickers_model(self):
+        cached = MagicMock()
+        spatial_view._pickers[spatial_view.MODE_CREATE_LINK] = cached
+        with patch.object(spatial_view, 'SpatialPicker'), \
+                patch.object(spatial_view, 'space_mode_order', return_value=['x']):
+            spatial_view.open_picker(spatial_view.MODE_CREATE_LINK, MagicMock(), scroll_enabled=True)
+        cached.things_model.set_scroll_enabled.assert_called_once_with(True)
+
     def test_a_destroyed_picker_is_rebuilt(self):
         dead = MagicMock()
         dead.isVisible.side_effect = RuntimeError
@@ -675,9 +692,10 @@ class TestPickerEntryPoints(unittest.TestCase):
         nuke_stub.allNodes.side_effect = None
         nuke_stub.allNodes.return_value = [_backdrop_node('BackdropNode1')]
 
-    def _run(self, entry_point, spatial_enabled):
+    def _run(self, entry_point, spatial_enabled, scroll_enabled=False):
         with patch.object(self.anchor.prefs, 'plugin_enabled', True), \
                 patch.object(self.anchor.prefs, 'spatial_view_enabled', spatial_enabled), \
+                patch.object(self.anchor.prefs, 'picker_scroll_enabled', scroll_enabled), \
                 patch.object(self.anchor, 'all_anchors', return_value=[_anchor_node('Anchor_BG')]), \
                 patch.object(spatial_view, 'open_picker', return_value=MagicMock()) as open_picker, \
                 patch.object(sys.modules['tabtabtab_anchors'], 'TabTabTabWidget') as widget_class:
@@ -705,6 +723,19 @@ class TestPickerEntryPoints(unittest.TestCase):
             plugin.invoke({'menuobj': anchor_node})
         on_pick.assert_called_once()
         widget_class.assert_not_called()
+
+    def test_spatial_picker_entry_points_forward_the_scroll_preference(self):
+        cases = (
+            (self.anchor.select_anchor_and_navigate, spatial_view.MODE_NAVIGATE),
+            (lambda: self.anchor.select_anchor_and_create(MagicMock()), spatial_view.MODE_CREATE_LINK),
+            (lambda: self.anchor.pick_anchor(MagicMock(), MagicMock()), spatial_view.MODE_CREATE_LINK),
+        )
+        for entry_point, mode in cases:
+            self.anchor._anchor_picker_widget = None
+            self.anchor._anchor_navigate_widget = None
+            open_picker, _ = self._run(entry_point, True, scroll_enabled=True)
+            self.assertEqual(open_picker.call_args.args[0], mode)
+            self.assertTrue(open_picker.call_args.kwargs['scroll_enabled'])
 
     def test_plain_pickers_open_unchanged_when_disabled(self):
         for entry_point in (self.anchor.select_anchor_and_navigate,

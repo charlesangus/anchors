@@ -775,6 +775,17 @@ def _apply_space_mode_order(picker_widget):
     picker_widget.things_model._space_mode_order = _current_space_mode_order()
 
 
+def _apply_scroll_enabled(picker_widget):
+    """Push the current scrolling preference onto a reused picker widget.
+
+    Same reuse-path reasoning as _apply_space_mode_order: the cached widget
+    was built with whatever the preference was then, so a change made since
+    has to be applied here to take effect on the next open rather than the
+    next Nuke session.
+    """
+    picker_widget.things_model.set_scroll_enabled(prefs.picker_scroll_enabled)
+
+
 class _AnchorPickerPlugin(_tabtabtab.TabTabTabPlugin):
     """Unified tabtabtab plugin for both anchor link-creation and navigation.
 
@@ -886,12 +897,14 @@ def pick_anchor(on_pick, hit_group=None):
     if prefs.spatial_view_enabled:
         import spatial_view
         if spatial_view.open_picker(
-                spatial_view.MODE_CREATE_LINK, hit_group, plugin=plugin) is not None:
+                spatial_view.MODE_CREATE_LINK, hit_group, plugin=plugin,
+                scroll_enabled=prefs.picker_scroll_enabled) is not None:
             return
     widget = _tabtabtab.TabTabTabWidget(
         plugin,
         winflags=Qt.FramelessWindowHint,
         space_mode_order=_current_space_mode_order(),
+        scroll_enabled=prefs.picker_scroll_enabled,
     )
     widget.under_cursor()
     widget.show()
@@ -932,13 +945,15 @@ def select_anchor_and_create(hit_group=None):
             return
     if prefs.spatial_view_enabled:
         import spatial_view
-        if spatial_view.open_picker(spatial_view.MODE_CREATE_LINK, hit_group) is not None:
+        if spatial_view.open_picker(spatial_view.MODE_CREATE_LINK, hit_group,
+                                    scroll_enabled=prefs.picker_scroll_enabled) is not None:
             return
     global _anchor_picker_widget
     if _anchor_picker_widget is not None:
         try:
             _anchor_picker_widget.plugin._hit_group = hit_group
             _apply_space_mode_order(_anchor_picker_widget)
+            _apply_scroll_enabled(_anchor_picker_widget)
             _anchor_picker_widget.under_cursor()
             _anchor_picker_widget.show()
             _anchor_picker_widget.raise_()
@@ -951,6 +966,7 @@ def select_anchor_and_create(hit_group=None):
         plugin,
         winflags=Qt.FramelessWindowHint,
         space_mode_order=_current_space_mode_order(),
+        scroll_enabled=prefs.picker_scroll_enabled,
     )
     _anchor_picker_widget.under_cursor()
     _anchor_picker_widget.show()
@@ -1178,13 +1194,15 @@ def select_anchor_and_navigate():
             return
     if prefs.spatial_view_enabled:
         import spatial_view
-        if spatial_view.open_picker(spatial_view.MODE_NAVIGATE, hit_group) is not None:
+        if spatial_view.open_picker(spatial_view.MODE_NAVIGATE, hit_group,
+                                    scroll_enabled=prefs.picker_scroll_enabled) is not None:
             return
     global _anchor_navigate_widget
     if _anchor_navigate_widget is not None:
         try:
             _anchor_navigate_widget.plugin._hit_group = hit_group
             _apply_space_mode_order(_anchor_navigate_widget)
+            _apply_scroll_enabled(_anchor_navigate_widget)
             _anchor_navigate_widget.under_cursor()
             _anchor_navigate_widget.show()
             _anchor_navigate_widget.raise_()
@@ -1197,6 +1215,7 @@ def select_anchor_and_navigate():
         plugin,
         winflags=Qt.FramelessWindowHint,
         space_mode_order=_current_space_mode_order(),
+        scroll_enabled=prefs.picker_scroll_enabled,
     )
     _anchor_navigate_widget.under_cursor()
     _anchor_navigate_widget.show()

@@ -1237,7 +1237,7 @@ else:
     class SpatialPicker(_tabtabtab.TabTabTabWidget):
         """The anchor picker with a map of the script beside its search panel."""
 
-        def __init__(self, plugin, mode, parent=None, space_mode_order=None):
+        def __init__(self, plugin, mode, parent=None, space_mode_order=None, scroll_enabled=False):
             # Qt.Dialog keeps this a top-level window even with the host main
             # window as parent — see _create_tabtabtab_widget in
             # tabtabtab_anchors.py for why dropping it breaks click-outside.
@@ -1246,6 +1246,7 @@ else:
                 parent=parent,
                 winflags=Qt.Dialog | Qt.FramelessWindowHint,
                 space_mode_order=space_mode_order,
+                scroll_enabled=scroll_enabled,
             )
             self.setObjectName('SpatialPicker')
             palette = self.palette()
@@ -1596,13 +1597,15 @@ else:
 _pickers = {}
 
 
-def open_picker(mode, hit_group, plugin=None):
+def open_picker(mode, hit_group, plugin=None, scroll_enabled=False):
     """Show the spatial picker for *mode* in *hit_group*; return it, or None without Qt.
 
     *plugin* overrides what picking does (the leader's Set Input To… commands
     pass their own); by default it is the plugin of the matching plain picker.
     One picker is kept per mode and reused, like the plain pickers; its list and
-    map are rebuilt from the script on every show.
+    map are rebuilt from the script on every show. *scroll_enabled* mirrors the
+    reuse-path handling anchor.py does for the plain pickers, so a preference
+    change since the cached picker was built still takes effect on next open.
     """
     if SpatialPicker is None:
         return None
@@ -1618,11 +1621,13 @@ def open_picker(mode, hit_group, plugin=None):
     if picker is None:
         picker = SpatialPicker(plugin, mode,
                                parent=host_main_window(),
-                               space_mode_order=space_mode_order())
+                               space_mode_order=space_mode_order(),
+                               scroll_enabled=scroll_enabled)
         _pickers[mode] = picker
     else:
         picker.plugin = plugin
         picker.things_model._space_mode_order = space_mode_order()
+        picker.things_model.set_scroll_enabled(scroll_enabled)
     picker.show()
     picker.raise_()
     return picker

@@ -470,5 +470,67 @@ class TestCopyAnchorsAllAnchorCut(unittest.TestCase):
         self.assertNotIn(KNOB_NAME, anchor_b.knobs())
 
 
+# ---------------------------------------------------------------------------
+# copy_anchors() / cut_anchors() with nothing selected
+# ---------------------------------------------------------------------------
+
+class TestCopyAnchorsEmptySelection(unittest.TestCase):
+    """Ctrl-C/Ctrl-X with nothing selected must no-op rather than reach
+    nuke.nodeCopy(), which raises a spurious "Cannot copy across multiple
+    groups" error on an empty selection."""
+
+    def test_copy_anchors_enabled_does_not_call_nodecopy(self):
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts'), \
+             patch('anchors.prefs') as mock_prefs:
+
+            _patch_copy(mock_nuke, [], mock_prefs)
+
+            from anchors import copy_anchors
+            copy_anchors()
+
+        mock_nuke.nodeCopy.assert_not_called()
+
+    def test_copy_anchors_disabled_does_not_call_nodecopy(self):
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts'), \
+             patch('anchors.prefs') as mock_prefs:
+
+            _patch_copy(mock_nuke, [], mock_prefs)
+            mock_prefs.plugin_enabled = False
+
+            from anchors import copy_anchors
+            copy_anchors()
+
+        mock_nuke.nodeCopy.assert_not_called()
+
+    def test_cut_anchors_disabled_does_not_call_nodecopy_or_delete(self):
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts'), \
+             patch('anchors.prefs') as mock_prefs:
+
+            _patch_copy(mock_nuke, [], mock_prefs)
+            mock_prefs.plugin_enabled = False
+
+            from anchors import cut_anchors
+            cut_anchors()
+
+        mock_nuke.nodeCopy.assert_not_called()
+        mock_nuke.delete.assert_not_called()
+
+    def test_cut_anchors_enabled_does_not_call_nodecopy_or_delete(self):
+        with patch('anchors.nuke') as mock_nuke, \
+             patch('anchors.nukescripts'), \
+             patch('anchors.prefs') as mock_prefs:
+
+            _patch_copy(mock_nuke, [], mock_prefs)
+
+            from anchors import cut_anchors
+            cut_anchors()
+
+        mock_nuke.nodeCopy.assert_not_called()
+        mock_nuke.delete.assert_not_called()
+
+
 if __name__ == '__main__':
     unittest.main()
