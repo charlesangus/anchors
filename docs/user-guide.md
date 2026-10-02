@@ -260,7 +260,9 @@ Tick **Show the spatial view beside the A and Alt+A menus** in Preferences and
 both menus — and the leader's **Set Input** commands, which use the same
 anchor menu — open with a map of the script beside their search list
 `(Figure \ref{fig:spatial-view})`{=latex}. The search field and list work exactly
-as before; the map is an addition.
+as before; the map is an addition. Because the map is large, the menu does not
+open under the pointer: it always opens at the same size, filling most of the
+screen the pointer is on, centred on that screen.
 
 ![The spatial view beside the Alt+A menu.](img/spatial-view.png){#fig:spatial-view}
 
