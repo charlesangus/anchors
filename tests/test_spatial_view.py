@@ -678,7 +678,7 @@ class TestOpenPicker(unittest.TestCase):
 
 
 class TestPickerEntryPoints(unittest.TestCase):
-    """A / Alt+A open the spatial picker only when the preference is on."""
+    """A / Alt+A open the spatial picker only when their own preference is on."""
 
     def setUp(self):
         from tests.test_anchor_navigation import _ensure_qt_stubs_support_mock_attributes
@@ -692,9 +692,12 @@ class TestPickerEntryPoints(unittest.TestCase):
         nuke_stub.allNodes.side_effect = None
         nuke_stub.allNodes.return_value = [_backdrop_node('BackdropNode1')]
 
-    def _run(self, entry_point, spatial_enabled, scroll_enabled=False):
+    def _run(self, entry_point, spatial_enabled, scroll_enabled=False, navigate_enabled=None):
+        if navigate_enabled is None:
+            navigate_enabled = spatial_enabled
         with patch.object(self.anchor.prefs, 'plugin_enabled', True), \
-                patch.object(self.anchor.prefs, 'spatial_view_enabled', spatial_enabled), \
+                patch.object(self.anchor.prefs, 'spatial_view_create_enabled', spatial_enabled), \
+                patch.object(self.anchor.prefs, 'spatial_view_navigate_enabled', navigate_enabled), \
                 patch.object(self.anchor.prefs, 'picker_scroll_enabled', scroll_enabled), \
                 patch.object(self.anchor, 'all_anchors', return_value=[_anchor_node('Anchor_BG')]), \
                 patch.object(spatial_view, 'open_picker', return_value=MagicMock()) as open_picker, \
@@ -747,9 +750,35 @@ class TestPickerEntryPoints(unittest.TestCase):
             open_picker.assert_not_called()
             widget_class.assert_called_once()
 
+    def test_create_preference_only_affects_the_a_pickers(self):
+        cases = (
+            (self.anchor.select_anchor_and_navigate, False),
+            (lambda: self.anchor.select_anchor_and_create(MagicMock()), True),
+            (lambda: self.anchor.pick_anchor(MagicMock(), MagicMock()), True),
+        )
+        for entry_point, expects_spatial in cases:
+            self.anchor._anchor_picker_widget = None
+            self.anchor._anchor_navigate_widget = None
+            open_picker, widget_class = self._run(entry_point, True, navigate_enabled=False)
+            self.assertEqual(open_picker.called, expects_spatial)
+            self.assertEqual(widget_class.called, not expects_spatial)
+
+    def test_navigate_preference_only_affects_the_alt_a_picker(self):
+        cases = (
+            (self.anchor.select_anchor_and_navigate, True),
+            (lambda: self.anchor.select_anchor_and_create(MagicMock()), False),
+            (lambda: self.anchor.pick_anchor(MagicMock(), MagicMock()), False),
+        )
+        for entry_point, expects_spatial in cases:
+            self.anchor._anchor_picker_widget = None
+            self.anchor._anchor_navigate_widget = None
+            open_picker, widget_class = self._run(entry_point, False, navigate_enabled=True)
+            self.assertEqual(open_picker.called, expects_spatial)
+            self.assertEqual(widget_class.called, not expects_spatial)
+
 
 class TestPrefsDialogSpatialViewCheckbox(unittest.TestCase):
-    """The preference is exposed in the Preferences dialog."""
+    """Both preferences are exposed in the Preferences dialog."""
 
     def _method_source(self, method_name):
         source_text = (_REPO_ROOT / 'colors.py').read_text()
@@ -761,14 +790,17 @@ class TestPrefsDialogSpatialViewCheckbox(unittest.TestCase):
                         return '\n'.join(lines[item.lineno - 1:item.end_lineno])
         self.fail(method_name + " not found in PrefsDialog")
 
-    def test_dialog_seeds_shows_and_flushes_the_preference(self):
-        self.assertIn('self._local_spatial_view_enabled = prefs_module.spatial_view_enabled',
-                      self._method_source('__init__'))
-        self.assertIn('setChecked(self._local_spatial_view_enabled)',
-                      self._method_source('_build_ui'))
-        on_accept_source = self._method_source('_on_accept')
-        self.assertIn('self._spatial_view_checkbox.isChecked()', on_accept_source)
-        self.assertIn('prefs_module.spatial_view_enabled', on_accept_source)
+    def test_dialog_seeds_shows_and_flushes_both_preferences(self):
+        for picker in ('create', 'navigate'):
+            self.assertIn('self._local_spatial_view_{0}_enabled = '
+                          'prefs_module.spatial_view_{0}_enabled'.format(picker),
+                          self._method_source('__init__'))
+            self.assertIn('setChecked(self._local_spatial_view_{0}_enabled)'.format(picker),
+                          self._method_source('_build_ui'))
+            on_accept_source = self._method_source('_on_accept')
+            self.assertIn('self._spatial_view_{0}_checkbox.isChecked()'.format(picker),
+                          on_accept_source)
+            self.assertIn('prefs_module.spatial_view_{0}_enabled'.format(picker), on_accept_source)
 
 
 if __name__ == '__main__':
