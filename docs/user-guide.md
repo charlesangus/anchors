@@ -262,9 +262,9 @@ anchor menu — open with a map of the script beside their search list
 `(Figure \ref{fig:spatial-view})`{=latex}. The search field and list work exactly
 as before; the map is an addition.
 
-To get the other kind of menu just this once, add `Ctrl` to `A` or `Shift` to
-`Alt`+`A`: **`Ctrl`+`Shift`+`A`** and **`Alt`+`Shift`+`A`** open the same menus
-with the preference flipped — with the spatial view, if it is off, or as the plain
+To get the other kind of menu just this once, press **`Ctrl`+`Shift`+`A`**
+instead of `A`, or **`Alt`+`Shift`+`A`** instead of `Alt`+`A`. They open the same
+menus with the preference flipped — with the spatial view, if it is off, or as the plain
 list, if it is on.
 
 ![The spatial view beside the Alt+A menu.](img/spatial-view.png){#fig:spatial-view}
