@@ -817,8 +817,19 @@ class TabTabTabWidget(QtWidgets.QDialog):
         miss something (e.g. a deeply nested submenu install that a shallow
         fingerprint doesn't sample), this hook ensures the cache is forcibly
         invalidated and rewalked between every close and the next open.
+
+        It also forces the arrow cursor back on screen. under_cursor() puts
+        the pointer directly over self.input, so the QLineEdit's IBeam cursor
+        is showing when the popup closes; the popup is hidden rather than
+        destroyed, and with no mouse motion the platform can leave that IBeam
+        on screen over the host's node graph. An override cursor guarantees
+        an immediate update, and restoring it on the next event-loop tick
+        lets normal hover tracking resume once the window now under the
+        pointer has received its own enter event.
         """
         self.weights.save()
+        QtWidgets.QApplication.setOverrideCursor(Qt.ArrowCursor)
+        QtCore.QTimer.singleShot(0, QtWidgets.QApplication.restoreOverrideCursor)
         super(TabTabTabWidget, self).close()
         QtCore.QTimer.singleShot(0, self._refresh_after_close)
 
