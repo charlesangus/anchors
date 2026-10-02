@@ -262,6 +262,11 @@ anchor menu — open with a map of the script beside their search list
 `(Figure \ref{fig:spatial-view})`{=latex}. The search field and list work exactly
 as before; the map is an addition.
 
+To get the other kind of menu just this once, add `Ctrl` to `A` or `Shift` to
+`Alt`+`A`: **`Ctrl`+`Shift`+`A`** and **`Alt`+`Shift`+`A`** open the same menus
+with the preference flipped — with the spatial view, if it is off, or as the plain
+list, if it is on.
+
 ![The spatial view beside the Alt+A menu.](img/spatial-view.png){#fig:spatial-view}
 
 The map draws each item where it really sits in the DAG, with the empty space
@@ -552,7 +557,9 @@ if existing is None:
 |----------|--------|
 | `A` | Create anchor (selection) / Set up backdrop (one backdrop selected) / Anchor selection menu (no selection) |
 | `Shift`+`A` | Leader-key overlay |
+| `Ctrl`+`Shift`+`A` | As `A`, with the spatial view preference flipped |
 | `Alt`+`A` | Anchor Find / navigate |
+| `Alt`+`Shift`+`A` | As `Alt`+`A`, with the spatial view preference flipped |
 | `Alt`+`J` | Anchor Jump (Link -> anchor) |
 | `Alt`+`L` | Cycle Links |
 | `Alt`+`Z` | Anchor Back |
