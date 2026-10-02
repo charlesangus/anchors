@@ -914,8 +914,16 @@ def pick_anchor(on_pick, hit_group=None):
     widget.raise_()
 
 
-def anchor_shortcut():
-    """If a node is selected, create an anchor from it. Otherwise, pick an anchor to create from."""
+def _spatial_view_wanted(invert_spatial_view):
+    return prefs.spatial_view_enabled != invert_spatial_view
+
+
+def anchor_shortcut(invert_spatial_view=False):
+    """If a node is selected, create an anchor from it. Otherwise, pick an anchor to create from.
+
+    *invert_spatial_view* opens the picker with the opposite of the spatial view
+    preference, for the Ctrl+Shift+A variant of the A shortcut.
+    """
     if not prefs.plugin_enabled:
         return
     hit_group = nuke.lastHitGroup()
@@ -930,13 +938,13 @@ def anchor_shortcut():
     elif selected:
         create_anchor(hit_group)
     else:
-        select_anchor_and_create(hit_group)
+        select_anchor_and_create(hit_group, invert_spatial_view=invert_spatial_view)
 
 
 _anchor_picker_widget = None
 
 
-def select_anchor_and_create(hit_group=None):
+def select_anchor_and_create(hit_group=None, invert_spatial_view=False):
     if not prefs.plugin_enabled:
         return
     if QtWidgets is None:
@@ -946,7 +954,7 @@ def select_anchor_and_create(hit_group=None):
     with hit_group:
         if not all_anchors():
             return
-    if prefs.spatial_view_enabled:
+    if _spatial_view_wanted(invert_spatial_view):
         import spatial_view
         if spatial_view.open_picker(spatial_view.MODE_CREATE_LINK, hit_group,
                                     scroll_enabled=prefs.picker_scroll_enabled) is not None:
@@ -1182,7 +1190,7 @@ _anchor_navigate_widget = None
 _back_position = None  # (zoom_level, center_xy) tuple or None — session-only back-navigation slot
 
 
-def select_anchor_and_navigate():
+def select_anchor_and_navigate(invert_spatial_view=False):
     if not prefs.plugin_enabled:
         return
     if QtWidgets is None:
@@ -1195,7 +1203,7 @@ def select_anchor_and_navigate():
         ]
         if not all_anchors() and not labelled_backdrops:
             return
-    if prefs.spatial_view_enabled:
+    if _spatial_view_wanted(invert_spatial_view):
         import spatial_view
         if spatial_view.open_picker(spatial_view.MODE_NAVIGATE, hit_group,
                                     scroll_enabled=prefs.picker_scroll_enabled) is not None:
