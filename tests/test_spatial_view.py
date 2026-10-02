@@ -747,6 +747,38 @@ class TestPickerEntryPoints(unittest.TestCase):
             open_picker.assert_not_called()
             widget_class.assert_called_once()
 
+    def _invert_entry_points(self):
+        return (
+            (lambda: self.anchor.select_anchor_and_navigate(invert_spatial_view=True),
+             spatial_view.MODE_NAVIGATE),
+            (lambda: self.anchor.select_anchor_and_create(MagicMock(), invert_spatial_view=True),
+             spatial_view.MODE_CREATE_LINK),
+        )
+
+    def test_invert_opens_the_spatial_picker_when_disabled(self):
+        for entry_point, mode in self._invert_entry_points():
+            self.anchor._anchor_picker_widget = None
+            self.anchor._anchor_navigate_widget = None
+            open_picker, widget_class = self._run(entry_point, False)
+            self.assertEqual(open_picker.call_args.args[0], mode)
+            widget_class.assert_not_called()
+
+    def test_invert_opens_the_plain_picker_when_enabled(self):
+        for entry_point, _ in self._invert_entry_points():
+            self.anchor._anchor_picker_widget = None
+            self.anchor._anchor_navigate_widget = None
+            open_picker, widget_class = self._run(entry_point, True)
+            open_picker.assert_not_called()
+            widget_class.assert_called_once()
+
+    def test_anchor_shortcut_forwards_invert_to_the_link_picker(self):
+        nuke_stub = sys.modules['nuke']
+        with patch.object(self.anchor.prefs, 'plugin_enabled', True), \
+                patch.object(nuke_stub, 'selectedNodes', return_value=[], create=True), \
+                patch.object(self.anchor, 'select_anchor_and_create') as select_and_create:
+            self.anchor.anchor_shortcut(invert_spatial_view=True)
+        self.assertTrue(select_and_create.call_args.kwargs['invert_spatial_view'])
+
 
 class TestPrefsDialogSpatialViewCheckbox(unittest.TestCase):
     """The preference is exposed in the Preferences dialog."""
