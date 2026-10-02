@@ -856,8 +856,8 @@ def pick_anchor(on_pick, hit_group=None):
 
     Reuses the same picker geometry, weights file, and item list as the
     link-creation picker so muscle-memory ordering carries over across the
-    leader-key Set-Input-To commands — including the spatial view, when that
-    preference is on.
+    leader-key Set-Input-To commands — including the spatial view, when the
+    A picker's spatial-view preference is on.
 
     The callback is invoked synchronously from inside the picker's invoke()
     context — callers that need DAG focus (e.g. for nuke.zoom()) must defer
@@ -897,7 +897,7 @@ def pick_anchor(on_pick, hit_group=None):
         weights_filename=os.path.expanduser('~/.nuke/anchors_anchor_weights.json'),
     )
     plugin._hit_group = hit_group
-    if prefs.spatial_view_enabled:
+    if prefs.spatial_view_create_enabled:
         import spatial_view
         if spatial_view.open_picker(
                 spatial_view.MODE_CREATE_LINK, hit_group, plugin=plugin,
@@ -946,7 +946,7 @@ def select_anchor_and_create(hit_group=None):
     with hit_group:
         if not all_anchors():
             return
-    if prefs.spatial_view_enabled:
+    if prefs.spatial_view_create_enabled:
         import spatial_view
         if spatial_view.open_picker(spatial_view.MODE_CREATE_LINK, hit_group,
                                     scroll_enabled=prefs.picker_scroll_enabled) is not None:
@@ -1195,7 +1195,7 @@ def select_anchor_and_navigate():
         ]
         if not all_anchors() and not labelled_backdrops:
             return
-    if prefs.spatial_view_enabled:
+    if prefs.spatial_view_navigate_enabled:
         import spatial_view
         if spatial_view.open_picker(spatial_view.MODE_NAVIGATE, hit_group,
                                     scroll_enabled=prefs.picker_scroll_enabled) is not None:

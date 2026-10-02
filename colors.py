@@ -926,7 +926,8 @@ else:
             self._local_use_tabtabtab_prefs = prefs_module.use_tabtabtab_prefs
             self._local_picker_scroll_enabled = prefs_module.picker_scroll_enabled
             self._local_close_palette_on_select = prefs_module.close_palette_on_select
-            self._local_spatial_view_enabled = prefs_module.spatial_view_enabled
+            self._local_spatial_view_create_enabled = prefs_module.spatial_view_create_enabled
+            self._local_spatial_view_navigate_enabled = prefs_module.spatial_view_navigate_enabled
             self._pre_reset_naming_snapshot = None  # (regex_text, template_text) tuple or None
             import os as os_module
             self._publish_path = (
@@ -953,12 +954,17 @@ else:
             self._auto_create_link_checkbox.setChecked(self._local_auto_create_link)
             outer_layout.addWidget(self._auto_create_link_checkbox)
 
-            # Checkbox: the A / Alt+A pickers show a map of the script beside the list
-            self._spatial_view_checkbox = QtWidgets.QCheckBox(
-                "Show the spatial view beside the A and Alt+A menus"
+            # Checkboxes: the A / Alt+A pickers show a map of the script beside the list
+            self._spatial_view_create_checkbox = QtWidgets.QCheckBox(
+                "Show the spatial view beside the A menu"
             )
-            self._spatial_view_checkbox.setChecked(self._local_spatial_view_enabled)
-            outer_layout.addWidget(self._spatial_view_checkbox)
+            self._spatial_view_create_checkbox.setChecked(self._local_spatial_view_create_enabled)
+            outer_layout.addWidget(self._spatial_view_create_checkbox)
+            self._spatial_view_navigate_checkbox = QtWidgets.QCheckBox(
+                "Show the spatial view beside the Alt+A menu"
+            )
+            self._spatial_view_navigate_checkbox.setChecked(self._local_spatial_view_navigate_enabled)
+            outer_layout.addWidget(self._spatial_view_navigate_checkbox)
 
             # Keyboard layout dropdown
             keyboard_layout_row = QtWidgets.QHBoxLayout()
@@ -1467,8 +1473,11 @@ else:
             if not self._swatch_buttons:
                 return
             # Chain from the last focusable checkbox down to the first swatch button
-            QtWidgets.QWidget.setTabOrder(self._auto_create_link_checkbox, self._spatial_view_checkbox)
-            QtWidgets.QWidget.setTabOrder(self._spatial_view_checkbox, self._swatch_buttons[0])
+            QtWidgets.QWidget.setTabOrder(self._auto_create_link_checkbox,
+                                          self._spatial_view_create_checkbox)
+            QtWidgets.QWidget.setTabOrder(self._spatial_view_create_checkbox,
+                                          self._spatial_view_navigate_checkbox)
+            QtWidgets.QWidget.setTabOrder(self._spatial_view_navigate_checkbox, self._swatch_buttons[0])
             # Chain each swatch button to the next one
             for swatch_index in range(len(self._swatch_buttons) - 1):
                 QtWidgets.QWidget.setTabOrder(
@@ -1629,8 +1638,10 @@ else:
             self._local_auto_create_link = self._auto_create_link_checkbox.isChecked()
             prefs_module.auto_create_link = self._local_auto_create_link
             # The pickers read this on every open, so it applies without a restart.
-            self._local_spatial_view_enabled = self._spatial_view_checkbox.isChecked()
-            prefs_module.spatial_view_enabled = self._local_spatial_view_enabled
+            self._local_spatial_view_create_enabled = self._spatial_view_create_checkbox.isChecked()
+            prefs_module.spatial_view_create_enabled = self._local_spatial_view_create_enabled
+            self._local_spatial_view_navigate_enabled = self._spatial_view_navigate_checkbox.isChecked()
+            prefs_module.spatial_view_navigate_enabled = self._local_spatial_view_navigate_enabled
             # Read naming fields and custom colors
             self._local_naming_regex = self._naming_regex_edit.text()
             self._local_naming_template = self._naming_template_edit.text()
