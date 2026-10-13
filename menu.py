@@ -71,6 +71,13 @@ _add_gated_command(anchors_menu, "Leader Key",          "import leader; leader.a
                    shortcut_context=DAG_SHORTCUT_CONTEXT)
 _add_gated_command(anchors_menu, "Reconnect All Links", "anchor.reconnect_all_links()")
 _add_gated_command(anchors_menu, "Anchor Find", "anchor.select_anchor_and_navigate()", "alt+A")
+# The invert variants open the A / Alt+A pickers with the spatial view
+# preference flipped. Shift+A is the leader key, so the A variant takes Ctrl;
+# neither chord is bound in the Node Graph by Nuke itself.
+_add_gated_command(anchors_menu, "Anchor (Invert Spatial View)",
+                   "anchor.anchor_shortcut(invert_spatial_view=True)", "^+A")
+_add_gated_command(anchors_menu, "Anchor Find (Invert Spatial View)",
+                   "anchor.select_anchor_and_navigate(invert_spatial_view=True)", "alt+shift+A")
 _add_gated_command(anchors_menu, "Anchor Jump", "anchor.jump_to_selected_anchor()", "alt+J")
 _add_gated_command(anchors_menu, "Cycle Links", "anchor.cycle_next_link()", "alt+L")
 _add_gated_command(anchors_menu, "Anchor Back", "anchor.navigate_back()", "alt+Z")

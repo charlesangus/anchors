@@ -267,6 +267,11 @@ the map is large, the menu does not open under the pointer: it always opens at
 the same size, filling most of the screen the pointer is on, centred on that
 screen.
 
+To get the other kind of menu just this once, press **`Ctrl`+`Shift`+`A`**
+instead of `A`, or **`Alt`+`Shift`+`A`** instead of `Alt`+`A`. They open the same
+menus with that menu's preference flipped — with the spatial view, if it is off, or as the plain
+list, if it is on.
+
 ![The spatial view beside the Alt+A menu.](img/spatial-view.png){#fig:spatial-view}
 
 The map draws each item where it really sits in the DAG, with the empty space
@@ -558,7 +563,9 @@ if existing is None:
 |----------|--------|
 | `A` | Create anchor (selection) / Set up backdrop (one backdrop selected) / Anchor selection menu (no selection) |
 | `Shift`+`A` | Leader-key overlay |
+| `Ctrl`+`Shift`+`A` | As `A`, with the spatial view preference flipped |
 | `Alt`+`A` | Anchor Find / navigate |
+| `Alt`+`Shift`+`A` | As `Alt`+`A`, with the spatial view preference flipped |
 | `Alt`+`J` | Anchor Jump (Link -> anchor) |
 | `Alt`+`L` | Cycle Links |
 | `Alt`+`Z` | Anchor Back |
