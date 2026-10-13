@@ -14,8 +14,11 @@ Module-level variables (read these directly after import):
     picker_scroll_enabled   bool  — True if the fuzzy-find pickers keep (and let
                                     you scroll to) matches past the visible rows
     close_palette_on_select bool  — True if picking a color closes the palette
-    spatial_view_enabled    bool  — True if the A / Alt+A pickers show the spatial
-                                    view (a map of the script) beside their list
+    spatial_view_create_enabled   bool — True if the A picker (and the leader's
+                                    Set Input pickers, which share it) shows the
+                                    spatial view (a map of the script) beside its list
+    spatial_view_navigate_enabled bool — True if the Alt+A picker shows the
+                                    spatial view beside its list
 """
 
 import json
@@ -52,7 +55,8 @@ use_tabtabtab_prefs = False     # follow a tabtabtab-nuke install's space_mode_o
 picker_scroll_enabled = True
 close_palette_on_select = True  # True: picking a color accepts and closes the color palette;
                                 # False: it only highlights, and the user confirms with Enter/OK
-spatial_view_enabled = False    # True: the A / Alt+A pickers show a map of the script beside the list
+spatial_view_create_enabled = False    # True: the A picker shows a map of the script beside the list
+spatial_view_navigate_enabled = False  # True: the Alt+A picker shows a map of the script beside the list
 
 _VALID_KEYBOARD_LAYOUTS = ("qwerty", "azerty", "qwertz")
 _VALID_SPACE_MODES = frozenset(DEFAULT_SPACE_MODE_ORDER)
@@ -99,7 +103,8 @@ def _load():
            naming_regex, naming_template, naming_demo_filename, \
            site_config_override, last_publish_path, \
            keyboard_layout, use_tabtabtab_prefs, picker_scroll_enabled, \
-           close_palette_on_select, spatial_view_enabled, \
+           close_palette_on_select, spatial_view_create_enabled, \
+           spatial_view_navigate_enabled, \
            _user_naming_regex, _user_naming_template, \
            _user_naming_demo_filename, _user_space_mode_order
     if not os.path.exists(PREFS_PATH):
@@ -142,8 +147,15 @@ def _load():
             picker_scroll_enabled = data['picker_scroll_enabled']
         if isinstance(data.get('close_palette_on_select'), bool):
             close_palette_on_select = data['close_palette_on_select']
+        # Prefs files written before the two pickers were split hold one
+        # spatial_view_enabled flag that applied to both.
         if isinstance(data.get('spatial_view_enabled'), bool):
-            spatial_view_enabled = data['spatial_view_enabled']
+            spatial_view_create_enabled = data['spatial_view_enabled']
+            spatial_view_navigate_enabled = data['spatial_view_enabled']
+        if isinstance(data.get('spatial_view_create_enabled'), bool):
+            spatial_view_create_enabled = data['spatial_view_create_enabled']
+        if isinstance(data.get('spatial_view_navigate_enabled'), bool):
+            spatial_view_navigate_enabled = data['spatial_view_navigate_enabled']
     except (OSError, ValueError, json.JSONDecodeError):
         pass  # silent fallback — module-level defaults remain
     # Copy user values into shadow vars before site config is applied
@@ -325,7 +337,8 @@ def save():
                 'use_tabtabtab_prefs': use_tabtabtab_prefs,
                 'picker_scroll_enabled': picker_scroll_enabled,
                 'close_palette_on_select': close_palette_on_select,
-                'spatial_view_enabled': spatial_view_enabled,
+                'spatial_view_create_enabled': spatial_view_create_enabled,
+                'spatial_view_navigate_enabled': spatial_view_navigate_enabled,
             },
             file_handle,
         )

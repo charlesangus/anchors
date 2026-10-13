@@ -256,15 +256,20 @@ module. The setting lives on the anchor, so it applies however you jump to it.
 ## The spatial view
 
 Sometimes you know *where* an anchor is without remembering what it is called.
-Tick **Show the spatial view beside the A and Alt+A menus** in Preferences and
-both menus — and the leader's **Set Input** commands, which use the same
-anchor menu — open with a map of the script beside their search list
-`(Figure \ref{fig:spatial-view})`{=latex}. The search field and list work exactly
-as before; the map is an addition.
+Tick **Show the spatial view beside the A menu** and/or **Show the spatial view
+beside the Alt+A menu** in Preferences and those menus open with a map of the
+script beside their search list `(Figure \ref{fig:spatial-view})`{=latex}. The
+leader's **Set Input** commands use the `A` menu, so they follow the `A`
+setting. The two are independent: you might want the map for navigating with
+`Alt+A` but keep `A` compact for quick linking, or the other way round. The
+search field and list work exactly as before; the map is an addition. Because
+the map is large, the menu does not open under the pointer: it always opens at
+the same size, filling most of the screen the pointer is on, centred on that
+screen.
 
 To get the other kind of menu just this once, press **`Ctrl`+`Shift`+`A`**
 instead of `A`, or **`Alt`+`Shift`+`A`** instead of `Alt`+`A`. They open the same
-menus with the preference flipped — with the spatial view, if it is off, or as the plain
+menus with that menu's preference flipped — with the spatial view, if it is off, or as the plain
 list, if it is on.
 
 ![The spatial view beside the Alt+A menu.](img/spatial-view.png){#fig:spatial-view}
@@ -470,8 +475,9 @@ first.
 - **Enable anchors plugin** — the master toggle.
 - **Create a link below each new anchor** — on by default; uncheck it if you
   prefer creating links yourself.
-- **Show the spatial view beside the A and Alt+A menus** — off by default; tick it
-  to add a map of the script to the anchor menus (see [The spatial view](#the-spatial-view)).
+- **Show the spatial view beside the A menu** / **Show the spatial view beside
+  the Alt+A menu** — both off by default; tick either or both to add a map of the
+  script to that anchor menu (see [The spatial view](#the-spatial-view)).
 - **Keyboard layout** — QWERTY / AZERTY / QWERTZ for the leader overlay.
 - **Space-prefix search modes** — what leading spaces do in the fuzzy-find menus
   (see below).

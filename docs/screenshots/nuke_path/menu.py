@@ -16,7 +16,7 @@ It does three things, all purely to support deterministic playback capture:
    loop, so the screenshotter could never reach the screenshot step; showing the
    same dialog non-modally lets playback capture it by class name.
 
-3. Pins the spatial-view preference off so the plain ``A`` / ``Alt+A`` picker
+3. Pins the spatial-view preferences off so the plain ``A`` / ``Alt+A`` picker
    screenshots never depend on the capturing user's own preferences, and
    registers a command that opens ``Alt+A`` with the spatial view switched on.
 
@@ -48,7 +48,8 @@ def _load_example_script():
     import prefs
 
     prefs.plugin_enabled = True
-    prefs.spatial_view_enabled = False
+    prefs.spatial_view_create_enabled = False
+    prefs.spatial_view_navigate_enabled = False
 
     example_script = os.path.join(
         _REPOSITORY_ROOT, "docs", "examples-workflows.nk"
@@ -125,15 +126,15 @@ def _show_backdrop_dialog():
 
 
 def _show_spatial_picker():
-    """Open the Alt+A picker with the spatial view, leaving the preference off."""
+    """Open the Alt+A picker with the spatial view, leaving its preference off."""
     import anchor
     import prefs
 
-    prefs.spatial_view_enabled = True
+    prefs.spatial_view_navigate_enabled = True
     try:
         anchor.select_anchor_and_navigate()
     finally:
-        prefs.spatial_view_enabled = False
+        prefs.spatial_view_navigate_enabled = False
 
 
 def _register_doc_commands():
