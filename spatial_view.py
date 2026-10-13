@@ -46,11 +46,11 @@ from constants import (
     SPATIAL_EMPTY_BACKDROP_SCALE,
     SPATIAL_ITEM_GAP,
     SPATIAL_MAX_GAP,
-    SPATIAL_MAX_SCREEN_FRACTION,
     SPATIAL_MAX_USER_ZOOM,
     SPATIAL_MIN_FIT_ZOOM,
     SPATIAL_MIN_USER_ZOOM,
     SPATIAL_SCALE,
+    SPATIAL_SCREEN_FRACTION,
     SPATIAL_SEARCH_PANEL_WIDTH,
     SPATIAL_TILE_HEIGHT,
     SPATIAL_TILE_WIDTH,
@@ -525,6 +525,20 @@ def fit_zoom(bounds_width, bounds_height, view_width, view_height,
 def clamp_user_zoom(zoom, min_zoom=SPATIAL_MIN_USER_ZOOM, max_zoom=SPATIAL_MAX_USER_ZOOM):
     """Return *zoom* limited to the range the user can zoom the map over."""
     return max(min_zoom, min(max_zoom, zoom))
+
+
+def popup_geometry(screen_x, screen_y, screen_width, screen_height,
+                   fraction=SPATIAL_SCREEN_FRACTION):
+    """Return the (x, y, width, height) the popup takes on the given screen area.
+
+    The popup fills *fraction* of the area's width and height and sits in its
+    centre, so it opens the same size and in the same place every time.
+    """
+    width = int(screen_width * fraction)
+    height = int(screen_height * fraction)
+    return (screen_x + (screen_width - width) // 2,
+            screen_y + (screen_height - height) // 2,
+            width, height)
 
 
 def interpolate_view(start, end, progress):
@@ -1542,7 +1556,6 @@ else:
             self.map_canvas.set_entries(
                 collect_entries(items, self.mode, self.plugin._hit_group))
             self._fit_to_screen()
-            self.under_cursor()
             super(SpatialPicker, self).show()
             self._user_zoomed = False
             self._sync_map(animate=False)
@@ -1552,41 +1565,25 @@ else:
             self.move_selection(where="first")
 
         def _fit_to_screen(self):
+            """Size the popup to a fixed share of the screen and centre it there."""
             available = _available_screen_rect()
             self.map_canvas.set_zoom(1.0)
-            canvas_size = self.map_canvas.size()
             if available is None:
-                self._map_scroll.setFixedSize(canvas_size)
+                self._map_scroll.setFixedSize(self.map_canvas.size())
                 self.adjustSize()
                 return
+            x_position, y_position, width, height = popup_geometry(
+                available.x(), available.y(), available.width(), available.height())
             margins = self.layout().contentsMargins()
             chrome_width = (SPATIAL_SEARCH_PANEL_WIDTH + self.layout().spacing()
                             + margins.left() + margins.right())
             chrome_height = margins.top() + margins.bottom()
-            max_width = int(available.width() * SPATIAL_MAX_SCREEN_FRACTION) - chrome_width
-            max_height = int(available.height() * SPATIAL_MAX_SCREEN_FRACTION) - chrome_height
             # The minimap and middle-button dragging stand in for scrollbars.
             self._map_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
             self._map_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-            self._map_scroll.setFixedSize(min(canvas_size.width(), max_width),
-                                          min(canvas_size.height(), max_height))
+            self._map_scroll.setFixedSize(max(1, width - chrome_width),
+                                          max(1, height - chrome_height))
             self.adjustSize()
-
-        def under_cursor(self):
-            """Put the search field under the cursor, as the plain picker does."""
-            available = _available_screen_rect()
-            if available is None:
-                return
-            self.layout().activate()
-            input_centre = self.input.mapTo(
-                self, QtCore.QPoint(self.input.width() // 2, self.input.height() // 2))
-            cursor_position = QtGui.QCursor.pos()
-            x_position = cursor_position.x() - input_centre.x()
-            y_position = cursor_position.y() - input_centre.y()
-            x_position = max(available.left(),
-                             min(x_position, available.right() - self.width()))
-            y_position = max(available.top(),
-                             min(y_position, available.bottom() - self.height()))
             self.move(x_position, y_position)
 
 

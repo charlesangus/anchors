@@ -7,6 +7,7 @@ anything). What is tested is everything they are a thin shell over:
     empty space squeezed out, nothing colliding, backdrops framing exactly what
     they enclose, and empty backdrops drawn as boxes of their own.
   - fit_zoom / clamp_user_zoom — how far fitting and the user may zoom.
+  - popup_geometry — the popup's fixed size and centred place on the screen.
   - interpolate_view / visible_span — how the view glides, and what it shows.
   - collect_entries / layout_items_for — what the map shows in each mode.
   - open_picker, and the A / Alt+A entry points that call it only when the
@@ -34,6 +35,7 @@ from constants import (
     SPATIAL_MAX_USER_ZOOM,
     SPATIAL_MIN_FIT_ZOOM,
     SPATIAL_MIN_USER_ZOOM,
+    SPATIAL_SCREEN_FRACTION,
     SPATIAL_TILE_HEIGHT,
     SPATIAL_TILE_WIDTH,
 )
@@ -388,6 +390,23 @@ class TestZoomLimits(unittest.TestCase):
 
     def test_the_user_can_zoom_out_further_than_fitting_does(self):
         self.assertLess(SPATIAL_MIN_USER_ZOOM, SPATIAL_MIN_FIT_ZOOM)
+
+
+class TestPopupGeometry(unittest.TestCase):
+    """The popup opens the same size and in the same place, centred on the screen."""
+
+    def test_the_popup_fills_the_screen_fraction(self):
+        _x, _y, width, height = spatial_view.popup_geometry(0, 0, 2000, 1000)
+        self.assertEqual(width, int(2000 * SPATIAL_SCREEN_FRACTION))
+        self.assertEqual(height, int(1000 * SPATIAL_SCREEN_FRACTION))
+
+    def test_the_popup_is_centred_on_the_screen(self):
+        x, y, width, height = spatial_view.popup_geometry(0, 0, 2000, 1000, fraction=0.5)
+        self.assertEqual((x, y, width, height), (500, 250, 1000, 500))
+
+    def test_the_screen_offset_is_kept(self):
+        x, y, width, height = spatial_view.popup_geometry(1920, 40, 2000, 1000, fraction=0.5)
+        self.assertEqual((x, y, width, height), (2420, 290, 1000, 500))
 
 
 class TestViewAnimation(unittest.TestCase):
