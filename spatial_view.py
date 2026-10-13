@@ -1,7 +1,7 @@
 """Spatial view — a map of the script beside the ``A`` / ``Alt``+``A`` pickers.
 
-With **Show the spatial view beside the A and Alt+A menus** ticked in
-Preferences, the two anchor pickers open as a wider popup: the usual search
+With **Show the spatial view beside the A menu** and/or **... beside the Alt+A
+menu** ticked in Preferences, those anchor pickers open as a wider popup: the usual search
 field and list on the left, and on the right a map of the current group — anchors as coloured tiles, Dot anchors as small
 circles with their label beside them, and labelled backdrops as frames around
 what they really enclose.  Recognising a place is faster than recalling a name.
